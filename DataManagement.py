@@ -32,4 +32,11 @@ class DataManagement(ABC):
         """Abstract function that show the data stored in the class in the command window.
         """
         pass
-    
+
+    @abstractmethod
+    def ReIter(self):
+        """Abstract function that computes the value of the parameters that are computed with respect of the arguments.
+        Use after chnaging the value of argument inside the class (to update the values accordingly). 
+        This function can be very useful in combination with the function "copy()" from the module "copy".
+        """
+        pass
