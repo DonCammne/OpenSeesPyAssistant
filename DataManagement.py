@@ -1,3 +1,6 @@
+# Module for the parent class that manage data
+#         Carmine Schipani, 2021
+
 from abc import ABC, abstractmethod
 import numpy as np
 
@@ -33,10 +36,10 @@ class DataManagement(ABC):
         """
         pass
 
-    @abstractmethod
-    def ReIter(self):
-        """Abstract function that computes the value of the parameters that are computed with respect of the arguments.
-        Use after chnaging the value of argument inside the class (to update the values accordingly). 
-        This function can be very useful in combination with the function "copy()" from the module "copy".
-        """
-        pass
+    # @abstractmethod
+    # def ReIter(self):
+    #     """Abstract function that computes the value of the parameters that are computed with respect of the arguments.
+    #     Use after changing the value of argument inside the class (to update the values accordingly). 
+    #     This function can be very useful in combination with the function "copy()" from the module "copy".
+    #     """
+    #     pass
