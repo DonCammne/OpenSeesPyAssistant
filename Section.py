@@ -2,6 +2,7 @@
 #          Carmine Schipani, 2021
 
 from OpenSeesPyHelper.DataManagement import DataManagement
+from OpenSeesPyHelper.ErrorHandling import *
 import numpy as np
 import math
 
@@ -20,7 +21,11 @@ class SteelIShape(Section):
     Args:
         Section: Parent abstract class
     """
-    def __init__(self, Type, d, bf, tf, tw, L, r, E, Fy, Fy_wed = 0, NameTAG = ""):
+
+    global n
+    n = 10.0
+
+    def __init__(self, Type, d, bf, tf, tw, L, r, E, Fy, Fy_wed = -1, name_tag = "Not Defined"):
         """The conctructor of the class
 
         Args:
@@ -33,22 +38,98 @@ class SteelIShape(Section):
             r (double): The radius of the weld fillets
             E (double): The Young modulus
             Fy (double): The yield strength
-            Fy_wed (double, optional): The yield strength of the web. Defaults to 0 (e.g. computed in __init__()).
-            NameTAG (str, optional): A nametag for the section. Defaults to "".
+            Fy_wed (double, optional): The yield strength of the web. Defaults to -1 (e.g. computed in __init__()).
+            name_tag (str, optional): A nametag for the section. Defaults to "Not Defined".
         """
-        pass
+        # Check
+        if Type != "Beam" and Type != "Col": raise WrongArgument()
+        if d < 0: raise NegativeValue()
+        if bf < 0: raise NegativeValue()
+        if tf < 0: raise NegativeValue()
+        if tw < 0: raise NegativeValue()
+        if L < 0: raise NegativeValue()
+        if r < 0: raise NegativeValue()
+        if E < 0: raise NegativeValue()
+        if Fy < 0: raise NegativeValue()
 
-    def ReIter(self):
+        # Arguments
+        self.Type = Type
+        self.d = d
+        self.bf = bf
+        self.tf = tf
+        self.tw = tw
+        self.L = L
+        self.r = r
+        self.E = E
+        self.Fy = Fy
+        self.Fy_web = Fy_wed
+        if self.Fy_web == -1: self.Fy_web = Fy
+        self.name_tag = name_tag
+
+        # Initialized the parameters that are dependent from others
+        self.ReInit()
+
+    def ReInit(self):
         """Function that computes the value of the parameters that are computed with respect of the arguments.
         Use after changing the value of argument inside the class (to update the values accordingly). 
         This function can be very useful in combination with the function "copy()" from the module "copy".
         """
-        pass
+        self.h_1 = self.d - 2.0*self.r -2.0*self.tf
+        self.A = self.ComputeA()
+        self.Npl = self.A*self.Fy
+        self.Iy = self.ComputeIy()
+        self.Iz = self.ComputeIz()
+        self.Wply = self.ComputeWply()
+        # self.Wplz = self.ComputeWplz()
+        self.My = self.Fy*self.Wply
+        self.Iy_mod = self.Iy*(n + 1.0)/n
+        self.iz = self.Compute_iz()
+        self.iy = self.Compute_iy()
+
+        # Data storage for loading/saving
+        self.data = ["SteelIShape", # Tag for differentiating different datas
+            self.name_tag, 
+            self.Type, 
+            self.d, 
+            self.bf, 
+            self.tf, 
+            self.tw, 
+            self.L, 
+            self.r, 
+            self.h_1, 
+            self.E, 
+            self.Fy, 
+            self.Fy_web, 
+            self.A, 
+            self.Iy, 
+            self.Iz, 
+            self.Wply, # self.Wplz, 
+            self.Iy_mod, 
+            self.iy,
+            self.iz,
+            self.Npl, 
+            self.My] 
 
     def ShowInfo(self):
         """Function that show the data stored in the class in the command window.
         """
-        pass
+        print("")
+        print("Requested info for section of type = {} and name tag = {}".format(self.Type, self.name_tag))
+        print("d = {} mm".format(self.d*1000))
+        print("Fy = {} MPa".format(self.Fy/1e6))
+        print("Fy web = {} MPa".format(self.Fy_web/1e6))
+        print("E = {} MPa".format(self.E/1e6))
+        print("h_1 = {} mm".format(self.h_1*1000))
+        print("A = {} mm2".format(self.A*1e6))
+        print("Iy = {}e6 mm4".format(self.Iy*1e6))
+        print("Iz = {}e6 mm4".format(self.Iz*1e6))
+        print("Wply = {}e6 mm3".format(self.Wply*1000))
+        # print("Wplz = {}e6 mm3".format(self.Wplz*1000))
+        print("Iy_mod = {}e6 mm4".format(self.Iy_mod*1e6))
+        print("iy = {} mm".format(self.iy*1000))
+        print("iz = {} mm".format(self.iz*1000))
+        print("My = {} kNm".format(self.My/1000))
+        print("Npl = {} kN".format(self.Npl/1000))
 
 
 
@@ -154,7 +235,8 @@ class RCRectShape(Section):
         Section: Parent abstract class
     """
 
-    def __init__(self, b, d, L, e, fc, D_bars, bars_position_x: np.ndarray, bars_ranges_position_y: np.ndarray, fy, Ey, D_hoops, s, fs, Es, NameTAG = "", rho_s_x = 0, rho_s_y = 0, Ec = 0):
+    def __init__(self, b, d, L, e, fc, D_bars, bars_position_x: np.ndarray, bars_ranges_position_y: np.ndarray, fy, Ey, 
+        D_hoops, s, fs, Es, name_tag = "Not Defined", rho_s_x = -1, rho_s_y = -1, Ec = -1):
         """The conctructor of the class.
 
         Args:
@@ -174,10 +256,10 @@ class RCRectShape(Section):
             s (double): Centerline distance for the hoops
             fs (double): Yield stress for the hoops
             Es (double): Young modulus for the hoops
-            NameTAG (str, optional): A nametag for the section. Defaults to "".
-            rho_s_x (double, optional): Volumetric or not?????????????. Defaults to 0 (e.g. computed in __init__() assuming one range of hoops).
-            rho_s_y (double, optional): Volumetric or not?????????????. Defaults to 0 (e.g. computed in __init__() assuming one range of hoops).
-            Ec (double, optional): Young modulus for concrete. Defaults to 0 (e.g. computed in __init__()).
+            name_tag (str, optional): A nametag for the section. Defaults to "Not Defined".
+            rho_s_x (double, optional): Volumetric or not?????????????. Defaults to -1 (e.g. computed in __init__() assuming one range of hoops).
+            rho_s_y (double, optional): Volumetric or not?????????????. Defaults to -1 (e.g. computed in __init__() assuming one range of hoops).
+            Ec (double, optional): Young modulus for concrete. Defaults to -1 (e.g. computed in __init__()).
         """
         # Check: number row of pos_x == length position_ranges
         # Check: sum (row i of pos_x)-bf < tol (1-2 mm)
@@ -194,7 +276,7 @@ class RCRectShape(Section):
         #TODO: ask someone good with concrete (Katrin Beyer, Diego,... ) if rho_s is volumtric or not (and how to compute it)
         pass
 
-    def ReIter(self):
+    def ReInit(self):
         """Function that computes the value of the parameters that are computed with respect of the arguments.
         Use after changing the value of argument inside the class (to update the values accordingly). 
         This function can be very useful in combination with the function "copy()" from the module "copy".
