@@ -252,9 +252,9 @@ class RCRectShape(Section):
             e (double): Concrete cover
             fc (double): Unconfined concrete compressive strength (cylinder test)
             D_bars (double): Diameter of the reinforcing bars
-            bars_position_x (np.ndarray): Distances from bar to bar centerlines or border to bar centerline in the x direction (aligned).
+            bars_position_x (np.ndarray): Distances from border to bar centerline, bar to bar centerlines and finally bar centerline to border in the x direction (aligned).
                 Starting from the left to right, from the top range to the bottom one. The number of bars for each range can vary; in this case, add this argument when defining the array " dtype = object"
-            bars_ranges_position_y (np.ndarray): Distances from range to range centerlines or border to range centerline in the y direction.
+            bars_ranges_position_y (np.ndarray): Distances from border to range centerlines, range to range centerlines and finally range centerline to border in the y direction.
                 Starting from the top range to the bottom one
             fy (double): Yield stress for reinforcing bars
             Ey (double): Young modulus for reinforcing bars
@@ -287,9 +287,11 @@ class RCRectShape(Section):
         if rho_s_x != -1 and rho_s_x < 0: raise NegativeValue()
         if rho_s_y != -1 and rho_s_y < 0: raise NegativeValue()
         if Ec != -1 and Ec < 0: raise NegativeValue()
-        if np.size(bars_position_x) != np.size(bars_ranges_position_y): raise WrongDimension()
+        if np.size(bars_position_x) != np.size(bars_ranges_position_y)-1: raise WrongDimension()
+        geometry_tol = 5*mm_unit
         for bars in bars_position_x:
-            if np.sum((np.sum(bars) - b) < 0.01): raise InconsistentGeometry() # 0.01 m of tolerance
+            if abs(np.sum(bars) - b) > geometry_tol: raise InconsistentGeometry()
+        if abs(np.sum(bars_ranges_position_y)-d) > geometry_tol: raise InconsistentGeometry()
         if e > b/2 or e > d/2: raise InconsistentGeometry()
 
         # Arguments
@@ -319,6 +321,8 @@ class RCRectShape(Section):
         This function can be very useful in combination with the function "copy()" from the module "copy".
         """
         # Precompute some members
+        self.cl_hoops = self.e + self.D_hoops/2.0 # centerline distance from the border of the extreme confining hoops
+        self.cl_bars = self.e + self.D_bars/2.0 + self.D_hoops # centerline distance from the border of the corner bars
         self.bc = self.b - self.cl_hoops
         self.dc = self.d - self.cl_hoops
         self.As = ComputeACircle(self.D_hoops)
@@ -333,8 +337,6 @@ class RCRectShape(Section):
 
         # Members
         self.nr_bars = self.ComputeNrBars()
-        self.cl_hoops = self.e + self.D_hoops/2.0 # centerline distance from the border of the extreme confining hoops
-        self.cl_bars = self.e + self.D_bars/2.0 + self.D_hoops # centerline distance from the border of the corner bars
         self.A = self.ComputeA()
         self.Ac = self.ComputeAc()
         self.Ay = ComputeACircle(self.D_bars)
@@ -406,7 +408,7 @@ class RCRectShape(Section):
         """
         nr_bars = 0
         for range in self.bars_position_x:
-            nr_bars += np.size(range)
+            nr_bars += np.size(range)-1
 
         return nr_bars
 
@@ -418,7 +420,7 @@ class RCRectShape(Section):
             double: Young modulus of concrete
         """
 
-        return 5.0e6 * math.sqrt(-self.fc/1e6)
+        return 5000.0 * math.sqrt(-self.fc/MPa_unit) * MPa_unit
 
 
     def ComputeA(self):
