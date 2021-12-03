@@ -21,3 +21,18 @@ class PositiveValue(Exception):
     """
     pass
 
+class WrongDimension(Exception):
+    """Exception class for the "wrong array dimensions" error.
+    """
+    pass
+
+class InconsistentGeometry(Exception):
+    """Exception class for the "inconsistent geometry" error.
+    """
+    pass
+
+class MemberFailure(Exception):
+    """Exception class for the "memebr failure" error.
+    """
+    pass
+
