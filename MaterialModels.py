@@ -2,12 +2,13 @@
 #   Carmine Schipani, 2021
 
 from openseespy.opensees import *
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
 import math
-from OpenSeesPyHelper.Section import *
-from OpenSeesPyHelper.DataManagement import DataManagement
-from ErrorHandling import NegativeValue, WrongArgument
+from Section import *
+from DataManagement import *
+from ErrorHandling import *
+from Units import *
 
 # Material models
 
@@ -23,7 +24,7 @@ class ModifiedIMK(MaterialModels):
     global n
     n = 10.0
     
-    def __init__(self, ID, Type, d, bf, tf, tw, h_1, Iy_mod, iz, E, Fy, Npl, My, L,
+    def __init__(self, ID: int, Type, d, bf, tf, tw, h_1, Iy_mod, iz, E, Fy, Npl, My, L,
         N_G = 0, K_factor = 3, L_0 = -1, L_b = -1, Mc = -1, K = -1, theta_u = -1, safety_factors = False):
         # """
         # Parameters
@@ -46,8 +47,8 @@ class ModifiedIMK(MaterialModels):
         #     The ultimate rotation (default: 0, thus computed here)
         # """
         # Check
+        if ID < 0: raise NegativeValue()
         if Type != "Beam" and Type != "Col": raise WrongArgument()
-        if N_G < 0: raise NegativeValue()
         if d < 0: raise NegativeValue()
         if bf < 0: raise NegativeValue()
         if tf < 0: raise NegativeValue()
@@ -60,6 +61,15 @@ class ModifiedIMK(MaterialModels):
         if Npl < 0: raise NegativeValue()
         if My < 0: raise NegativeValue()
         if L < 0: raise NegativeValue()
+        if N_G < 0: raise NegativeValue()
+        if L_0 != -1 and L_0 < 0: raise NegativeValue()
+        if L_b != -1 and L_b < 0: raise NegativeValue()
+        if Mc != -1 and Mc < 0: raise NegativeValue()
+        if K != -1 and K < 0: raise NegativeValue()
+        if theta_u != -1 and theta_u < 0: raise NegativeValue()
+        if h_1 > d: raise InconsistentGeometry()
+        if N_G > Npl: raise MemberFailure()
+        if L_0 > L: raise InconsistentGeometry()
 
         # Arguments
         self.Type = Type
@@ -177,10 +187,10 @@ class ModifiedIMK(MaterialModels):
 
     def ComputeTheta_p(self):
         if self.Type == "Beam":
-            if self.d < 0.533:
-                return 0.0865*(self.h_1/self.tw)**(-0.365)*(self.bf/2.0/self.tf)**(-0.14)*(self.L_0/self.d)**(0.34)*(self.d/0.533)**(-0.721)*(self.Fy/355.0e6)**(-0.23)
+            if self.d < 533.0*mm_unit:
+                return 0.0865*(self.h_1/self.tw)**(-0.365)*(self.bf/2.0/self.tf)**(-0.14)*(self.L_0/self.d)**(0.34)*(self.d/533.0*mm_unit)**(-0.721)*(self.Fy/355.0*MPa_unit)**(-0.23)
             else:
-                return 0.318*(self.h_1/self.tw)**(-0.550)*(self.bf/2.0/self.tf)**(-0.345)*(self.L_0/self.d)**(0.090)*(self.L_b/self.iz)**(-0.023)*(self.d/0.533)**(-0.330)*(self.Fy/355.0e6)**(-0.130)
+                return 0.318*(self.h_1/self.tw)**(-0.550)*(self.bf/2.0/self.tf)**(-0.345)*(self.L_0/self.d)**(0.090)*(self.L_b/self.iz)**(-0.023)*(self.d/533.0*mm_unit)**(-0.330)*(self.Fy/355.0*MPa_unit)**(-0.130)
                 # With RBS: ...
         else:
             tmp = 294.0*(self.h_1/self.tw)**(-1.7)*(self.L_b/self.iz)**(-0.7)*(1.0-self.N_G/self.Npl)**(1.6) # *(self.E/self.Fy/gamma_rm)**(0.2) # EC8
@@ -192,10 +202,10 @@ class ModifiedIMK(MaterialModels):
 
     def ComputeTheta_pc(self):
         if self.Type == "Beam":
-            if self.d < 0.533:
-                return 5.63*(self.h_1/self.tw)**(-0.565)*(self.bf/2.0/self.tf)**(-0.800)*(self.d/0.533)**(-0.280)*(self.Fy/355.0e6)**(-0.430)
+            if self.d < 533.0*mm_unit:
+                return 5.63*(self.h_1/self.tw)**(-0.565)*(self.bf/2.0/self.tf)**(-0.800)*(self.d/533.0*mm_unit)**(-0.280)*(self.Fy/355.0*MPa_unit)**(-0.430)
             else:
-                return 7.50*(self.h_1/self.tw)**(-0.610)*(self.bf/2.0/self.tf)**(-0.710)*(self.L_b/self.iz)**(-0.110)*(self.d/0.533)**(-0.161)*(self.Fy/355.0e6)**(-0.320)
+                return 7.50*(self.h_1/self.tw)**(-0.610)*(self.bf/2.0/self.tf)**(-0.710)*(self.L_b/self.iz)**(-0.110)*(self.d/533.0*mm_unit)**(-0.161)*(self.Fy/355.0*MPa_unit)**(-0.320)
                 # With RBS: ...
         else:
             tmp =  90.0*(self.h_1/self.tw)**(-0.8)*(self.L_b/self.iz)**(-0.8)*(1.0-self.N_G/self.Npl)**(2.5) # *(self.E/self.Fy/gamma_rm)**(0.07) # EC8
@@ -211,10 +221,10 @@ class ModifiedIMK(MaterialModels):
 
     def ComputeRefEnergyDissipationCap(self):
         if self.Type == "Beam":
-            if self.d < 0.533:
-                return 495.0*(self.h_1/self.tw)**(-1.34)*(self.bf/2.0/self.tf)**(-0.595)*(self.Fy/355.0e6)**(-0.360)
+            if self.d < 533.0*mm_unit:
+                return 495.0*(self.h_1/self.tw)**(-1.34)*(self.bf/2.0/self.tf)**(-0.595)*(self.Fy/355.0*MPa_unit)**(-0.360)
             else:
-                return 536.0*(self.h_1/self.tw)**(-1.26)*(self.bf/2.0/self.tf)**(-0.525)*(self.L_b/self.iz)**(-0.130)*(self.Fy/355.0e6)**(-0.291)
+                return 536.0*(self.h_1/self.tw)**(-1.26)*(self.bf/2.0/self.tf)**(-0.525)*(self.L_b/self.iz)**(-0.130)*(self.Fy/355.0*MPa_unit)**(-0.291)
                 # With RBS: ...
         else:
             if self.N_G/self.Npl > 0.35:
@@ -233,8 +243,10 @@ class ModifiedIMK(MaterialModels):
         Use after changing the value of argument inside the class (to update the values accordingly). 
         This function can be very useful in combination with the function "copy()" from the module "copy".
         """
-        # Arguments
+        # Precompute some members
         self.My_star = self.ComputeMyStar()
+
+        # Arguments
         self.Mc = Mc
         self.K = K
         self.theta_u = theta_u
@@ -310,9 +322,9 @@ class ModifiedIMK(MaterialModels):
         print('theta r = {}'.format(theta_r))
         print('theta pc = {}'.format(self.theta_pc))
         print('theta u = {}'.format(self.theta_u))
-        print('My star = {} kNm'.format(self.My_star/1000.0))
-        print('Mc = {} kNm'.format(self.Mc/1000.0))
-        print('Mr = {} kNm'.format(Mr/1000.0))
+        print('My star = {} kNm'.format(self.My_star/kNm_unit))
+        print('Mc = {} kNm'.format(self.Mc/kNm_unit))
+        print('Mr = {} kNm'.format(Mr/kNm_unit))
         print('a = {} '.format(self.a))
         print('as = {} '.format(self.a_s))
         print('lambda (deterioration rate) = {} '.format(self.rate_det))
@@ -322,8 +334,8 @@ class ModifiedIMK(MaterialModels):
             # Data for plotting
             x_axis = np.array([0.0, self.theta_y, self.theta_y + theta_p_plot, theta_r, self.theta_u, self.theta_u])
             x_axis2 = np.array([self.theta_y + theta_p_plot, self.theta_y + theta_p_plot + self.theta_pc])
-            y_axis = ([0.0, self.My_star/1000.0, self.Mc/1000.0, Mr/1000.0, Mr/1000.0, 0.0])
-            y_axis2 = ([self.Mc/1000, 0.0])
+            y_axis = ([0.0, self.My_star/kNm_unit, self.Mc/kNm_unit, Mr/kNm_unit, Mr/kNm_unit, 0.0])
+            y_axis2 = ([self.Mc/kNm_unit, 0.0])
 
             fig, ax = plt.subplots()
             ax.plot(x_axis, y_axis, 'k-')
@@ -646,6 +658,7 @@ class ModifiedIMKSteelIShape(ModifiedIMK):
 # class Concrete04MaterialModel(DataManagement):
 #     # Class that stores funcions and material properties of a rectangular shape RC  profile. For more information see Mander et Al. 1988
 #     # Warning: the units should be mm and kN
+#       #TODO: warning if concrete fc is bigger than something (see article Lee)
     
 #     def __init__(self, ConfinedID, UnconfinedID, ele: SectionRCRectShape, N_G = 0, Cantilever = False):
 #         """
@@ -682,6 +695,13 @@ class ModifiedIMKSteelIShape(ModifiedIMK):
 #         self.ecu = -0.004 + (1.4*0*self.esu*ele.fs) / ele.fc    # FROM BRIDGE BOOK OF KATRIN BEYER!
 #         self.fct = 0.30 * math.pow(-ele.fc, 2/3)                # SIA 262 2013
 #         self.et = self.fct/ele.Ec                               # Mander Eq 45
+#         wx_top : numpy.ndarray
+#             A vector that defines the distance between bars in x direction (NOT CENTERLINE DISTANCE). One range of bars implemented
+#         wx_bottom : numpy.ndarray
+#             A vector that defines the distance between bars in x direction (NOT CENTERLINE DISTANCE). One range of bars implemented
+#         wy : numpy.ndarray
+#             A vector that defines the distance between bars in y direction (NOT CENTERLINE DISTANCE). One range of bars implemented
+
 
 #         # Confined
 #         self.k1 = 4.1                                           # 4.1 from Richart et al. 1928 or 5.6 from Balmer 1949 
