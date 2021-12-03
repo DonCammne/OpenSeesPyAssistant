@@ -33,6 +33,14 @@ m3 = m*m*m
 inch3 = inch*inch*inch
 ft3 = ft*ft*ft
 
+# Moment of inertia
+mm4 = mm3*mm
+cm4 = cm3*cm
+dm4 = dm3*dm
+m4 = m3*m
+inch4 = inch3*inch
+ft4 = ft3*ft
+
 # Force
 kN = N*1e3
 MN = N*1e6
