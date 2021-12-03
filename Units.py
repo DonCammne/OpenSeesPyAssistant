@@ -3,64 +3,73 @@
 
 """Module with the units conversion and the definition of the units used as default (m, N, kg, s)
 """
-m = 1
-N = 1
-kg = 1
-s = 1
+m_unit = 1
+N_unit = 1
+kg_unit = 1
+s_unit = 1
 
 # Distance
-mm = m*1e-3
-cm = m*1e-2
-dm = m*1e-1
-km = m*1e3
-inch = m*0.0254
-ft = m*0.3048
-mile = m*1609.34
+mm_unit = m_unit*1e-3
+cm_unit = m_unit*1e-2
+dm_unit = m_unit*1e-1
+km_unit = m_unit*1e3
+inch_unit = m_unit*0.0254
+ft_unit = m_unit*0.3048
+mile_unit = m_unit*1609.34
 
 # Area
-mm2 = mm*mm
-cm2 = cm*cm
-dm2 = dm*dm
-m2 = m*m
-inch2 = inch*inch
-ft2 = ft*ft
+mm2_unit = mm_unit*mm_unit
+cm2_unit = cm_unit*cm_unit
+dm2_unit = dm_unit*dm_unit
+m2_unit = m_unit*m_unit
+inch2_unit = inch_unit*inch_unit
+ft2_unit = ft_unit*ft_unit
 
 # Volume
-mm3 = mm*mm*mm
-cm3 = cm*cm*cm
-dm3 = dm*dm*dm
-m3 = m*m*m
-inch3 = inch*inch*inch
-ft3 = ft*ft*ft
+mm3_unit = mm_unit*mm_unit*mm_unit
+cm3_unit = cm_unit*cm_unit*cm_unit
+dm3_unit = dm_unit*dm_unit*dm_unit
+m3_unit = m_unit*m_unit*m_unit
+inch3_unit = inch_unit*inch_unit*inch_unit
+ft3_unit = ft_unit*ft_unit*ft_unit
 
 # Moment of inertia
-mm4 = mm3*mm
-cm4 = cm3*cm
-dm4 = dm3*dm
-m4 = m3*m
-inch4 = inch3*inch
-ft4 = ft3*ft
+mm4_unit = mm3_unit*mm_unit
+cm4_unit = cm3_unit*cm_unit
+dm4_unit = dm3_unit*dm_unit
+m4_unit = m3_unit*m_unit
+inch4_unit = inch3_unit*inch_unit
+ft4_unit = ft3_unit*ft_unit
 
 # Force
-kN = N*1e3
-MN = N*1e6
-GN = N*1e9
-kip = N*4448.2216
+kN_unit = N_unit*1e3
+MN_unit = N_unit*1e6
+GN_unit = N_unit*1e9
+kip_unit = N_unit*4448.2216
+
+# Moment
+Nm_unit = N_unit*m_unit
+kNm_unit = kN_unit*m_unit
+MNm_unit = MN_unit*m_unit
+Nmm_unit = N_unit*mm_unit
+kNmm_unit = kN_unit*mm_unit
+MNmm_unit = MN_unit*mm_unit
 
 # Mass
-t = kg*1e3
-pound = kg*0.45359237
+t_unit = kg_unit*1e3
+pound_unit = kg_unit*0.45359237
 
 # Pressure/Stress
-Pa = N/m2
-kPa = Pa*1e3
-MPa = Pa*1e6
-GPa = Pa*1e9
-psi = Pa*6894.76
-ksi = psi*1000
+Pa_unit = N_unit/m2_unit
+kPa_unit = Pa_unit*1e3
+MPa_unit = Pa_unit*1e6
+GPa_unit = Pa_unit*1e9
+psi_unit = Pa_unit*6894.76
+ksi_unit = psi_unit*1000
 
 # Time
-min = s*60
-hours = min*60
+min_unit = s_unit*60
+hours_unit = min_unit*60
 
+#TODO: check with Andy
 
