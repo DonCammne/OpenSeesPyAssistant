@@ -80,7 +80,7 @@ class SteelIShape(Section):
         self.Iy = self.ComputeIy()
         self.Iz = self.ComputeIz()
         self.Wply = self.ComputeWply()
-        # self.Wplz = self.ComputeWplz()
+        self.Wplz = self.ComputeWplz()
         self.My = self.Fy*self.Wply
         self.Iy_mod = self.Iy*(n + 1.0)/n
         self.iz = self.Compute_iz()
@@ -103,7 +103,8 @@ class SteelIShape(Section):
             self.A, 
             self.Iy, 
             self.Iz, 
-            self.Wply, # self.Wplz, 
+            self.Wply, 
+            self.Wplz, 
             self.Iy_mod, 
             self.iy,
             self.iz,
@@ -124,7 +125,7 @@ class SteelIShape(Section):
         print("Iy = {}e6 mm4".format(self.Iy*1e6))
         print("Iz = {}e6 mm4".format(self.Iz*1e6))
         print("Wply = {}e6 mm3".format(self.Wply*1000))
-        # print("Wplz = {}e6 mm3".format(self.Wplz*1000))
+        print("Wplz = {}e6 mm3".format(self.Wplz*1000))
         print("Iy_mod = {}e6 mm4".format(self.Iy_mod*1e6))
         print("iy = {} mm".format(self.iy*1000))
         print("iz = {} mm".format(self.iz*1000))
@@ -202,8 +203,8 @@ class SteelIShape(Section):
         #  tf :    The flange's thickness
         #  tw :    The web's thickness
         #  r :     The weld fillet radius
-        #TODO: add the function
-        pass
+        #TODO: add correct formula (at the moment is the formula for Wply)
+        return self.bf*self.tf*(self.d-self.tf)+(self.d-2.0*self.tf)**2.0*(self.tw/4.0)+0.4292*self.r**2*(self.d-2.0*self.tf-0.4467*self.r)
 
     def Compute_iy(self):
         """Compute the gyration radius with respect to the strong axis.
