@@ -57,6 +57,7 @@ kPa = Pa*1e3
 MPa = Pa*1e6
 GPa = Pa*1e9
 psi = Pa*6894.76
+ksi = psi*1000
 
 # Time
 min = s*60
