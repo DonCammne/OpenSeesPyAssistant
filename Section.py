@@ -1,10 +1,11 @@
 # Module for the Section classes
 #          Carmine Schipani, 2021
 
-from OpenSeesPyHelper.DataManagement import DataManagement
-from OpenSeesPyHelper.ErrorHandling import *
 import numpy as np
 import math
+from DataManagement import *
+from ErrorHandling import *
+from Units import *
 
 class Section(DataManagement):
     """Parent abstract class that groups every class in this module.
@@ -25,7 +26,7 @@ class SteelIShape(Section):
     global n
     n = 10.0
 
-    def __init__(self, Type, d, bf, tf, tw, L, r, E, Fy, Fy_wed = -1, name_tag = "Not Defined"):
+    def __init__(self, Type, d, bf, tf, tw, L, r, E, Fy, Fy_web = -1, name_tag = "Not Defined"):
         """The conctructor of the class
 
         Args:
@@ -34,11 +35,11 @@ class SteelIShape(Section):
             bf (double): The flange's width
             tf (double): The flange's thickness
             tw (double): The web's thickness
-            L (double): The element length (exclude the panel zone is present)
+            L (double): The element length (exclude the panel zone if present)
             r (double): The radius of the weld fillets
             E (double): The Young modulus
             Fy (double): The yield strength
-            Fy_wed (double, optional): The yield strength of the web. Defaults to -1 (e.g. computed in __init__()).
+            Fy_web (double, optional): The yield strength of the web. Defaults to -1 (e.g. computed in __init__()).
             name_tag (str, optional): A nametag for the section. Defaults to "Not Defined".
         """
         # Check
@@ -51,6 +52,10 @@ class SteelIShape(Section):
         if r < 0: raise NegativeValue()
         if E < 0: raise NegativeValue()
         if Fy < 0: raise NegativeValue()
+        if Fy_web != -1 and Fy_web < 0: raise NegativeValue()
+        if tw > bf: raise InconsistentGeometry()
+        if tf > d/2: raise InconsistentGeometry()
+        if r > bf/2: raise InconsistentGeometry()
 
         # Arguments
         self.Type = Type
@@ -62,7 +67,7 @@ class SteelIShape(Section):
         self.r = r
         self.E = E
         self.Fy = Fy
-        self.Fy_web = Fy_wed
+        self.Fy_web = Fy_web
         if self.Fy_web == -1: self.Fy_web = Fy
         self.name_tag = name_tag
 
@@ -74,6 +79,7 @@ class SteelIShape(Section):
         Use after changing the value of argument inside the class (to update the values accordingly). 
         This function can be very useful in combination with the function "copy()" from the module "copy".
         """
+        # Member
         self.h_1 = self.d - 2.0*self.r -2.0*self.tf
         self.A = self.ComputeA()
         self.Npl = self.A*self.Fy
@@ -87,7 +93,7 @@ class SteelIShape(Section):
         self.iy = self.Compute_iy()
 
         # Data storage for loading/saving
-        self.data = ["SteelIShape", # Tag for differentiating different datas
+        self.data = ["SteelIShape", # Tag for differentiating different data
             self.name_tag, 
             self.Type, 
             self.d, 
@@ -115,23 +121,22 @@ class SteelIShape(Section):
         """Function that show the data stored in the class in the command window.
         """
         print("")
-        print("Requested info for section of type = {} and name tag = {}".format(self.Type, self.name_tag))
-        print("d = {} mm".format(self.d*1000))
-        print("Fy = {} MPa".format(self.Fy/1e6))
-        print("Fy web = {} MPa".format(self.Fy_web/1e6))
-        print("E = {} MPa".format(self.E/1e6))
-        print("h_1 = {} mm".format(self.h_1*1000))
-        print("A = {} mm2".format(self.A*1e6))
-        print("Iy = {}e6 mm4".format(self.Iy*1e6))
-        print("Iz = {}e6 mm4".format(self.Iz*1e6))
-        print("Wply = {}e6 mm3".format(self.Wply*1000))
-        print("Wplz = {}e6 mm3".format(self.Wplz*1000))
-        print("Iy_mod = {}e6 mm4".format(self.Iy_mod*1e6))
-        print("iy = {} mm".format(self.iy*1000))
-        print("iz = {} mm".format(self.iz*1000))
-        print("My = {} kNm".format(self.My/1000))
-        print("Npl = {} kN".format(self.Npl/1000))
-
+        print("Requested info for steel I shape section of type = {} and name tag = {}".format(self.Type, self.name_tag))
+        print("d = {} mm".format(self.d/mm_unit))
+        print("Fy = {} MPa".format(self.Fy/MPa_unit))
+        print("Fy web = {} MPa".format(self.Fy_web/MPa_unit))
+        print("E = {} GPa".format(self.E/GPa_unit))
+        print("h_1 = {} mm".format(self.h_1/mm_unit))
+        print("A = {} mm2".format(self.A/mm2_unit))
+        print("Iy = {} mm4".format(self.Iy/mm4_unit))
+        print("Iz = {} mm4".format(self.Iz/mm4_unit))
+        print("Wply = {} mm3".format(self.Wply/mm3_unit))
+        print("Wplz = {} mm3".format(self.Wplz/mm3_unit))
+        print("Iy_mod = {} mm4".format(self.Iy_mod/mm4_unit))
+        print("iy = {} mm".format(self.iy/mm_unit))
+        print("iz = {} mm".format(self.iz/mm_unit))
+        print("My = {} kNm".format(self.My/kNm_unit))
+        print("Npl = {} kN".format(self.Npl/kN_unit))
 
 
     def ComputeA(self):
@@ -248,7 +253,7 @@ class RCRectShape(Section):
             fc (double): Unconfined concrete compressive strength (cylinder test)
             D_bars (double): Diameter of the reinforcing bars
             bars_position_x (np.ndarray): Distances from bar to bar centerlines or border to bar centerline in the x direction (aligned).
-                Starting from the left to right, from the top range to the bottom one. The number of bars for each range can vary
+                Starting from the left to right, from the top range to the bottom one. The number of bars for each range can vary; in this case, add this argument when defining the array " dtype = object"
             bars_ranges_position_y (np.ndarray): Distances from range to range centerlines or border to range centerline in the y direction.
                 Starting from the top range to the bottom one
             fy (double): Yield stress for reinforcing bars
@@ -262,32 +267,148 @@ class RCRectShape(Section):
             rho_s_y (double, optional): Volumetric or not?????????????. Defaults to -1 (e.g. computed in __init__() assuming one range of hoops).
             Ec (double, optional): Young modulus for concrete. Defaults to -1 (e.g. computed in __init__()).
         """
-        # Check: number row of pos_x == length position_ranges
-        # Check: sum (row i of pos_x)-bf < tol (1-2 mm)
         # Note that for the validity of the formulas, at least one bar per corner and at least one hoop closed with 135 degress!
 
-        # wx : numpy.ndarray
-        #     A vector that defines the distance between bars in x direction (NOT CENTERLINE DISTANCE). One range of bars implemented
-        # wy : numpy.ndarray
-        #     A vector that defines the distance between bars in y direction (NOT CENTERLINE DISTANCE). One range of bars implemented
-        
-        # wx_top, wx_bottom and wy computed with bars_position_x (list of list) and bars_ranges_position_y (list)
-        # nr_bars computed
-        # if rho_s not defined, assume one range of hoops
         #TODO: ask someone good with concrete (Katrin Beyer, Diego,... ) if rho_s is volumtric or not (and how to compute it)
-        pass
+        
+        # Check
+        if b < 0: raise NegativeValue()
+        if d < 0: raise NegativeValue()
+        if L < 0: raise NegativeValue()
+        if e < 0: raise NegativeValue()
+        if fc > 0: raise PositiveValue()
+        if D_bars < 0: raise NegativeValue()
+        if fy < 0: raise NegativeValue()
+        if Ey < 0: raise NegativeValue()
+        if D_hoops < 0: raise NegativeValue()
+        if s < 0: raise NegativeValue()
+        if fs < 0: raise NegativeValue()
+        if Es < 0: raise NegativeValue()
+        if rho_s_x != -1 and rho_s_x < 0: raise NegativeValue()
+        if rho_s_y != -1 and rho_s_y < 0: raise NegativeValue()
+        if Ec != -1 and Ec < 0: raise NegativeValue()
+        if np.size(bars_position_x) != np.size(bars_ranges_position_y): raise WrongDimension()
+        for bars in bars_position_x:
+            if np.sum((np.sum(bars) - b) < 0.01): raise InconsistentGeometry() # 0.01 m of tolerance
+        if e > b/2 or e > d/2: raise InconsistentGeometry()
 
-    def ReInit(self):
+        # Arguments
+        self.b = b
+        self.d = d
+        self.L = L
+        self.e = e
+        self.fc = fc
+        self.D_bars = D_bars
+        self.bars_position_x = bars_position_x
+        self.bars_ranges_position_y = bars_ranges_position_y
+        self.fy = fy
+        self.Ey = Ey
+        self.D_hoops = D_hoops
+        self.s = s
+        self.fs = fs
+        self.Es = Es
+        self.name_tag = name_tag
+
+        # Initialized the parameters that are dependent from others
+        self.ReInit(rho_s_x, rho_s_y, Ec)
+
+
+    def ReInit(self, rho_s_x = -1, rho_s_y = -1, Ec = -1):
         """Function that computes the value of the parameters that are computed with respect of the arguments.
         Use after changing the value of argument inside the class (to update the values accordingly). 
         This function can be very useful in combination with the function "copy()" from the module "copy".
         """
-        pass
+        # Precompute some members
+        self.bc = self.b - self.cl_hoops
+        self.dc = self.d - self.cl_hoops
+        self.As = ComputeACircle(self.D_hoops)
 
-    def ShowInfo(self, d):
+        # Arguments
+        self.rho_s_x = rho_s_x
+        if self.rho_s_x == -1: self.rho_s_x = 2.0*ComputeRho(self.As, 1, self.bc*self.s)
+        self.rho_s_y = rho_s_y
+        if self.rho_s_y == -1: self.rho_s_y = 2.0*ComputeRho(self.As, 1, self.dc*self.s)
+        self.Ec = Ec
+        if self.Ec == -1: self.Ec = self.ComputeEc()
+
+        # Members
+        self.nr_bars = self.ComputeNrBars()
+        self.cl_hoops = self.e + self.D_hoops/2.0 # centerline distance from the border of the extreme confining hoops
+        self.cl_bars = self.e + self.D_bars/2.0 + self.D_hoops # centerline distance from the border of the corner bars
+        self.A = self.ComputeA()
+        self.Ac = self.ComputeAc()
+        self.Ay = ComputeACircle(self.D_bars)
+        self.rho_bars = ComputeRho(self.Ay, self.nr_bars, self.A)
+        self.Iy = self.ComputeIy()
+        self.Iz = self.ComputeIz()
+
+        # Data storage for loading/saving
+        self.data = ["RCRectShape", # Tag for differentiating different data
+            self.name_tag,
+            self.b,
+            self.d,
+            self.bc,
+            self.dc,
+            self.L,
+            self.e,
+            self.A,
+            self.Ac,
+            self.Iy,
+            self.Iz,
+            self.fc,
+            self.Ec,
+            self.D_bars,
+            self.nr_bars,
+            self.Ay,
+            self.bars_position_x,
+            self.bars_ranges_position_y,
+            self.rho_bars,
+            self.cl_bars,
+            self.fy,
+            self.Ey,
+            self.D_hoops,
+            self.s,
+            self.As,
+            self.rho_s_x,
+            self.rho_s_y,
+            self.cl_hoops,
+            self.fs,
+            self.Es]
+
+
+    def ShowInfo(self):
         """Function that show the data stored in the class in the command window.
         """
-        print(d)
+        print("")
+        print("Requested info for RC rectangular section of name tag = {}".format(self.name_tag))
+        print("b = {} mm".format(self.b/mm_unit))
+        print("d = {} mm".format(self.d/mm_unit))
+        print("e = {} mm".format(self.e/mm_unit))
+        print("A = {} mm2".format(self.A/mm2_unit))
+        print("Ac = {} mm2".format(self.Ac/mm2_unit))
+        print("fc = {} MPa".format(self.fc/MPa_unit))
+        print("Ec = {} GPa".format(self.Ec/GPa_unit))
+        print("D bars = {} and Ay = {} mm2 with {} bars".format(self.D_bars/mm_unit, self.Ay/mm2_unit, self.nr_bars))
+        print("D hoops = {} and As = {} mm2".format(self.D_hoops/mm_unit, self.As/mm2_unit))
+        print("rho bars = {} ".format(self.rho_bars))
+        print("rho hoops in x = {} ".format(self.rho_s_x))
+        print("rho hoops in y = {} ".format(self.rho_s_y))
+        print("Iy = {} mm4".format(self.Iy/mm4_unit))
+        print("Iz = {} mm4".format(self.Iz/mm4_unit))
+        print("")
+    
+
+    def ComputeNrBars(self):
+        """Compute the number of vertical bars in the array bars_position_x (note that this list of lists can have different list sizes).
+
+        Returns:
+            double: Number of vertical bars
+        """
+        nr_bars = 0
+        for range in self.bars_position_x:
+            nr_bars += np.size(range)
+
+        return nr_bars
 
 
     def ComputeEc(self):
@@ -297,7 +418,7 @@ class RCRectShape(Section):
             double: Young modulus of concrete
         """
 
-        return 5.0 * math.sqrt(-self.fc*1000)
+        return 5.0e6 * math.sqrt(-self.fc/1e6)
 
 
     def ComputeA(self):
@@ -318,24 +439,6 @@ class RCRectShape(Section):
         return self.bc * self.dc
 
 
-    def ComputeAy(self):
-        """Compute the area of one reinforcing bar.
-
-        Returns:
-            double: Area of one bar
-        """
-        return self.D_bars**2/4.0*math.pi
-
-
-    def ComputeAs(self):
-        """Compute the area of one hoop.
-
-        Returns:
-            double: Area of one hoop
-        """     
-        return self.D_hoops**2/4.0*math.pi
-
-
     def ComputeIy(self):
         """Compute the moment of inertia of the rectangular section with respect to the strong axis.
 
@@ -353,17 +456,30 @@ class RCRectShape(Section):
         """
         return self.d * self.b**3 / 12.0
 
-    def ComputeRho(self, A, nr, A_tot):
-        """Compute the ratio of area of a reinforcement to area of a section.
 
-        Args:
-            A (double): Area of reinforcement
-            nr (int): Number of reinforcement
-            A_tot (double): Area of the concrete
+def ComputeACircle(D):
+    """Compute the area of one circle (reinforcing bar or hoop).
 
-        Returns:
-            double: Ratio
-        """
-        return nr * A / A_tot
+    Args:
+        D (double): Diameter of the circle (reinforcing bar of hoop)
+
+    Returns:
+        double: Area the circle (for reinforcing bars or hoops)
+    """
+    return D**2/4.0*math.pi
+
+
+def ComputeRho(A, nr, A_tot):
+    """Compute the ratio of area of a reinforcement to area of a section.
+
+    Args:
+        A (double): Area of reinforcement
+        nr (int): Number of reinforcement
+        A_tot (double): Area of the concrete
+
+    Returns:
+        double: Ratio
+    """
+    return nr * A / A_tot
 
 
