@@ -3,9 +3,9 @@
 
 import numpy as np
 import math
-from DataManagement import *
-from ErrorHandling import *
-from Units import *
+from OpenSeesPyHelper.DataManagement import *
+from OpenSeesPyHelper.ErrorHandling import *
+from OpenSeesPyHelper.Units import *
 
 class Section(DataManagement):
     """Parent abstract class that groups every class in this module.
@@ -67,8 +67,7 @@ class SteelIShape(Section):
         self.r = r
         self.E = E
         self.Fy = Fy
-        self.Fy_web = Fy_web
-        if self.Fy_web == -1: self.Fy_web = Fy
+        self.Fy_web = Fy if Fy_web == -1 else Fy_web
         self.name_tag = name_tag
 
         # Initialized the parameters that are dependent from others
@@ -93,29 +92,32 @@ class SteelIShape(Section):
         self.iy = self.Compute_iy()
 
         # Data storage for loading/saving
-        self.data = ["SteelIShape", # Tag for differentiating different data
-            self.name_tag, 
-            self.Type, 
-            self.d, 
-            self.bf, 
-            self.tf, 
-            self.tw, 
-            self.L, 
-            self.r, 
-            self.h_1, 
-            self.E, 
-            self.Fy, 
-            self.Fy_web, 
-            self.A, 
-            self.Iy, 
-            self.Iz, 
-            self.Wply, 
-            self.Wplz, 
-            self.Iy_mod, 
-            self.iy,
-            self.iz,
-            self.Npl, 
-            self.My] 
+        self.UpdateStoredData()
+
+    def UpdateStoredData(self):
+        self.data = [["INFO_TYPE", "SteelIShape"], # Tag for differentiating different data
+            ["name_tag", self.name_tag], 
+            ["Type", self.Type], 
+            ["d", self.d], 
+            ["bf", self.bf], 
+            ["tf", self.tf], 
+            ["tw", self.tw], 
+            ["L", self.L], 
+            ["r", self.r], 
+            ["h_1", self.h_1], 
+            ["E", self.E], 
+            ["Fy", self.Fy], 
+            ["Fy_web", self.Fy_web], 
+            ["A", self.A], 
+            ["Iy", self.Iy], 
+            ["Iz", self.Iz], 
+            ["Wply", self.Wply], 
+            ["Wplz", self.Wplz], 
+            ["Iy_mod", self.Iy_mod], 
+            ["iy", self.iy],
+            ["iz", self.iz],
+            ["Npl", self.Npl], 
+            ["My", self.My]] 
 
     def ShowInfo(self):
         """Function that show the data stored in the class in the command window.
@@ -328,12 +330,9 @@ class RCRectShape(Section):
         self.As = ComputeACircle(self.D_hoops)
 
         # Arguments
-        self.rho_s_x = rho_s_x
-        if self.rho_s_x == -1: self.rho_s_x = 2.0*ComputeRho(self.As, 1, self.bc*self.s)
-        self.rho_s_y = rho_s_y
-        if self.rho_s_y == -1: self.rho_s_y = 2.0*ComputeRho(self.As, 1, self.dc*self.s)
-        self.Ec = Ec
-        if self.Ec == -1: self.Ec = self.ComputeEc()
+        self.rho_s_x = 2.0*ComputeRho(self.As, 1, self.bc*self.s) if rho_s_x == -1 else rho_s_x
+        self.rho_s_y = 2.0*ComputeRho(self.As, 1, self.dc*self.s) if rho_s_y == -1 else rho_s_y
+        self.Ec = self.ComputeEc() if Ec == -1 else Ec
 
         # Members
         self.nr_bars = self.ComputeNrBars()
@@ -345,38 +344,41 @@ class RCRectShape(Section):
         self.Iz = self.ComputeIz()
 
         # Data storage for loading/saving
-        self.data = ["RCRectShape", # Tag for differentiating different data
-            self.name_tag,
-            self.b,
-            self.d,
-            self.bc,
-            self.dc,
-            self.L,
-            self.e,
-            self.A,
-            self.Ac,
-            self.Iy,
-            self.Iz,
-            self.fc,
-            self.Ec,
-            self.D_bars,
-            self.nr_bars,
-            self.Ay,
-            self.bars_position_x,
-            self.bars_ranges_position_y,
-            self.rho_bars,
-            self.cl_bars,
-            self.fy,
-            self.Ey,
-            self.D_hoops,
-            self.s,
-            self.As,
-            self.rho_s_x,
-            self.rho_s_y,
-            self.cl_hoops,
-            self.fs,
-            self.Es]
+        self.UpdateStoredData()
 
+
+    def UpdateStoredData(self):
+        self.data = [["INFO_TYPE", "RCRectShape"], # Tag for differentiating different data
+            ["name_tag", self.name_tag],
+            ["b", self.b],
+            ["d", self.d],
+            ["bc", self.bc],
+            ["dc", self.dc],
+            ["L", self.L],
+            ["e", self.e],
+            ["A", self.A],
+            ["Ac", self.Ac],
+            ["Iy", self.Iy],
+            ["Iz", self.Iz],
+            ["fc", self.fc],
+            ["Ec", self.Ec],
+            ["D_bars", self.D_bars],
+            ["nr_bars", self.nr_bars],
+            ["Ay", self.Ay],
+            ["bars_position_x", self.bars_position_x],
+            ["bars_ranges_position_y", self.bars_ranges_position_y],
+            ["rho_bars", self.rho_bars],
+            ["cl_bars", self.cl_bars],
+            ["fy", self.fy],
+            ["Ey", self.Ey],
+            ["D_hoops", self.D_hoops],
+            ["s", self.s],
+            ["As", self.As],
+            ["rho_s_x", self.rho_s_x],
+            ["rho_s_y", self.rho_s_y],
+            ["cl_hoops", self.cl_hoops],
+            ["fs", self.fs],
+            ["Es", self.Es]]
 
     def ShowInfo(self):
         """Function that show the data stored in the class in the command window.
