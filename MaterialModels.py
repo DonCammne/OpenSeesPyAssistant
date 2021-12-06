@@ -5,10 +5,10 @@ from openseespy.opensees import *
 import matplotlib.pyplot as plt
 import numpy as np
 import math
-from Section import *
-from DataManagement import *
-from ErrorHandling import *
-from Units import *
+from OpenSeesPyHelper.Section import *
+from OpenSeesPyHelper.DataManagement import *
+from OpenSeesPyHelper.ErrorHandling import *
+from OpenSeesPyHelper.Units import *
 
 # Material models
 
@@ -88,13 +88,8 @@ class ModifiedIMK(MaterialModels):
         self.L = L
         self.N_G = N_G
         self.K_factor = K_factor
-        self.L_0 = L_0
-        if self.L_0 == -1: self.L_0 = L
-        self.L_b = L_b
-        if self.L_b == -1: self.L_b = L
-        # self.Mc = Mc
-        # self.K = K
-        # self.theta_u = theta_u
+        self.L_0 = L if L_0 == -1 else L_0
+        self.L_b = L if L_b == -1 else L_b
 
         # Initialized the parameters that are dependent from others
         self.section_name_tag = "None"
@@ -104,11 +99,124 @@ class ModifiedIMK(MaterialModels):
         else:
             self.gamma_rm = 1.0
             self.prob_factor = 1.0
-        # self.ReInit(self.Mc, self.K, self.theta_u)
         self.ReInit(Mc, K, theta_u)
 
 
     # Methods
+    def ReInit(self, Mc = -1, K = -1, theta_u = -1):
+        """Function that computes the value of the parameters that are computed with respect of the arguments.
+        Use after changing the value of argument inside the class (to update the values accordingly). 
+        This function can be very useful in combination with the function "copy()" from the module "copy".
+        """
+        # Precompute some members
+        self.My_star = self.ComputeMyStar()
+
+        # Arguments
+        self.Mc = self.ComputeMc() if Mc == -1 else Mc
+        self.K = self.ComputeK() if K == -1 else K
+        self.theta_u = self.ComputeTheta_u() if theta_u == -1 else theta_u
+
+        # Check applicability
+        self.CheckApplicability()
+
+        # Members
+        self.Ke = self.ComputeKe()
+        self.theta_y = self.ComputeTheta_y()
+        self.theta_p = self.ComputeTheta_p()
+        self.theta_pc = self.ComputeTheta_pc()
+        self.McMy = self.Mc/self.My_star
+        self.rate_det = self.ComputeRefEnergyDissipationCap()
+        self.a = self.Computea()
+        self.a_s = self.Computea_s()
+        if self.section_name_tag != "None": self.section_name_tag = self.section_name_tag + " (modified)"
+
+        # Data storage for loading/saving
+        self.UpdateStoredData()
+        
+
+    def UpdateStoredData(self):
+        self.data = [["INFO_TYPE", "ModifiedIMK"], # Tag for differentiating different data
+            ["ID", self.ID],
+            ["section_name_tag", self.section_name_tag], 
+            ["Type", self.Type],
+            ["d", self.d],
+            ["bf", self.bf],
+            ["tf", self.tf],
+            ["tw", self.tw],
+            ["h_1", self.h_1],
+            ["Iy_mod", self.Iy_mod],
+            ["iz", self.iz],
+            ["E", self.E],
+            ["Fy", self.Fy],
+            ["L", self.L],
+            ["N_G", self.N_G],
+            ["K_factor", self.K_factor],
+            ["Ke", self.Ke],
+            ["L_0", self.L_0],
+            ["L_b", self.L_b],
+            ["gamma_rm", self.gamma_rm],
+            ["prob_factor", self.prob_factor],
+            ["Npl", self.Npl],
+            ["My", self.My],
+            ["My_star", self.My_star],
+            ["Mc", self.Mc],
+            ["McMy", self.McMy],
+            ["K", self.K],
+            ["theta_y", self.theta_y],
+            ["theta_p", self.theta_p],
+            ["theta_pc", self.theta_pc],
+            ["theta_u", self.theta_u],
+            ["rate_det", self.rate_det],
+            ["a", self.a],
+            ["a_s", self.a_s]]
+
+
+    def ShowInfo(self, plot = False, block = False):
+        """Function that show the data stored in the class in the command window and plots the material model (optional).
+        """
+        Mr = self.K*self.My_star
+        theta_p_plot = self.theta_p
+        if self.theta_p > self.theta_u-self.theta_y:
+            theta_p_plot = self.theta_u-self.theta_y
+        theta_r = self.theta_y + theta_p_plot + self.theta_pc*(1.0-Mr/self.Mc)
+        if theta_r > self.theta_u:
+            theta_r = self.theta_u
+            Mr = self.Mc*(1.0-1.0/self.theta_pc*(self.theta_u-self.theta_y-theta_p_plot))
+
+        print("")
+        print("IMK Material Model Parameters, ID = {}".format(self.ID))
+        print('theta y = {}'.format(self.theta_y))
+        print('theta p = {}'.format(self.theta_p))
+        print('theta r = {}'.format(theta_r))
+        print('theta pc = {}'.format(self.theta_pc))
+        print('theta u = {}'.format(self.theta_u))
+        print('My star = {} kNm'.format(self.My_star/kNm_unit))
+        print('Mc = {} kNm'.format(self.Mc/kNm_unit))
+        print('Mr = {} kNm'.format(Mr/kNm_unit))
+        print('a = {} '.format(self.a))
+        print('as = {} '.format(self.a_s))
+        print('lambda (deterioration rate) = {} '.format(self.rate_det))
+        print("")
+        
+        if plot:
+            # Data for plotting
+            x_axis = np.array([0.0, self.theta_y, self.theta_y + theta_p_plot, theta_r, self.theta_u, self.theta_u])
+            x_axis2 = np.array([self.theta_y + theta_p_plot, self.theta_y + theta_p_plot + self.theta_pc])
+            y_axis = ([0.0, self.My_star/kNm_unit, self.Mc/kNm_unit, Mr/kNm_unit, Mr/kNm_unit, 0.0])
+            y_axis2 = ([self.Mc/kNm_unit, 0.0])
+
+            fig, ax = plt.subplots()
+            ax.plot(x_axis, y_axis, 'k-')
+            ax.plot(x_axis2, y_axis2, 'k--')
+
+            ax.set(xlabel='Rotation [rad]', ylabel='Moment [kNm]', 
+                title='Moodified IMK deterioration model (ID={})'.format(self.ID))
+            ax.grid()
+
+            if block:
+                plt.show()
+
+
     def CheckApplicability(self):
         Check = True
         if self.Type == "Beam":
@@ -238,115 +346,6 @@ class ModifiedIMK(MaterialModels):
                     tmp = 3.0
                 return tmp
 
-    def ReInit(self, Mc = -1, K = -1, theta_u = -1):
-        """Function that computes the value of the parameters that are computed with respect of the arguments.
-        Use after changing the value of argument inside the class (to update the values accordingly). 
-        This function can be very useful in combination with the function "copy()" from the module "copy".
-        """
-        # Precompute some members
-        self.My_star = self.ComputeMyStar()
-
-        # Arguments
-        self.Mc = Mc
-        self.K = K
-        self.theta_u = theta_u
-        if self.Mc == -1: self.Mc = self.ComputeMc()
-        if self.K == -1: self.K = self.ComputeK()
-        if self.theta_u == -1: self.theta_u = self.ComputeTheta_u()
-
-        # Check applicability
-        self.CheckApplicability()
-
-        # Members
-        self.Ke = self.ComputeKe()
-        self.theta_y = self.ComputeTheta_y()
-        self.theta_p = self.ComputeTheta_p()
-        self.theta_pc = self.ComputeTheta_pc()
-        self.McMy = self.Mc/self.My_star
-        self.rate_det = self.ComputeRefEnergyDissipationCap()
-        self.a = self.Computea()
-        self.a_s = self.Computea_s()
-
-        # Data storage for loading/saving
-        self.data = ["ModifiedIMK", # Tag for differentiating different datas
-            self.ID,
-            self.section_name_tag, 
-            self.Type,
-            self.d,
-            self.bf,
-            self.tf,
-            self.tw,
-            self.h_1,
-            self.Iy_mod,
-            self.iz,
-            self.E,
-            self.Fy,
-            self.L,
-            self.N_G,
-            self.K_factor,
-            self.Ke,
-            self.L_0,
-            self.L_b,
-            self.gamma_rm,
-            self.prob_factor,
-            self.Npl,
-            self.My,
-            self.My_star,
-            self.Mc,
-            self.McMy,
-            self.K,
-            self.theta_y,
-            self.theta_p,
-            self.theta_pc,
-            self.theta_u,
-            self.rate_det,
-            self.a,
-            self.a_s]
-
-    def ShowInfo(self, plot = False, block = False):
-        """Function that show the data stored in the class in the command window and plots the material model (optional).
-        """
-        Mr = self.K*self.My_star
-        theta_p_plot = self.theta_p
-        if self.theta_p > self.theta_u-self.theta_y:
-            theta_p_plot = self.theta_u-self.theta_y
-        theta_r = self.theta_y + theta_p_plot + self.theta_pc*(1.0-Mr/self.Mc)
-        if theta_r > self.theta_u:
-            theta_r = self.theta_u
-            Mr = self.Mc*(1.0-1.0/self.theta_pc*(self.theta_u-self.theta_y-theta_p_plot))
-
-        print("")
-        print("IMK Material Model Parameters, ID = {}".format(self.ID))
-        print('theta y = {}'.format(self.theta_y))
-        print('theta p = {}'.format(self.theta_p))
-        print('theta r = {}'.format(theta_r))
-        print('theta pc = {}'.format(self.theta_pc))
-        print('theta u = {}'.format(self.theta_u))
-        print('My star = {} kNm'.format(self.My_star/kNm_unit))
-        print('Mc = {} kNm'.format(self.Mc/kNm_unit))
-        print('Mr = {} kNm'.format(Mr/kNm_unit))
-        print('a = {} '.format(self.a))
-        print('as = {} '.format(self.a_s))
-        print('lambda (deterioration rate) = {} '.format(self.rate_det))
-        print("")
-        
-        if plot:
-            # Data for plotting
-            x_axis = np.array([0.0, self.theta_y, self.theta_y + theta_p_plot, theta_r, self.theta_u, self.theta_u])
-            x_axis2 = np.array([self.theta_y + theta_p_plot, self.theta_y + theta_p_plot + self.theta_pc])
-            y_axis = ([0.0, self.My_star/kNm_unit, self.Mc/kNm_unit, Mr/kNm_unit, Mr/kNm_unit, 0.0])
-            y_axis2 = ([self.Mc/kNm_unit, 0.0])
-
-            fig, ax = plt.subplots()
-            ax.plot(x_axis, y_axis, 'k-')
-            ax.plot(x_axis2, y_axis2, 'k--')
-
-            ax.set(xlabel='Rotation [rad]', ylabel='Moment [kNm]', 
-                title='Moodified IMK deterioration model (ID={})'.format(self.ID))
-            ax.grid()
-
-            if block:
-                plt.show()
 
     def Bilin(self):
         # Generate the material model Bilin (Modified IMK) using the computed parameters
@@ -379,279 +378,315 @@ class ModifiedIMK(MaterialModels):
             1., 1., 1., 1., 1., 1., 1., 1., self.theta_p, self.theta_p, self.theta_pc, self.theta_pc,
             self.K, self.K, self.theta_u, self.theta_u, self.rate_det, self.rate_det)
 
+
 class ModifiedIMKSteelIShape(ModifiedIMK):
     def __init__(self, ID, section: SteelIShape, N_G = 0, K_factor = 3, L_0 = -1, L_b = -1, Mc = -1, K = -1, theta_u = -1, safety_factors = False):
         super().__init__(ID, section.Type, section.d, section.bf, section.tf, section.tw, section.h_1,
             section.Iy_mod, section.iz, section.E, section.Fy, section.Npl, section.My, section.L, N_G,
             K_factor, L_0, L_b, Mc, K, theta_u, safety_factors)
         self.section_name_tag = section.name_tag
+        self.UpdateStoredData()
     
 
-# class PZRotSpringMaterialModel(DataManagement):
-#     ######################################################################################
-#     ## PZRotSpringMaterialModel
-#     ######################################################################################
-#     ## Class that stores funcions and material properties of a panel zone rotational spring. For more information, see Gupta 1999
-#     ## Warning: he units should be mm and kN
-#     ##          Carmine Schipani, 2021
-#     ##
-#     ##  ID :            Unique material model ID
-#     ##  col :           Object from the class SectionSteelIShape of the column
-#     ##  d_beam :        Beam depth
-#     ##  a_s :           Assumed strain hardening (default: 0.03)
-#     ##  Ry :            Expected value for yield strength (default: 1.2)
-#     ##  pinchx :        Pinching factor for strain (or deformation) during reloading (default: 1.0) 
-#     ##  pinchy :        Pinching factor for stress (or force) during reloading (default: 1.0) 
-#     ##  dmg1 :          Damage due to ductility: D1(mu-1) (default: 0.0) 
-#     ##  dmg2 :          Damage due to energy: D2(Eii/Eult) (default: 0.0) 
-#     ##  beta :          Power used to determine the degraded unloading stiffness based on ductility, mu-beta (default: 0.0) 
-#     ##  plot :          Bool for having the material Backbone graph (default: False)
-#     ##  block :         Bool for having the plots all at once (default: False)
+class Gupta1999(MaterialModels):
+    ######################################################################################
+    ## PZRotSpringMaterialModel
+    ######################################################################################
+    ## Class that stores funcions and material properties of a panel zone rotational spring. For more information, see Gupta 1999
+    ## Warning: he units should be mm and kN
+    ##          Carmine Schipani, 2021
+    ##
+    ##  ID :            Unique material model ID
+    ##  col :           Object from the class SectionSteelIShape of the column
+    ##  d_beam :        Beam depth
+    ##  a_s :           Assumed strain hardening (default: 0.03)
+    ##  Ry :            Expected value for yield strength (default: 1.2)
+    ##  pinchx :        Pinching factor for strain (or deformation) during reloading (default: 1.0) 
+    ##  pinchy :        Pinching factor for stress (or force) during reloading (default: 1.0) 
+    ##  dmg1 :          Damage due to ductility: D1(mu-1) (default: 0.0) 
+    ##  dmg2 :          Damage due to energy: D2(Eii/Eult) (default: 0.0) 
+    ##  beta :          Power used to determine the degraded unloading stiffness based on ductility, mu-beta (default: 0.0) 
+    ##  plot :          Bool for having the material Backbone graph (default: False)
+    ##  block :         Bool for having the plots all at once (default: False)
 
-#     global Kf_Ke_tests, Cw1_tests, Cf1_tests, Cw4_tests, Cf4_tests, Cw6_tests, Cf6_tests
+    # global Kf_Ke_tests, Cw1_tests, Cf1_tests, Cw4_tests, Cf4_tests, Cw6_tests, Cf6_tests
 
-#     Kf_Ke_tests = [1.000, 0.153, 0.120, 0.090, 0.059, 0.031, 0.019, 0.009, 0.005, 0.004, 0.000]
-#     Kf_Ke_tests.reverse()
-#     Cw1_tests = [0.96, 0.96, 0.955, 0.94, 0.93, 0.90, 0.89, 0.89, 0.88, 0.88, 0.88]
-#     Cw1_tests.reverse()
-#     Cf1_tests = [0.035, 0.035, 0.033, 0.031, 0.018, 0.015, 0.013, 0.009, 0.009, 0.010, 0.010]
-#     Cf1_tests.reverse()
-#     Cw4_tests = [1.145, 1.145, 1.140, 1.133, 1.120, 1.115, 1.115, 1.11, 1.10, 1.10, 1.10]
-#     Cw4_tests.reverse()
-#     Cf4_tests = [0.145, 0.145, 0.123, 0.111, 0.069, 0.040, 0.040, 0.018, 0.010, 0.012, 0.012]
-#     Cf4_tests.reverse()
-#     Cw6_tests = [1.205, 1.2050, 1.2000, 1.1925, 1.1740, 1.1730, 1.1720, 1.1690, 1.1670, 1.1650, 1.1650]
-#     Cw6_tests.reverse()
-#     Cf6_tests = [0.165, 0.1650, 0.1400, 0.1275, 0.0800, 0.0500, 0.0500, 0.0180, 0.0140, 0.0120, 0.0120]
-#     Cf6_tests.reverse()
+    # Kf_Ke_tests = [1.000, 0.153, 0.120, 0.090, 0.059, 0.031, 0.019, 0.009, 0.005, 0.004, 0.000]
+    # Kf_Ke_tests.reverse()
+    # Cw1_tests = [0.96, 0.96, 0.955, 0.94, 0.93, 0.90, 0.89, 0.89, 0.88, 0.88, 0.88]
+    # Cw1_tests.reverse()
+    # Cf1_tests = [0.035, 0.035, 0.033, 0.031, 0.018, 0.015, 0.013, 0.009, 0.009, 0.010, 0.010]
+    # Cf1_tests.reverse()
+    # Cw4_tests = [1.145, 1.145, 1.140, 1.133, 1.120, 1.115, 1.115, 1.11, 1.10, 1.10, 1.10]
+    # Cw4_tests.reverse()
+    # Cf4_tests = [0.145, 0.145, 0.123, 0.111, 0.069, 0.040, 0.040, 0.018, 0.010, 0.012, 0.012]
+    # Cf4_tests.reverse()
+    # Cw6_tests = [1.205, 1.2050, 1.2000, 1.1925, 1.1740, 1.1730, 1.1720, 1.1690, 1.1670, 1.1650, 1.1650]
+    # Cw6_tests.reverse()
+    # Cf6_tests = [0.165, 0.1650, 0.1400, 0.1275, 0.0800, 0.0500, 0.0500, 0.0180, 0.0140, 0.0120, 0.0120]
+    # Cf6_tests.reverse()
 
-#     def __init__(self, ID, col: SectionSteelIShape, d_beam, tf_b, t_dp = 0.0, a_s = 0.03, Ry = 1.2, pinchx = 1.0, pinchy = 1.0, dmg1 = 0.0, dmg2 = 0.0, beta = 0.0):
-#         self.ID = ID
-#         self.col = col
-#         self.d_beam = d_beam
-#         self.tf_b = tf_b
-#         self.t_dp = t_dp
-#         self.a_s = a_s
-#         self.Ry = Ry
-#         self.pinchx = pinchx
-#         self.pinchy = pinchy
-#         self.dmg1 = dmg1
-#         self.dmg2 = dmg2
-#         self.beta = beta
+    def __init__(self, ID: int, d_c, bf_c, tf_c, I_c, d_b, tf_b, Fy, E, t_p,
+        t_dp = 0.0, a_s = 0.03, pinchx = 1.0, pinchy = 1.0, dmg1 = 0.0, dmg2 = 0.0, beta = 0.0, safety_factor = False):
+        #TODO: check applicability and specify applicable for continous column
 
-#         # Initialisation
-#         E = col.E          # Young modulus
-#         Fy = col.Fy_web    # Yield strength of the column web (assume continous column)
-#         dc = col.d         # Column depth
-#         bf_c = col.bf      # Column flange width
-#         tf_c = col.tf      # Column flange thickness
-#         tp = col.tw        # Panel zone thickness
-#         Ic = col.Iy        # Column moment of inertia (strong axis)
-#         tpz = tp+t_dp      # Thickness of the panel zone and the doubler plate
+        # # Initialisation
+        # E = col.E          # Young modulus
+        # Fy = col.Fy_web    # Yield strength of the column web (assume continous column)
+        # dc = col.d         # Column depth
+        # bf_c = col.bf      # Column flange width
+        # tf_c = col.tf      # Column flange thickness
+        # tp = col.tw        # Panel zone thickness
+        # Ic = col.Iy        # Column moment of inertia (strong axis)
+        # tpz = tp+t_dp      # Thickness of the panel zone and the doubler plate
 
-#         # Trilinear Spring (Simple)
-#         # Yield Shear
-#         self.Vy = 0.55 * Fy * Ry * dc * tpz
-#         # Shear Modulus
-#         self.G = E/(2.0 * (1.0 + 0.30))
-#         # Elastic Stiffness
-#         self.Ke = 0.95 * self.G * tpz * dc
-#         # Plastic Stiffness
-#         self.Kp = 0.95 * self.G * bf_c * (tf_c * tf_c) / self.d_beam
+        # Check
+        if ID < 1: raise WrongArgument()
+        if d_c < 0: raise NegativeValue()
+        if bf_c < 0: raise NegativeValue()
+        if tf_c < 0: raise NegativeValue()
+        if d_b < 0: raise NegativeValue()
+        if tf_b < 0: raise NegativeValue()
+        if Fy < 0: raise NegativeValue()
+        if E < 0: raise NegativeValue()
+        if t_p < 0: raise NegativeValue()
+        if a_s < 0: raise NegativeValue()
 
-#         # Define Trilinear Equivalent Rotational Spring (Simple)
-#         # Yield point for Trilinear Spring at gamma1_y
-#         self.gamma1_y = self.Vy / self.Ke
-#         self.M1y = self.gamma1_y * (self.Ke * self.d_beam)
-#         # Second Point for Trilinear Spring at 4 * gamma1_y
-#         self.gamma2_y = 4.0 * self.gamma1_y
-#         self.M2y = self.M1y + (self.Kp * self.d_beam) * (self.gamma2_y - self.gamma1_y)
-#         # Third Point for Trilinear Spring at 100 * gamma1_y
-#         self.gamma3_y = 100.0 * self.gamma1_y
-#         self.M3y = self.M2y + (self.a_s * self.Ke * self.d_beam) * (self.gamma3_y - self.gamma2_y)
+        # Arguments
+        self.ID = ID
+        self.d_c = d_c
+        self.bf_c = bf_c
+        self.tf_c = tf_c
+        self.I_c = I_c
+        self.d_b = d_b
+        self.tf_b = tf_b
+        self.Fy = Fy
+        self.E = E
+        self.t_p = t_p
+        self.t_dp = t_dp
+        self.a_s = a_s
+        self.pinchx = pinchx
+        self.pinchy = pinchy
+        self.dmg1 = dmg1
+        self.dmg2 = dmg2
+        self.beta = beta
+        if safety_factor:
+            self.Ry = 1.2
+        else:
+            self.Ry = 1.0
 
-
-#         # Refined computation of the parameters for the backbone curve for the panel zone spring (Skiadopoulos et al. (2020))
-#         # Panel Zone Elastic Stiffness
-#         self.Ks_ref = tpz*(dc-tf_c)*self.G
-#         self.Kb_ref = 12.0*E*(Ic+t_dp*(dc-2.0*tf_c)**3/12.0)/(self.d_beam-0)**2
-#         self.Ke_ref = self.Ks_ref*self.Kb_ref/(self.Ks_ref+self.Kb_ref)
-
-#         # Column Flange Stiffness
-#         self.Ksf = 2.0*(tf_c*bf_c*self.G)
-#         self.Kbf = 2.0*(12.0*E*bf_c*tf_c**3/12.0/(self.d_beam-0)**2)
-#         self.Kf = self.Ksf*self.Kbf/(self.Ksf+self.Kbf)
-
-#         # Kf/Ke Calculation for Panel Zone Categorization
-#         self.Kf_Ke = self.Kf/self.Ke_ref
-
-#         # Panel Zone Strength Coefficients (results from tests for a_w_eff and a_f_eff)
-#         self.Cw1 = np.interp(self.Kf_Ke, Kf_Ke_tests, Cw1_tests)
-#         self.Cf1 = np.interp(self.Kf_Ke, Kf_Ke_tests, Cf1_tests)
-#         self.Cw4 = np.interp(self.Kf_Ke, Kf_Ke_tests, Cw4_tests)
-#         self.Cf4 = np.interp(self.Kf_Ke, Kf_Ke_tests, Cf4_tests)
-#         self.Cw6 = np.interp(self.Kf_Ke, Kf_Ke_tests, Cw6_tests)
-#         self.Cf6 = np.interp(self.Kf_Ke, Kf_Ke_tests, Cf6_tests)
-
-#         # Panel Zone Model
-#         self.V1 = Fy*Ry/math.sqrt(3)*(self.Cw1*(dc-tf_c)*tpz + self.Cf1*2*(bf_c-tp)*tf_c)
-#         self.V4 = Fy*Ry/math.sqrt(3)*(self.Cw4*(dc-tf_c)*tpz + self.Cf4*2*(bf_c-tp)*tf_c)
-#         self.V6 = Fy*Ry/math.sqrt(3)*(self.Cw6*(dc-tf_c)*tpz + self.Cf6*2*(bf_c-tp)*tf_c)
-
-#         self.M1 = self.V1*(self.d_beam-tf_b)
-#         self.M4 = self.V4*(self.d_beam-tf_b)
-#         self.M6 = self.V6*(self.d_beam-tf_b)
-
-#         self.Gamma_1 = self.V1/self.Ke_ref
-#         self.Gamma_4 = 4*self.Gamma_1
-#         self.Gamma_6 = 6*self.Gamma_1
+        # Initialized the parameters that are dependent from others
+        self.beam_section_name_tag = "None"
+        self.col_section_name_tag = "None"
+        self.ReInit()
 
 
-#         # List of all indormation of the class (to be used for example in the SaveData/LoadData functions)
-#         self.data = ["Data for PZ Hysteretic material model", 
-#             self.ID,
-#             self.col.NameTAG,
-#             self.d_beam,
-#             self.tf_b,
-#             self.t_dp,
-#             self.a_s,
-#             self.Ry,
-#             self.pinchx,
-#             self.pinchy,
-#             self.dmg1,
-#             self.dmg2,
-#             self.beta,
-#             self.Vy,
-#             self.G,
-#             self.Ke,
-#             self.Kp,
-#             self.gamma1_y,
-#             self.gamma2_y,
-#             self.gamma3_y,
-#             self.M1y,
-#             self.M2y,
-#             self.M3y,
-#             self.Ks_ref,             # refined parameters
-#             self.Kb_ref,
-#             self.Ke_ref,
-#             self.Ksf,
-#             self.Kbf,
-#             self.Kf,
-#             self.Kf_Ke,
-#             self.Cw1,
-#             self.Cf1,
-#             self.Cw4,
-#             self.Cf4,
-#             self.Cw6,
-#             self.Cf6,
-#             self.V1,
-#             self.V4,
-#             self.V6,
-#             self.M1,
-#             self.M4,
-#             self.M6,
-#             self.Gamma_1,
-#             self.Gamma_4,
-#             self.Gamma_6]
+    # Methods
+    def ReInit(self):
+        """Function that computes the value of the parameters that are computed with respect of the arguments.
+        Use after changing the value of argument inside the class (to update the values accordingly). 
+        This function can be very useful in combination with the function "copy()" from the module "copy".
+        """
+        #TODO: Check applicability
 
-#     # Methods
-#     def Hysteretic(self,  plot = False, block = False):
-#         # Hysteretic Material
-#         # $matTag       integer tag identifying material
-#         # $s1p $e1p     stress and strain (or force & deformation) at first point of the envelope in the positive direction
-#         # $s2p $e2p     stress and strain (or force & deformation) at second point of the envelope in the positive direction
-#         # $s3p $e3p     stress and strain (or force & deformation) at third point of the envelope in the positive direction (optional)
-#         # $s1n $e1n     stress and strain (or force & deformation) at first point of the envelope in the negative direction
-#         # $s2n $e2n     stress and strain (or force & deformation) at second point of the envelope in the negative direction
-#         # $s3n $e3n     stress and strain (or force & deformation) at third point of the envelope in the negative direction (optional)
-#         # $pinchx       pinching factor for strain (or deformation) during reloading
-#         # $pinchy       pinching factor for stress (or force) during reloading
-#         # $damage1      damage due to ductility: D1(mu-1)
-#         # $damage2      damage due to energy: D2(Eii/Eult)
-#         # $beta         power used to determine the degraded unloading stiffness based on ductility, mu-beta (optional, default=0.0) 
+        if self.beam_section_name_tag != "None": self.beam_section_name_tag = self.beam_section_name_tag + " (modified)"
+        if self.col_section_name_tag != "None": self.col_section_name_tag = self.col_section_name_tag + " (modified)"
 
-#         uniaxialMaterial("Hysteretic", self.ID,
-#             self.M1y, self.gamma1_y, self.M2y, self.gamma2_y, self.M3y, self.gamma3_y,
-#             -self.M1y, -self.gamma1_y, -self.M2y, -self.gamma2_y, -self.M3y, -self.gamma3_y,
-#             self.pinchx, self.pinchy, self.dmg1, self.dmg2, self.beta)
+        # Trilinear Spring (Simple)
+        self.t_pz = self.t_p + self.t_dp
+        self.Vy = 0.55 * self.Fy * self.Ry * self.d_c * self.t_pz # Yield Shear
+        self.G = self.E/(2.0 * (1.0 + 0.30)) # Shear Modulus
+        self.Ke = 0.95 * self.G * self.t_pz * self.d_c # Elastic Stiffness
+        self.Kp = 0.95 * self.G * self.bf_c * (self.tf_c * self.tf_c) / self.d_b # Plastic Stiffness
+
+        # Define Trilinear Equivalent Rotational Spring (Simple)
+        # Yield point for Trilinear Spring at gamma1_y
+        self.gamma1_y = self.Vy / self.Ke
+        self.M1y = self.gamma1_y * (self.Ke * self.d_b)
+        # Second Point for Trilinear Spring at 4 * gamma1_y
+        self.gamma2_y = 4.0 * self.gamma1_y
+        self.M2y = self.M1y + (self.Kp * self.d_b) * (self.gamma2_y - self.gamma1_y)
+        # Third Point for Trilinear Spring at 100 * gamma1_y
+        self.gamma3_y = 100.0 * self.gamma1_y
+        self.M3y = self.M2y + (self.a_s * self.Ke * self.d_b) * (self.gamma3_y - self.gamma2_y)
+
+        # Data storage for loading/saving
+        self.UpdateStoredData()
 
 
-#         if plot:
-#             # Data for plotting
-#             # Last point for plot
-#             gamma3_y_plot = 10.0 * self.gamma1_y
-#             M3y_plot = self.M2y + (self.a_s * self.Ke * self.d_beam) * (gamma3_y_plot - self.gamma2_y)
+    def UpdateStoredData(self):
+        self.data = [["INFO_TYPE", "Gupta1999"], # Tag for differentiating different data
+            ["ID", self.ID],
+            ["beam_section_name_tag", self.beam_section_name_tag], 
+            ["col_section_name_tag", self.col_section_name_tag], 
+            ["d_c", self.d_c],
+            ["bf_c", self.bf_c],
+            ["tf_c", self.tf_c],
+            ["I_c", self.I_c],
+            ["d_b", self.d_b],
+            ["tf_b", self.tf_b],
+            ["Fy", self.Fy],
+            ["E", self.E],
+            ["G", self.G],
+            ["t_p", self.t_p],
+            ["t_dp", self.t_dp],
+            ["t_pz", self.t_pz],
+            ["a_s", self.a_s],
+            ["pinchx", self.pinchx],
+            ["pinchy", self.pinchy],
+            ["dmg1", self.dmg1],
+            ["dmg2", self.dmg2],
+            ["beta", self.beta],
+            ["Ry", self.Ry],
+            ["Vy", self.Vy],
+            ["Ke", self.Ke],
+            ["Kp", self.Kp],
+            ["gamma1_y", self.gamma1_y],
+            ["M1y", self.M1y],
+            ["gamma2_y", self.gamma2_y],
+            ["M2y", self.M2y],
+            ["gamma3_y", self.gamma3_y],
+            ["M3y", self.M3y]]
 
-#             x_axis = np.array([0.0, self.gamma1_y, self.gamma2_y, gamma3_y_plot])
-#             y_axis = ([0.0, self.M1y, self.M2y, M3y_plot])
+    def ShowInfo(self, plot = False, block = False):
+        """Function that show the data stored in the class in the command window and plots the material model (optional).
+        """
+        print("")
+        print("Gupta 1999 Material Model Parameters, ID = {}".format(self.ID))
+        print("gamma1_y = {}".format(self.gamma1_y))
+        print("gamma2_y = {}".format(self.gamma2_y))
+        print("gamma3_y = {}".format(self.gamma3_y))
+        print("M1y = {} kNm".format(self.M1y/kNm_unit))
+        print("M2y = {} kNm".format(self.M2y/kNm_unit))
+        print("M3y = {} kNm".format(self.M3y/kNm_unit))
+        print("")
+        
+        if plot:
+            # Data for plotting
+            # Last point for plot
+            gamma3_y_plot = 10.0 * self.gamma1_y
+            M3y_plot = self.M2y + (self.a_s * self.Ke * self.d_b) * (gamma3_y_plot - self.gamma2_y)
 
-#             fig, ax = plt.subplots()
-#             ax.plot(x_axis, y_axis, 'k-')
+            x_axis = np.array([0.0, self.gamma1_y, self.gamma2_y, gamma3_y_plot])
+            y_axis = ([0.0, self.M1y/kNm_unit, self.M2y/kNm_unit, M3y_plot/kNm_unit])
 
-#             ax.set(xlabel='Rotation [rad]', ylabel='Moment [kNmm]', 
-#                 title='Backbone curve for trilinear PZ spring model for material ID={}'.format(self.ID))
-#             ax.grid()
+            fig, ax = plt.subplots()
+            ax.plot(x_axis, y_axis, 'k-')
 
-#             print("")
-#             print("Trilinear PZ Spring Material Model, ID = {}".format(self.ID))
-#             print("gamma1_y = {}".format(self.gamma1_y))
-#             print("gamma2_y = {}".format(self.gamma2_y))
-#             print("gamma3_y = {}".format(self.gamma3_y))
-#             print("M1y = {} kNm".format(self.M1y/1000))
-#             print("M2y = {} kNm".format(self.M2y/1000))
-#             print("M3y = {} kNm".format(self.M3y/1000))
-#             print("")
+            ax.set(xlabel='Rotation [rad]', ylabel='Moment [kNm]', 
+                title='Gupta 1999 material model (ID={})'.format(self.ID))
+            ax.grid()
 
-#             if block:
-#                 plt.show()
+            if block:
+                plt.show()
 
-#     def RefinedHysteretic(self,  plot = False, block = False):
-#         # Refined backbone curve for the panel zone spring (Skiadopoulos et al. (2020))
-
-#         # Hysteretic Material
-#         # $matTag       integer tag identifying material
-#         # $s1p $e1p     stress and strain (or force & deformation) at first point of the envelope in the positive direction
-#         # $s2p $e2p     stress and strain (or force & deformation) at second point of the envelope in the positive direction
-#         # $s3p $e3p     stress and strain (or force & deformation) at third point of the envelope in the positive direction (optional)
-#         # $s1n $e1n     stress and strain (or force & deformation) at first point of the envelope in the negative direction
-#         # $s2n $e2n     stress and strain (or force & deformation) at second point of the envelope in the negative direction
-#         # $s3n $e3n     stress and strain (or force & deformation) at third point of the envelope in the negative direction (optional)
-#         # $pinchx       pinching factor for strain (or deformation) during reloading
-#         # $pinchy       pinching factor for stress (or force) during reloading
-#         # $damage1      damage due to ductility: D1(mu-1)
-#         # $damage2      damage due to energy: D2(Eii/Eult)
-#         # $beta         power used to determine the degraded unloading stiffness based on ductility, mu-beta (optional, default=0.0) 
-
-#         uniaxialMaterial("Hysteretic", self.ID,
-#             self.M1, self.Gamma_1, self.M4, self.Gamma_4, self.M6, self.Gamma_6,
-#             -self.M1, -self.Gamma_1, -self.M4, -self.Gamma_4, -self.M6, -self.Gamma_6,
-#             self.pinchx, self.pinchy, self.dmg1, self.dmg2, self.beta)
+class Gupta1999SteelIShape(Gupta1999):
+    def __init__(self, ID: int, col: SteelIShape, beam: SteelIShape,
+        t_dp = 0.0, a_s = 0.03, pinchx = 1.0, pinchy = 1.0, dmg1 = 0.0, dmg2 = 0.0, beta = 0.0, safety_factor = False):
+        super().__init__(ID, col.d, col.bf, col.tf, col.Iy, beam.d, beam.tf, col.Fy_web, col.E, col.tw,
+            t_dp, a_s, pinchx, pinchy, dmg1, dmg2, beta, safety_factor)
+        self.beam_section_name_tag = beam.name_tag
+        self.col_section_name_tag = col.name_tag
+        self.UpdateStoredData()
 
 
-#         if plot:
-#             # Data for plotting
-#             x_axis = np.array([0.0, self.Gamma_1, self.Gamma_4, self.Gamma_6])
-#             y_axis = ([0.0, self.M1, self.M4, self.M6])
+    # def Hysteretic(self,  plot = False, block = False):
+    #     # Hysteretic Material
+    #     # $matTag       integer tag identifying material
+    #     # $s1p $e1p     stress and strain (or force & deformation) at first point of the envelope in the positive direction
+    #     # $s2p $e2p     stress and strain (or force & deformation) at second point of the envelope in the positive direction
+    #     # $s3p $e3p     stress and strain (or force & deformation) at third point of the envelope in the positive direction (optional)
+    #     # $s1n $e1n     stress and strain (or force & deformation) at first point of the envelope in the negative direction
+    #     # $s2n $e2n     stress and strain (or force & deformation) at second point of the envelope in the negative direction
+    #     # $s3n $e3n     stress and strain (or force & deformation) at third point of the envelope in the negative direction (optional)
+    #     # $pinchx       pinching factor for strain (or deformation) during reloading
+    #     # $pinchy       pinching factor for stress (or force) during reloading
+    #     # $damage1      damage due to ductility: D1(mu-1)
+    #     # $damage2      damage due to energy: D2(Eii/Eult)
+    #     # $beta         power used to determine the degraded unloading stiffness based on ductility, mu-beta (optional, default=0.0) 
 
-#             fig, ax = plt.subplots()
-#             ax.plot(x_axis, y_axis, 'k-')
+    #     uniaxialMaterial("Hysteretic", self.ID,
+    #         self.M1y, self.gamma1_y, self.M2y, self.gamma2_y, self.M3y, self.gamma3_y,
+    #         -self.M1y, -self.gamma1_y, -self.M2y, -self.gamma2_y, -self.M3y, -self.gamma3_y,
+    #         self.pinchx, self.pinchy, self.dmg1, self.dmg2, self.beta)
 
-#             ax.set(xlabel='Rotation [rad]', ylabel='Moment [kNmm]', 
-#                 title='Backbone curve for refined trilinear PZ spring model for material ID={}'.format(self.ID))
-#             ax.grid()
 
-#             print("")
-#             print("Refined trilinear PZ Spring Material Model, ID = {}".format(self.ID))
-#             print("gamma1 = {}".format(self.Gamma_1))
-#             print("gamma4 = {}".format(self.Gamma_4))
-#             print("gamma6 = {}".format(self.Gamma_6))
-#             print("M1 = {} kNm".format(self.M1/1000))
-#             print("M4 = {} kNm".format(self.M4/1000))
-#             print("M6 = {} kNm".format(self.M6/1000))
-#             print("")
+    #     if plot:
+    #         # Data for plotting
+    #         # Last point for plot
+    #         gamma3_y_plot = 10.0 * self.gamma1_y
+    #         M3y_plot = self.M2y + (self.a_s * self.Ke * self.d_beam) * (gamma3_y_plot - self.gamma2_y)
 
-#             if block:
-#                 plt.show()
+    #         x_axis = np.array([0.0, self.gamma1_y, self.gamma2_y, gamma3_y_plot])
+    #         y_axis = ([0.0, self.M1y, self.M2y, M3y_plot])
+
+    #         fig, ax = plt.subplots()
+    #         ax.plot(x_axis, y_axis, 'k-')
+
+    #         ax.set(xlabel='Rotation [rad]', ylabel='Moment [kNmm]', 
+    #             title='Backbone curve for trilinear PZ spring model for material ID={}'.format(self.ID))
+    #         ax.grid()
+
+    #         print("")
+    #         print("Trilinear PZ Spring Material Model, ID = {}".format(self.ID))
+    #         print("gamma1_y = {}".format(self.gamma1_y))
+    #         print("gamma2_y = {}".format(self.gamma2_y))
+    #         print("gamma3_y = {}".format(self.gamma3_y))
+    #         print("M1y = {} kNm".format(self.M1y/1000))
+    #         print("M2y = {} kNm".format(self.M2y/1000))
+    #         print("M3y = {} kNm".format(self.M3y/1000))
+    #         print("")
+
+    #         if block:
+    #             plt.show()
+
+    # def RefinedHysteretic(self,  plot = False, block = False):
+    #     # Refined backbone curve for the panel zone spring (Skiadopoulos et al. (2020))
+
+    #     # Hysteretic Material
+    #     # $matTag       integer tag identifying material
+    #     # $s1p $e1p     stress and strain (or force & deformation) at first point of the envelope in the positive direction
+    #     # $s2p $e2p     stress and strain (or force & deformation) at second point of the envelope in the positive direction
+    #     # $s3p $e3p     stress and strain (or force & deformation) at third point of the envelope in the positive direction (optional)
+    #     # $s1n $e1n     stress and strain (or force & deformation) at first point of the envelope in the negative direction
+    #     # $s2n $e2n     stress and strain (or force & deformation) at second point of the envelope in the negative direction
+    #     # $s3n $e3n     stress and strain (or force & deformation) at third point of the envelope in the negative direction (optional)
+    #     # $pinchx       pinching factor for strain (or deformation) during reloading
+    #     # $pinchy       pinching factor for stress (or force) during reloading
+    #     # $damage1      damage due to ductility: D1(mu-1)
+    #     # $damage2      damage due to energy: D2(Eii/Eult)
+    #     # $beta         power used to determine the degraded unloading stiffness based on ductility, mu-beta (optional, default=0.0) 
+
+    #     uniaxialMaterial("Hysteretic", self.ID,
+    #         self.M1, self.Gamma_1, self.M4, self.Gamma_4, self.M6, self.Gamma_6,
+    #         -self.M1, -self.Gamma_1, -self.M4, -self.Gamma_4, -self.M6, -self.Gamma_6,
+    #         self.pinchx, self.pinchy, self.dmg1, self.dmg2, self.beta)
+
+
+    #     if plot:
+    #         # Data for plotting
+    #         x_axis = np.array([0.0, self.Gamma_1, self.Gamma_4, self.Gamma_6])
+    #         y_axis = ([0.0, self.M1, self.M4, self.M6])
+
+    #         fig, ax = plt.subplots()
+    #         ax.plot(x_axis, y_axis, 'k-')
+
+    #         ax.set(xlabel='Rotation [rad]', ylabel='Moment [kNmm]', 
+    #             title='Backbone curve for refined trilinear PZ spring model for material ID={}'.format(self.ID))
+    #         ax.grid()
+
+    #         print("")
+    #         print("Refined trilinear PZ Spring Material Model, ID = {}".format(self.ID))
+    #         print("gamma1 = {}".format(self.Gamma_1))
+    #         print("gamma4 = {}".format(self.Gamma_4))
+    #         print("gamma6 = {}".format(self.Gamma_6))
+    #         print("M1 = {} kNm".format(self.M1/1000))
+    #         print("M4 = {} kNm".format(self.M4/1000))
+    #         print("M6 = {} kNm".format(self.M6/1000))
+    #         print("")
+
+    #         if block:
+    #             plt.show()
 
 
 
