@@ -409,23 +409,6 @@ class Gupta1999(MaterialModels):
     ##  plot :          Bool for having the material Backbone graph (default: False)
     ##  block :         Bool for having the plots all at once (default: False)
 
-    # global Kf_Ke_tests, Cw1_tests, Cf1_tests, Cw4_tests, Cf4_tests, Cw6_tests, Cf6_tests
-
-    # Kf_Ke_tests = [1.000, 0.153, 0.120, 0.090, 0.059, 0.031, 0.019, 0.009, 0.005, 0.004, 0.000]
-    # Kf_Ke_tests.reverse()
-    # Cw1_tests = [0.96, 0.96, 0.955, 0.94, 0.93, 0.90, 0.89, 0.89, 0.88, 0.88, 0.88]
-    # Cw1_tests.reverse()
-    # Cf1_tests = [0.035, 0.035, 0.033, 0.031, 0.018, 0.015, 0.013, 0.009, 0.009, 0.010, 0.010]
-    # Cf1_tests.reverse()
-    # Cw4_tests = [1.145, 1.145, 1.140, 1.133, 1.120, 1.115, 1.115, 1.11, 1.10, 1.10, 1.10]
-    # Cw4_tests.reverse()
-    # Cf4_tests = [0.145, 0.145, 0.123, 0.111, 0.069, 0.040, 0.040, 0.018, 0.010, 0.012, 0.012]
-    # Cf4_tests.reverse()
-    # Cw6_tests = [1.205, 1.2050, 1.2000, 1.1925, 1.1740, 1.1730, 1.1720, 1.1690, 1.1670, 1.1650, 1.1650]
-    # Cw6_tests.reverse()
-    # Cf6_tests = [0.165, 0.1650, 0.1400, 0.1275, 0.0800, 0.0500, 0.0500, 0.0180, 0.0140, 0.0120, 0.0120]
-    # Cf6_tests.reverse()
-
     def __init__(self, ID: int, d_c, bf_c, tf_c, I_c, d_b, tf_b, Fy, E, t_p,
         t_dp = 0.0, a_s = 0.03, pinchx = 1.0, pinchy = 1.0, dmg1 = 0.0, dmg2 = 0.0, beta = 0.0, safety_factor = False):
         #TODO: check applicability and specify applicable for continous column
@@ -492,14 +475,14 @@ class Gupta1999(MaterialModels):
         if self.beam_section_name_tag != "None": self.beam_section_name_tag = self.beam_section_name_tag + " (modified)"
         if self.col_section_name_tag != "None": self.col_section_name_tag = self.col_section_name_tag + " (modified)"
 
-        # Trilinear Spring (Simple)
+        # Trilinear Parameters
         self.t_pz = self.t_p + self.t_dp
         self.Vy = 0.55 * self.Fy * self.Ry * self.d_c * self.t_pz # Yield Shear
         self.G = self.E/(2.0 * (1.0 + 0.30)) # Shear Modulus
         self.Ke = 0.95 * self.G * self.t_pz * self.d_c # Elastic Stiffness
         self.Kp = 0.95 * self.G * self.bf_c * (self.tf_c * self.tf_c) / self.d_b # Plastic Stiffness
 
-        # Define Trilinear Equivalent Rotational Spring (Simple)
+        # Define Trilinear Equivalent Rotational Spring
         # Yield point for Trilinear Spring at gamma1_y
         self.gamma1_y = self.Vy / self.Ke
         self.M1y = self.gamma1_y * (self.Ke * self.d_b)
@@ -611,55 +594,265 @@ class Gupta1999SteelIShape(Gupta1999):
             self.pinchx, self.pinchy, self.dmg1, self.dmg2, self.beta)
 
 
-    # def RefinedHysteretic(self,  plot = False, block = False):
-    #     # Refined backbone curve for the panel zone spring (Skiadopoulos et al. (2020))
-
-    #     # Hysteretic Material
-    #     # $matTag       integer tag identifying material
-    #     # $s1p $e1p     stress and strain (or force & deformation) at first point of the envelope in the positive direction
-    #     # $s2p $e2p     stress and strain (or force & deformation) at second point of the envelope in the positive direction
-    #     # $s3p $e3p     stress and strain (or force & deformation) at third point of the envelope in the positive direction (optional)
-    #     # $s1n $e1n     stress and strain (or force & deformation) at first point of the envelope in the negative direction
-    #     # $s2n $e2n     stress and strain (or force & deformation) at second point of the envelope in the negative direction
-    #     # $s3n $e3n     stress and strain (or force & deformation) at third point of the envelope in the negative direction (optional)
-    #     # $pinchx       pinching factor for strain (or deformation) during reloading
-    #     # $pinchy       pinching factor for stress (or force) during reloading
-    #     # $damage1      damage due to ductility: D1(mu-1)
-    #     # $damage2      damage due to energy: D2(Eii/Eult)
-    #     # $beta         power used to determine the degraded unloading stiffness based on ductility, mu-beta (optional, default=0.0) 
-
-    #     uniaxialMaterial("Hysteretic", self.ID,
-    #         self.M1, self.Gamma_1, self.M4, self.Gamma_4, self.M6, self.Gamma_6,
-    #         -self.M1, -self.Gamma_1, -self.M4, -self.Gamma_4, -self.M6, -self.Gamma_6,
-    #         self.pinchx, self.pinchy, self.dmg1, self.dmg2, self.beta)
+class Gupta1999SteelIShape(Gupta1999):
+    def __init__(self, ID: int, col: SteelIShape, beam: SteelIShape,
+        t_dp = 0.0, a_s = 0.03, pinchx = 1.0, pinchy = 1.0, dmg1 = 0.0, dmg2 = 0.0, beta = 0.0, safety_factor = False):
+        super().__init__(ID, col.d, col.bf, col.tf, col.Iy, beam.d, beam.tf, col.Fy_web, col.E, col.tw,
+            t_dp, a_s, pinchx, pinchy, dmg1, dmg2, beta, safety_factor)
+        self.beam_section_name_tag = beam.name_tag
+        self.col_section_name_tag = col.name_tag
+        self.UpdateStoredData()
 
 
-    #     if plot:
-    #         # Data for plotting
-    #         x_axis = np.array([0.0, self.Gamma_1, self.Gamma_4, self.Gamma_6])
-    #         y_axis = ([0.0, self.M1, self.M4, self.M6])
+class Skiadopoulos2021(MaterialModels):
+    ######################################################################################
+    ## PZRotSpringMaterialModel
+    ######################################################################################
+    ## Class that stores funcions and material properties of a panel zone rotational spring. For more information, see Gupta 1999
+    ## Warning: he units should be mm and kN
+    ##          Carmine Schipani, 2021
+    ##
+    ##  ID :            Unique material model ID
+    ##  col :           Object from the class SectionSteelIShape of the column
+    ##  d_beam :        Beam depth
+    ##  a_s :           Assumed strain hardening (default: 0.03)
+    ##  Ry :            Expected value for yield strength (default: 1.2)
+    ##  pinchx :        Pinching factor for strain (or deformation) during reloading (default: 1.0) 
+    ##  pinchy :        Pinching factor for stress (or force) during reloading (default: 1.0) 
+    ##  dmg1 :          Damage due to ductility: D1(mu-1) (default: 0.0) 
+    ##  dmg2 :          Damage due to energy: D2(Eii/Eult) (default: 0.0) 
+    ##  beta :          Power used to determine the degraded unloading stiffness based on ductility, mu-beta (default: 0.0) 
+    ##  plot :          Bool for having the material Backbone graph (default: False)
+    ##  block :         Bool for having the plots all at once (default: False)
 
-    #         fig, ax = plt.subplots()
-    #         ax.plot(x_axis, y_axis, 'k-')
+    global Kf_Ke_tests, Cw1_tests, Cf1_tests, Cw4_tests, Cf4_tests, Cw6_tests, Cf6_tests
 
-    #         ax.set(xlabel='Rotation [rad]', ylabel='Moment [kNmm]', 
-    #             title='Backbone curve for refined trilinear PZ spring model for material ID={}'.format(self.ID))
-    #         ax.grid()
+    Kf_Ke_tests = [1.000, 0.153, 0.120, 0.090, 0.059, 0.031, 0.019, 0.009, 0.005, 0.004, 0.000]
+    Kf_Ke_tests.reverse()
+    Cw1_tests = [0.96, 0.96, 0.955, 0.94, 0.93, 0.90, 0.89, 0.89, 0.88, 0.88, 0.88]
+    Cw1_tests.reverse()
+    Cf1_tests = [0.035, 0.035, 0.033, 0.031, 0.018, 0.015, 0.013, 0.009, 0.009, 0.010, 0.010]
+    Cf1_tests.reverse()
+    Cw4_tests = [1.145, 1.145, 1.140, 1.133, 1.120, 1.115, 1.115, 1.11, 1.10, 1.10, 1.10]
+    Cw4_tests.reverse()
+    Cf4_tests = [0.145, 0.145, 0.123, 0.111, 0.069, 0.040, 0.040, 0.018, 0.010, 0.012, 0.012]
+    Cf4_tests.reverse()
+    Cw6_tests = [1.205, 1.2050, 1.2000, 1.1925, 1.1740, 1.1730, 1.1720, 1.1690, 1.1670, 1.1650, 1.1650]
+    Cw6_tests.reverse()
+    Cf6_tests = [0.165, 0.1650, 0.1400, 0.1275, 0.0800, 0.0500, 0.0500, 0.0180, 0.0140, 0.0120, 0.0120]
+    Cf6_tests.reverse()
 
-    #         print("")
-    #         print("Refined trilinear PZ Spring Material Model, ID = {}".format(self.ID))
-    #         print("gamma1 = {}".format(self.Gamma_1))
-    #         print("gamma4 = {}".format(self.Gamma_4))
-    #         print("gamma6 = {}".format(self.Gamma_6))
-    #         print("M1 = {} kNm".format(self.M1/1000))
-    #         print("M4 = {} kNm".format(self.M4/1000))
-    #         print("M6 = {} kNm".format(self.M6/1000))
-    #         print("")
+    def __init__(self, ID: int, d_c, bf_c, tf_c, I_c, d_b, tf_b, Fy, E, t_p,
+        t_dp = 0.0, a_s = 0.03, pinchx = 1.0, pinchy = 1.0, dmg1 = 0.0, dmg2 = 0.0, beta = 0.0, safety_factor = False):
+        #TODO: check applicability and specify applicable for continous column
 
-    #         if block:
-    #             plt.show()
+        # # Initialisation
+        # E = col.E          # Young modulus
+        # Fy = col.Fy_web    # Yield strength of the column web (assume continous column)
+        # dc = col.d         # Column depth
+        # bf_c = col.bf      # Column flange width
+        # tf_c = col.tf      # Column flange thickness
+        # tp = col.tw        # Panel zone thickness
+        # Ic = col.Iy        # Column moment of inertia (strong axis)
+        # tpz = tp+t_dp      # Thickness of the panel zone and the doubler plate
+
+        # Check
+        if ID < 1: raise WrongArgument()
+        if d_c < 0: raise NegativeValue()
+        if bf_c < 0: raise NegativeValue()
+        if tf_c < 0: raise NegativeValue()
+        if d_b < 0: raise NegativeValue()
+        if tf_b < 0: raise NegativeValue()
+        if Fy < 0: raise NegativeValue()
+        if E < 0: raise NegativeValue()
+        if t_p < 0: raise NegativeValue()
+        if a_s < 0: raise NegativeValue()
+
+        # Arguments
+        self.ID = ID
+        self.d_c = d_c
+        self.bf_c = bf_c
+        self.tf_c = tf_c
+        self.I_c = I_c
+        self.d_b = d_b
+        self.tf_b = tf_b
+        self.Fy = Fy
+        self.E = E
+        self.t_p = t_p
+        self.t_dp = t_dp
+        self.a_s = a_s
+        self.pinchx = pinchx
+        self.pinchy = pinchy
+        self.dmg1 = dmg1
+        self.dmg2 = dmg2
+        self.beta = beta
+        if safety_factor:
+            self.Ry = 1.2
+        else:
+            self.Ry = 1.0
+
+        # Initialized the parameters that are dependent from others
+        self.beam_section_name_tag = "None"
+        self.col_section_name_tag = "None"
+        self.ReInit()
 
 
+    # Methods
+    def ReInit(self):
+        """Function that computes the value of the parameters that are computed with respect of the arguments.
+        Use after changing the value of argument inside the class (to update the values accordingly). 
+        This function can be very useful in combination with the function "copy()" from the module "copy".
+        """
+        #TODO: Check applicability
+
+        # Parameters
+        if self.beam_section_name_tag != "None": self.beam_section_name_tag = self.beam_section_name_tag + " (modified)"
+        if self.col_section_name_tag != "None": self.col_section_name_tag = self.col_section_name_tag + " (modified)"
+        self.t_pz = self.t_p + self.t_dp
+        self.G = self.E/(2.0 * (1.0 + 0.30)) # Shear Modulus
+
+        # Refined computation of the parameters for the backbone curve for the panel zone spring (Skiadopoulos et al. (2021))
+        # Panel Zone Elastic Stiffness
+        self.Ks = self.t_pz*(self.d_c-self.tf_c)*self.G
+        self.Kb = 12.0*self.E*(self.I_c+self.t_dp*(self.d_c-2.0*self.tf_c)**3/12.0)/(self.d_b-0)**2
+        self.Ke = self.Ks*self.Kb/(self.Ks+self.Kb)
+
+        # Column Flange Stiffness
+        self.Ksf = 2.0*(self.tf_c*self.bf_c*self.G)
+        self.Kbf = 2.0*(12.0*self.E*self.bf_c*self.tf_c**3/12.0/(self.d_b-0)**2)
+        self.Kf = self.Ksf*self.Kbf/(self.Ksf+self.Kbf)
+
+        # Kf/Ke Calculation for Panel Zone Categorization
+        self.Kf_Ke = self.Kf/self.Ke
+
+        # Panel Zone Strength Coefficients (results from tests for a_w_eff and a_f_eff)
+        self.Cw1 = np.interp(self.Kf_Ke, Kf_Ke_tests, Cw1_tests)
+        self.Cf1 = np.interp(self.Kf_Ke, Kf_Ke_tests, Cf1_tests)
+        self.Cw4 = np.interp(self.Kf_Ke, Kf_Ke_tests, Cw4_tests)
+        self.Cf4 = np.interp(self.Kf_Ke, Kf_Ke_tests, Cf4_tests)
+        self.Cw6 = np.interp(self.Kf_Ke, Kf_Ke_tests, Cw6_tests)
+        self.Cf6 = np.interp(self.Kf_Ke, Kf_Ke_tests, Cf6_tests)
+
+        # Panel Zone Model
+        self.V1 = self.Fy*self.Ry/math.sqrt(3)*(self.Cw1*(self.d_c-self.tf_c)*self.t_pz + self.Cf1*2*(self.bf_c-self.t_p)*self.tf_c)
+        self.V4 = self.Fy*self.Ry/math.sqrt(3)*(self.Cw4*(self.d_c-self.tf_c)*self.t_pz + self.Cf4*2*(self.bf_c-self.t_p)*self.tf_c)
+        self.V6 = self.Fy*self.Ry/math.sqrt(3)*(self.Cw6*(self.d_c-self.tf_c)*self.t_pz + self.Cf6*2*(self.bf_c-self.t_p)*self.tf_c)
+
+        self.M1 = self.V1*(self.d_b-self.tf_b)
+        self.M4 = self.V4*(self.d_b-self.tf_b)
+        self.M6 = self.V6*(self.d_b-self.tf_b)
+
+        self.Gamma_1 = self.V1/self.Ke
+        self.Gamma_4 = 4*self.Gamma_1
+        self.Gamma_6 = 6*self.Gamma_1
+
+        # Data storage for loading/saving
+        self.UpdateStoredData()
+
+
+    def UpdateStoredData(self):
+        self.data = [["INFO_TYPE", "Skiadopoulos2021"], # Tag for differentiating different data
+            ["ID", self.ID],
+            ["beam_section_name_tag", self.beam_section_name_tag], 
+            ["col_section_name_tag", self.col_section_name_tag], 
+            ["d_c", self.d_c],
+            ["bf_c", self.bf_c],
+            ["tf_c", self.tf_c],
+            ["I_c", self.I_c],
+            ["d_b", self.d_b],
+            ["tf_b", self.tf_b],
+            ["Fy", self.Fy],
+            ["E", self.E],
+            ["G", self.G],
+            ["t_p", self.t_p],
+            ["t_dp", self.t_dp],
+            ["t_pz", self.t_pz],
+            ["a_s", self.a_s],
+            ["pinchx", self.pinchx],
+            ["pinchy", self.pinchy],
+            ["dmg1", self.dmg1],
+            ["dmg2", self.dmg2],
+            ["beta", self.beta],
+            ["Ry", self.Ry],
+            ["Ks", self.Ks],
+            ["Kb", self.Kb],
+            ["Ke", self.Ke],
+            ["Ksf", self.Ksf],
+            ["Kbf", self.Kbf],
+            ["Kf", self.Kf],
+            ["Kf_Ke", self.Kf_Ke],
+            ["V1", self.V1],
+            ["V4", self.V4],
+            ["V6", self.V6],
+            ["M1", self.M1],
+            ["M4", self.M4],
+            ["M6", self.M6],
+            ["Gamma_1", self.Gamma_1],
+            ["Gamma_4", self.Gamma_4],
+            ["Gamma_6", self.Gamma_6]]
+
+
+    def ShowInfo(self, plot = False, block = False):
+        """Function that show the data stored in the class in the command window and plots the material model (optional).
+        """
+        print("")
+        print("Skiadopoulos 2021 Material Model Parameters, ID = {}".format(self.ID))
+        print("Gamma_1 = {}".format(self.Gamma_1))
+        print("Gamma_4 = {}".format(self.Gamma_4))
+        print("Gamma_6 = {}".format(self.Gamma_6))
+        print("M1 = {} kNm".format(self.M1/kNm_unit))
+        print("M4 = {} kNm".format(self.M4/kNm_unit))
+        print("M6 = {} kNm".format(self.M6/kNm_unit))
+        print("")
+        
+        if plot:
+            # Data for plotting
+            x_axis = np.array([0.0, self.Gamma_1, self.Gamma_4, self.Gamma_6])
+            y_axis = ([0.0, self.M1/kNm_unit, self.M4/kNm_unit, self.M6/kNm_unit])
+
+            fig, ax = plt.subplots()
+            ax.plot(x_axis, y_axis, 'k-')
+
+            ax.set(xlabel='Rotation [rad]', ylabel='Moment [kNm]', 
+                title='Skiadopoulos 2021 material model (ID={})'.format(self.ID))
+            ax.grid()
+
+            if block:
+                plt.show()
+
+
+    def Hysteretic(self):
+        # Refined backbone curve for the panel zone spring (Skiadopoulos et al. (2021))
+
+        # Hysteretic Material
+        # $matTag       integer tag identifying material
+        # $s1p $e1p     stress and strain (or force & deformation) at first point of the envelope in the positive direction
+        # $s2p $e2p     stress and strain (or force & deformation) at second point of the envelope in the positive direction
+        # $s3p $e3p     stress and strain (or force & deformation) at third point of the envelope in the positive direction (optional)
+        # $s1n $e1n     stress and strain (or force & deformation) at first point of the envelope in the negative direction
+        # $s2n $e2n     stress and strain (or force & deformation) at second point of the envelope in the negative direction
+        # $s3n $e3n     stress and strain (or force & deformation) at third point of the envelope in the negative direction (optional)
+        # $pinchx       pinching factor for strain (or deformation) during reloading
+        # $pinchy       pinching factor for stress (or force) during reloading
+        # $damage1      damage due to ductility: D1(mu-1)
+        # $damage2      damage due to energy: D2(Eii/Eult)
+        # $beta         power used to determine the degraded unloading stiffness based on ductility, mu-beta (optional, default=0.0) 
+
+        uniaxialMaterial("Hysteretic", self.ID,
+            self.M1, self.Gamma_1, self.M4, self.Gamma_4, self.M6, self.Gamma_6,
+            -self.M1, -self.Gamma_1, -self.M4, -self.Gamma_4, -self.M6, -self.Gamma_6,
+            self.pinchx, self.pinchy, self.dmg1, self.dmg2, self.beta)
+
+
+class Skiadopoulos2021SteelIShape(Skiadopoulos2021):
+    def __init__(self, ID: int, col: SteelIShape, beam: SteelIShape,
+        t_dp=0, a_s=0.03, pinchx=1, pinchy=1, dmg1=0, dmg2=0, beta=0, safety_factor=False):
+        super().__init__(ID, col.d, col.bf, col.tf, col.Iy, beam.d, beam.tf, col.Fy_web, col.E, col.tw,
+            t_dp=t_dp, a_s=a_s, pinchx=pinchx, pinchy=pinchy, dmg1=dmg1, dmg2=dmg2, beta=beta, safety_factor=safety_factor)
+        self.beam_section_name_tag = beam.name_tag
+        self.col_section_name_tag = col.name_tag
+        self.UpdateStoredData()
+        
 
 # class Concrete04MaterialModel(DataManagement):
 #     # Class that stores funcions and material properties of a rectangular shape RC  profile. For more information see Mander et Al. 1988
