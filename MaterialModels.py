@@ -590,55 +590,26 @@ class Gupta1999SteelIShape(Gupta1999):
         self.UpdateStoredData()
 
 
-    # def Hysteretic(self,  plot = False, block = False):
-    #     # Hysteretic Material
-    #     # $matTag       integer tag identifying material
-    #     # $s1p $e1p     stress and strain (or force & deformation) at first point of the envelope in the positive direction
-    #     # $s2p $e2p     stress and strain (or force & deformation) at second point of the envelope in the positive direction
-    #     # $s3p $e3p     stress and strain (or force & deformation) at third point of the envelope in the positive direction (optional)
-    #     # $s1n $e1n     stress and strain (or force & deformation) at first point of the envelope in the negative direction
-    #     # $s2n $e2n     stress and strain (or force & deformation) at second point of the envelope in the negative direction
-    #     # $s3n $e3n     stress and strain (or force & deformation) at third point of the envelope in the negative direction (optional)
-    #     # $pinchx       pinching factor for strain (or deformation) during reloading
-    #     # $pinchy       pinching factor for stress (or force) during reloading
-    #     # $damage1      damage due to ductility: D1(mu-1)
-    #     # $damage2      damage due to energy: D2(Eii/Eult)
-    #     # $beta         power used to determine the degraded unloading stiffness based on ductility, mu-beta (optional, default=0.0) 
+    def Hysteretic(self):
+        # Hysteretic Material
+        # $matTag       integer tag identifying material
+        # $s1p $e1p     stress and strain (or force & deformation) at first point of the envelope in the positive direction
+        # $s2p $e2p     stress and strain (or force & deformation) at second point of the envelope in the positive direction
+        # $s3p $e3p     stress and strain (or force & deformation) at third point of the envelope in the positive direction (optional)
+        # $s1n $e1n     stress and strain (or force & deformation) at first point of the envelope in the negative direction
+        # $s2n $e2n     stress and strain (or force & deformation) at second point of the envelope in the negative direction
+        # $s3n $e3n     stress and strain (or force & deformation) at third point of the envelope in the negative direction (optional)
+        # $pinchx       pinching factor for strain (or deformation) during reloading
+        # $pinchy       pinching factor for stress (or force) during reloading
+        # $damage1      damage due to ductility: D1(mu-1)
+        # $damage2      damage due to energy: D2(Eii/Eult)
+        # $beta         power used to determine the degraded unloading stiffness based on ductility, mu-beta (optional, default=0.0) 
 
-    #     uniaxialMaterial("Hysteretic", self.ID,
-    #         self.M1y, self.gamma1_y, self.M2y, self.gamma2_y, self.M3y, self.gamma3_y,
-    #         -self.M1y, -self.gamma1_y, -self.M2y, -self.gamma2_y, -self.M3y, -self.gamma3_y,
-    #         self.pinchx, self.pinchy, self.dmg1, self.dmg2, self.beta)
+        uniaxialMaterial("Hysteretic", self.ID,
+            self.M1y, self.gamma1_y, self.M2y, self.gamma2_y, self.M3y, self.gamma3_y,
+            -self.M1y, -self.gamma1_y, -self.M2y, -self.gamma2_y, -self.M3y, -self.gamma3_y,
+            self.pinchx, self.pinchy, self.dmg1, self.dmg2, self.beta)
 
-
-    #     if plot:
-    #         # Data for plotting
-    #         # Last point for plot
-    #         gamma3_y_plot = 10.0 * self.gamma1_y
-    #         M3y_plot = self.M2y + (self.a_s * self.Ke * self.d_beam) * (gamma3_y_plot - self.gamma2_y)
-
-    #         x_axis = np.array([0.0, self.gamma1_y, self.gamma2_y, gamma3_y_plot])
-    #         y_axis = ([0.0, self.M1y, self.M2y, M3y_plot])
-
-    #         fig, ax = plt.subplots()
-    #         ax.plot(x_axis, y_axis, 'k-')
-
-    #         ax.set(xlabel='Rotation [rad]', ylabel='Moment [kNmm]', 
-    #             title='Backbone curve for trilinear PZ spring model for material ID={}'.format(self.ID))
-    #         ax.grid()
-
-    #         print("")
-    #         print("Trilinear PZ Spring Material Model, ID = {}".format(self.ID))
-    #         print("gamma1_y = {}".format(self.gamma1_y))
-    #         print("gamma2_y = {}".format(self.gamma2_y))
-    #         print("gamma3_y = {}".format(self.gamma3_y))
-    #         print("M1y = {} kNm".format(self.M1y/1000))
-    #         print("M2y = {} kNm".format(self.M2y/1000))
-    #         print("M3y = {} kNm".format(self.M3y/1000))
-    #         print("")
-
-    #         if block:
-    #             plt.show()
 
     # def RefinedHysteretic(self,  plot = False, block = False):
     #     # Refined backbone curve for the panel zone spring (Skiadopoulos et al. (2020))
