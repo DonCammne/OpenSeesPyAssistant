@@ -2,6 +2,7 @@
 #         Carmine Schipani, 2021
 
 from abc import ABC, abstractmethod
+from OpenSeesPyHelper.ErrorHandling import WrongDimension
 import numpy as np
 
 class DataManagement(ABC):
@@ -18,17 +19,33 @@ class DataManagement(ABC):
         Args:
             f (io.TextIOWrapper): Opened file to write into
         """
-
+        if len(self.data[0]) != 2: raise WrongDimension() 
+        
         delimiter = "##############################" # 30 times #
+        col_delimiter = "\t" # tab
         for data_line in self.data:
             f.write('\n')
-            if type(data_line) == np.ndarray:
-                tmp_str = np.array_str(data_line, max_line_width = np.inf)
-            else:
-                tmp_str = str(data_line)
-            f.write(tmp_str)
+            for col in data_line:
+                if type(col) == np.ndarray:
+                    tmp_str = np.array_str(col, max_line_width = np.inf)
+                else:
+                    tmp_str = str(col)
+                f.write(tmp_str)
+                f.write(col_delimiter)
         f.write('\n')
+        f.write('NEW INFO SECTION DELIMITER \t')
         f.write(delimiter)
+
+        # delimiter = "##############################" # 30 times #
+        # for data_line in self.data:
+        #     f.write('\n')
+        #     if type(data_line) == np.ndarray:
+        #         tmp_str = np.array_str(data_line, max_line_width = np.inf)
+        #     else:
+        #         tmp_str = str(data_line)
+        #     f.write(tmp_str)
+        # f.write('\n')
+        # f.write(delimiter)
 
     @abstractmethod
     def ShowInfo(self):
@@ -41,5 +58,12 @@ class DataManagement(ABC):
         """Abstract function that computes the value of the parameters that are computed with respect of the arguments.
         Use after changing the value of argument inside the class (to update the values accordingly). 
         This function can be very useful in combination with the function "copy()" from the module "copy".
+        """
+        pass
+
+    @abstractmethod
+    def UpdateStoredData(self):
+        """Abstract function used to define a self.data member.
+        This member is a list of lists with 2 columns (info_name and info_value) and at each row is stored a different member of the class.
         """
         pass
