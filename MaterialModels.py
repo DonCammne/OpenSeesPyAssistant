@@ -5,6 +5,8 @@ from openseespy.opensees import *
 import matplotlib.pyplot as plt
 import numpy as np
 import math
+from abc import abstractmethod
+from copy import copy
 from OpenSeesPyHelper.Section import *
 from OpenSeesPyHelper.DataManagement import *
 from OpenSeesPyHelper.ErrorHandling import *
@@ -13,7 +15,11 @@ from OpenSeesPyHelper.Units import *
 # Material models
 
 class MaterialModels(DataManagement):
-    pass
+    @abstractmethod
+    def CheckApplicability(self):
+        """Abstract function used to check the applicability of the material model.
+        """
+        pass
 
 class ModifiedIMK(MaterialModels):
 	# Class that stores funcions and material properties of an double symmetric I-shape profile, the default values are valid for a simple cantelever.
@@ -184,7 +190,8 @@ class ModifiedIMK(MaterialModels):
             Mr = self.Mc*(1.0-1.0/self.theta_pc*(self.theta_u-self.theta_y-theta_p_plot))
 
         print("")
-        print("IMK Material Model Parameters, ID = {}".format(self.ID))
+        print("Requested info for Modified IMK material model Parameters, ID = {}".format(self.ID))
+        print("Section associated: {}".format(self.section_name_tag))
         print('theta y = {}'.format(self.theta_y))
         print('theta p = {}'.format(self.theta_p))
         print('theta r = {}'.format(theta_r))
@@ -249,8 +256,8 @@ class ModifiedIMK(MaterialModels):
                 Check = False
                 print("The NG/Npl check was not fullfilled")
         if not Check:
-            print("The empirical equation validity are not fullfilled.")
-            print("Check material model of Modified IMK, ID=", self.ID)
+            print("The validity of the equations is not fullfilled.")
+            print("!!!!!!! WARNING !!!!!!! Check material model of Modified IMK, ID=", self.ID)
             print("")
 
     def ComputeKe(self):
@@ -470,8 +477,10 @@ class Gupta1999(MaterialModels):
         Use after changing the value of argument inside the class (to update the values accordingly). 
         This function can be very useful in combination with the function "copy()" from the module "copy".
         """
-        #TODO: Check applicability
+        # Check applicability
+        self.CheckApplicability()
 
+        # Members
         if self.beam_section_name_tag != "None": self.beam_section_name_tag = self.beam_section_name_tag + " (modified)"
         if self.col_section_name_tag != "None": self.col_section_name_tag = self.col_section_name_tag + " (modified)"
 
@@ -535,7 +544,9 @@ class Gupta1999(MaterialModels):
         """Function that show the data stored in the class in the command window and plots the material model (optional).
         """
         print("")
-        print("Gupta 1999 Material Model Parameters, ID = {}".format(self.ID))
+        print("Requested info for Gupta 1999 material model Parameters, ID = {}".format(self.ID))
+        print("Sections associated, column: {} ".format(self.col_section_name_tag))
+        print("Sections associated, beam: {} ".format(self.beam_section_name_tag))
         print("gamma1_y = {}".format(self.gamma1_y))
         print("gamma2_y = {}".format(self.gamma2_y))
         print("gamma3_y = {}".format(self.gamma3_y))
@@ -563,14 +574,17 @@ class Gupta1999(MaterialModels):
             if block:
                 plt.show()
 
-class Gupta1999SteelIShape(Gupta1999):
-    def __init__(self, ID: int, col: SteelIShape, beam: SteelIShape,
-        t_dp = 0.0, a_s = 0.03, pinchx = 1.0, pinchy = 1.0, dmg1 = 0.0, dmg2 = 0.0, beta = 0.0, safety_factor = False):
-        super().__init__(ID, col.d, col.bf, col.tf, col.Iy, beam.d, beam.tf, col.Fy_web, col.E, col.tw,
-            t_dp, a_s, pinchx, pinchy, dmg1, dmg2, beta, safety_factor)
-        self.beam_section_name_tag = beam.name_tag
-        self.col_section_name_tag = col.name_tag
-        self.UpdateStoredData()
+
+    def CheckApplicability(self):
+        #TODO: 
+        Check = True
+        # if self.d/self.tw < 20 or self.d/self.tw > 55:
+        #     Check = False
+        #     print("The d/tw check was not fullfilled")
+        if not Check:
+            print("The validity of the equations is not fullfilled.")
+            print("!!!!!!! WARNING !!!!!!! Check material model of Gupta 1999, ID=", self.ID)
+            print("")
 
 
     def Hysteretic(self):
@@ -703,9 +717,10 @@ class Skiadopoulos2021(MaterialModels):
         Use after changing the value of argument inside the class (to update the values accordingly). 
         This function can be very useful in combination with the function "copy()" from the module "copy".
         """
-        #TODO: Check applicability
+        # Check applicability
+        self.CheckApplicability()
 
-        # Parameters
+        # Memebers
         if self.beam_section_name_tag != "None": self.beam_section_name_tag = self.beam_section_name_tag + " (modified)"
         if self.col_section_name_tag != "None": self.col_section_name_tag = self.col_section_name_tag + " (modified)"
         self.t_pz = self.t_p + self.t_dp
@@ -796,7 +811,9 @@ class Skiadopoulos2021(MaterialModels):
         """Function that show the data stored in the class in the command window and plots the material model (optional).
         """
         print("")
-        print("Skiadopoulos 2021 Material Model Parameters, ID = {}".format(self.ID))
+        print("Requested info for Skiadopoulos 2021 material model Parameters, ID = {}".format(self.ID))
+        print("Sections associated, column: {} ".format(self.col_section_name_tag))
+        print("Sections associated, beam: {} ".format(self.beam_section_name_tag))
         print("Gamma_1 = {}".format(self.Gamma_1))
         print("Gamma_4 = {}".format(self.Gamma_4))
         print("Gamma_6 = {}".format(self.Gamma_6))
@@ -819,6 +836,18 @@ class Skiadopoulos2021(MaterialModels):
 
             if block:
                 plt.show()
+
+
+    def CheckApplicability(self):
+        #TODO: 
+        Check = True
+        # if self.d/self.tw < 20 or self.d/self.tw > 55:
+        #     Check = False
+        #     print("The d/tw check was not fullfilled")
+        if not Check:
+            print("The validity of the equations is not fullfilled.")
+            print("!!!!!!! WARNING !!!!!!! Check material model of Skiadopoulos 2021, ID=", self.ID)
+            print("")
 
 
     def Hysteretic(self):
@@ -854,202 +883,424 @@ class Skiadopoulos2021SteelIShape(Skiadopoulos2021):
         self.UpdateStoredData()
         
 
-# class Concrete04MaterialModel(DataManagement):
-#     # Class that stores funcions and material properties of a rectangular shape RC  profile. For more information see Mander et Al. 1988
-#     # Warning: the units should be mm and kN
-#       #TODO: warning if concrete fc is bigger than something (see article Lee)
+class UnconfMander1988(MaterialModels):
+    # Class that stores funcions and material properties of a rectangular shape RC  profile. For more information see Mander et Al. 1988
+    # Warning: the units should be m and N
+      #TODO: validity check: warning if concrete fc is bigger than something (see article Lee)
     
-#     def __init__(self, ConfinedID, UnconfinedID, ele: SectionRCRectShape, N_G = 0, Cantilever = False):
-#         """
-#         Parameters
-#         ----------
-#         ConfinedID : int
-#             The ID of the material model for confined
-#         UnconfinedID : int
-#             The ID of the material model for unconfined
-#         ele : SectionRCRectShape
-#             The element section
-#         N_G : double
-#             The gravity axial load (default: 0)
-#         Cantilever : bool
-#             A parameter to know if the element is a cantilever or not (double fixed) (default: False)
-#         """
-#         self.ConfinedID = ConfinedID 
-#         self.UnconfinedID = UnconfinedID
-#         self.ele = ele
-#         self.N_G = N_G
-#         if Cantilever:
-#             L_o = ele.L
-#             K_factor = 3
-#         else:
-#             L_o = ele.L/2
-#             K_factor = 6
-#         self.L_o = L_o
-#         self.K_factor = K_factor
+    def __init__(self, ID: int, fc, Ec, ec = 1, ecp = 1, fct = -1, et = -1, beta = 0.1, safety_factors = False):
+        #TODO: security factor
+        # self.ec = -0.002
+        # self.ecp = 2.0*self.ec                                  # concrete spalling
+        # self.esu = 0.05                                         # strain capacity of stirrups 0.012-0.05 experimental results (BOOK BEYER)
 
-#         # Initialization
-#         self.ec = -0.002
-#         self.ecp = 2.0*self.ec                                  # concrete spalling
-#         self.esu = 0.05                                         # strain capacity of stirrups 0.012-0.05 experimental results (BOOK BEYER)
-#         self.ecu = -0.004 + (1.4*0*self.esu*ele.fs) / ele.fc    # FROM BRIDGE BOOK OF KATRIN BEYER!
-#         self.fct = 0.30 * math.pow(-ele.fc, 2/3)                # SIA 262 2013
-#         self.et = self.fct/ele.Ec                               # Mander Eq 45
-#         wx_top : numpy.ndarray
-#             A vector that defines the distance between bars in x direction (NOT CENTERLINE DISTANCE). One range of bars implemented
-#         wx_bottom : numpy.ndarray
-#             A vector that defines the distance between bars in x direction (NOT CENTERLINE DISTANCE). One range of bars implemented
-#         wy : numpy.ndarray
-#             A vector that defines the distance between bars in y direction (NOT CENTERLINE DISTANCE). One range of bars implemented
+        # Check
+        if ID < 0: raise NegativeValue()
+        if fc > 0: raise PositiveValue()
+        if Ec < 0: raise NegativeValue()
+        if ec != 1 and ec > 0: raise PositiveValue()
+        if ecp != 1 and ecp > 0: raise PositiveValue()
+        if fct != -1 and fct < 0: raise NegativeValue()
+        if et != -1 and et < 0: raise NegativeValue()
+
+        # Arguments
+        self.ID = ID
+        self.fc = fc
+        self.Ec = Ec
+        self.ec = -0.002 if ec == 1 else ec
+        self.beta = beta
+
+        # Initialized the parameters that are dependent from others
+        self.section_name_tag = "None"
+        if safety_factors:
+            #TODO: insert the correct value and see where to put it
+            self.Ry = 1.5
+        else:
+            self.Ry = 1.0
+        self.ReInit(ecp, fct, et)
+
+    # Methods
+    def ReInit(self, ecp = 1, fct = -1, et = -1):
+        """Function that computes the value of the parameters that are computed with respect of the arguments.
+        Use after changing the value of argument inside the class (to update the values accordingly). 
+        This function can be very useful in combination with the function "copy()" from the module "copy".
+        """
+        # Check applicability
+        self.CheckApplicability()
+
+        # Arguments
+        self.ecp = self.Compute_ecp() if ecp == 1 else ecp
+        self.fct = self.Compute_fct() if fct == -1 else fct
+        self.et = self.Compute_et() if et == -1 else et
+
+        # Members
+        self.ecu = self.Compute_ecu()
+        if self.section_name_tag != "None": self.section_name_tag = self.section_name_tag + " (modified)"
+
+        # Data storage for loading/saving
+        self.UpdateStoredData()
 
 
-#         # Confined
-#         self.k1 = 4.1                                           # 4.1 from Richart et al. 1928 or 5.6 from Balmer 1949 
-#         self.k2 = 5.0*self.k1
-#         self.ineffectual_area = (np.sum(np.multiply(ele.wy, ele.wy)) + np.sum(np.multiply(ele.wx, ele.wx)))*2.0/6.0
-#         self.Ae = (ele.Ac - self.ineffectual_area) * (1.0 - (ele.s-ele.D_hoops)/2.0/ele.bc)*(1.0 - (ele.s-ele.D_hoops)/2.0/ele.dc)
-#         self.rho_cc = ele.nr_bars*ele.D_bars**2/4.0*math.pi / ele.Ac
-#         self.Acc = ele.Ac*(1.0-self.rho_cc)
-#         self.ke = self.Ae/self.Acc
-#         self.fl_x = -ele.rho_s_x * ele.fs
-#         self.fl_y = -ele.rho_s_y * ele.fs
-#         self.fl_prime = (self.fl_x + self.fl_y)/2.0 * self.ke # derive the interpolating curve
-#         self.confinement_factor = -1.254 + 2.254 * math.sqrt(1.0+7.94*self.fl_prime/ele.fc) - 2.0*self.fl_prime/ele.fc # in Mander, it has a prime
-#         self.fcc = ele.fc * self.confinement_factor
-#         self.ecc = (1.0 + 5.0 * (self.confinement_factor-1.0)) * self.ec
-#         self.eccu = -0.004 + (1.4*(ele.rho_s_x+ele.rho_s_y)*self.esu*ele.fs) / self.fcc # FROM BRIDGE BOOK OF KATRIN BEYER!
+    def UpdateStoredData(self):
+        self.data = [["INFO_TYPE", "UnconfMander1988"], # Tag for differentiating different data
+            ["ID", self.ID],
+            ["section_name_tag", self.section_name_tag],
+            ["fc", self.fc],
+            ["Ec", self.Ec],
+            ["ec", self.ec],
+            ["ecp", self.ecp],
+            ["ecu", self.ecu],
+            ["fct", self.fct],
+            ["et", self.et],
+            ["Ry", self.Ry],
+            ["beta", self.beta]]
+
+
+    def ShowInfo(self, plot = False, block = False):
+        """Function that show the data stored in the class in the command window and plots the material model (optional).
+        """
+        print("")
+        print("Requested info for Unconfined Mander 1988 material model Parameters, ID = {}".format(self.ID))
+        print("Section associated: {} ".format(self.section_name_tag))
+        print('Concrete strength fc = {} MPa'.format(self.fc/MPa_unit))
+        print('Strain at maximal strength ec = {}'.format(self.ec))
+        print('Maximal strain ecu = {}'.format(self.ecu))
+        print("")
+
+        if plot:
+            fig, ax = plt.subplots()
+            PlotConcrete04(self.fc, self.Ec, self.ec, self.ecu, "U", ax, self.ID)
+
+            if block:
+                plt.show()
+
+
+    def CheckApplicability(self):
+        #TODO: 
+        Check = True
+        # if self.d/self.tw < 20 or self.d/self.tw > 55:
+        #     Check = False
+        #     print("The d/tw check was not fullfilled")
+        if not Check:
+            print("The validity of the equations is not fullfilled.")
+            print("!!!!!!! WARNING !!!!!!! Check material model of Unconfined Mander 1988, ID=", self.ID)
+            print("")
+
+
+    def Compute_ecp(self):
+        return 2.0*self.ec
+
+
+    def Compute_fct(self):
+        #TODO: check units
+        return 0.30 * math.pow(-self.fc/MPa_unit, 2/3) * MPa_unit               # SIA 262 2013
+
+
+    def Compute_et(self):
+        return self.fct/self.Ec                               # Mander Eq 45
+
+
+    def Compute_ecu(self):
+        #TODO: add refernce Katrin book
+        return -0.004     # FROM BRIDGE BOOK OF KATRIN BEYER!
+
+
+    def Concrete04(self):
+        # Generate the material model using the given parameters
+
+        # Define Concrete04 Popovics Concrete material model for unconfined concrete
+        # uniaxialMaterial("Concrete04", matTag, fc, ec, ecu, Ec, <fct et> <beta>)
+        # matTag     integer tag identifying material
+        # fc     floating point values defining concrete compressive strength at 28 days (compression is negative)*
+        # ec     floating point values defining concrete strain at maximum strength*
+        # ecu    floating point values defining concrete strain at crushing strength*
+        # Ec     floating point values defining initial stiffness**
+        # fct    floating point value defining the maximum tensile strength of concrete
+        # et     floating point value defining ultimate tensile strain of concrete
+        # beta   loating point value defining the exponential curve parameter to define the residual stress (as a factor of ft) at etu 
+        
+        uniaxialMaterial("Concrete04", self.ID, self.fc, self.ec, self.ecu, self.Ec, self.fct, self.et, self.beta)
+        #TODO: ft, et for unconf?
+
+
+def Concrete04Funct(fc, discretized_eps, ec, Ec):
+    x = discretized_eps/ec
+    r = Ec / (Ec - fc/ec)
+    return fc*x*r / (r-1+x**r)
+
+
+def PlotConcrete04(fc, Ec, ec, ecu, Type, ax, ID = 0):
+    # For ax, just use:
+    # fig, ax = plt.subplots()
+    # to generate the figure
+    # Type is "C" or "U" for confined or unconfined
+
+    if Type == "C":
+        name = "Confined"
+    elif Type == "U":
+        name = "Unconfined"
+    else:
+        raise NameError("Type should be C or U (ID={})".format(ID))
+
+    # Data for plotting
+    N = int(-ecu*1e5)
+    x_axis = np.zeros(N)
+    y_axis = np.zeros(N)
+    for i in range(N):
+        x_axis[i] = -i/1e5
+        y_axis[i] = Concrete04Funct(fc, x_axis[i], ec, Ec)
+
+
+    ax.plot(-x_axis*100.0, -y_axis/MPa_unit, 'k-', label = name)
+    ax.set(xlabel='Strain [%]', ylabel='Stress MPa]', 
+                    title='Mander 1988 material model (ID={})'.format(ID))
+    plt.legend()
+    plt.grid()
+
+
+class UnconfMander1988RCRectShape(UnconfMander1988):
+    def __init__(self, ID: int, ele: RCRectShape, ec=1, ecp=1, fct=-1, et=-1, beta=0.1, safety_factors=False):
+        super().__init__(ID, ele.fc, ele.Ec, ec=ec, ecp=ecp, fct=fct, et=et, beta=beta, safety_factors=safety_factors)
+        self.section_name_tag = ele.name_tag
+        self.UpdateStoredData()
+
+
+class ConfMander1988(MaterialModels):
+    # Class that stores funcions and material properties of a rectangular shape RC  profile. For more information see Mander et Al. 1988
+    # Warning: the units should be m and N
+      #TODO: validity check: warning if concrete fc is bigger than something (see article Lee)
+    
+    def __init__(self, ID: int, bc, dc, Ac, fc, Ec, nr_bars, D_bars, wx_top: np.ndarray, wx_bottom: np.ndarray, wy: np.ndarray, s, D_hoops, rho_s_x, rho_s_y, fs, 
+        ec = 1, ecp = 1, fct = -1, et = -1, esu = -1, beta = 0.1, k1 = 4.1, safety_factors = False):
+        #TODO: security factor
+        # self.ec = -0.002
+        # self.ecp = 2.0*self.ec                                  # concrete spalling
+        # self.esu = 0.05                                         # strain capacity of stirrups 0.012-0.05 experimental results (BOOK BEYER)
+        # wx_top : numpy.ndarray
+            # A vector that defines the distance between bars in x direction (NOT CENTERLINE DISTANCE). One range of bars implemented
+        # wx_bottom : numpy.ndarray
+            # A vector that defines the distance between bars in x direction (NOT CENTERLINE DISTANCE). One range of bars implemented
+        # wy : numpy.ndarray
+            # A vector that defines the distance between bars in y direction (NOT CENTERLINE DISTANCE). One range of bars implemented
+
+        # Check
+        if ID < 0: raise NegativeValue()
+        if bc < 0: raise NegativeValue()
+        if dc < 0: raise NegativeValue()
+        if Ac < 0: raise NegativeValue()
+        if fc > 0: raise PositiveValue()
+        if Ec < 0: raise NegativeValue()
+        if nr_bars < 0: raise NegativeValue()
+        if D_bars < 0: raise NegativeValue()
+        if s < 0: raise NegativeValue()
+        if D_hoops < 0: raise NegativeValue()
+        if rho_s_x < 0: raise NegativeValue()
+        if rho_s_y < 0: raise NegativeValue()
+        if fs < 0: raise NegativeValue()
+        if ec != 1 and ec > 0: raise PositiveValue()
+        if ecp != 1 and ecp > 0: raise PositiveValue()
+        if fct != -1 and fct < 0: raise NegativeValue()
+        if et != -1 and et < 0: raise NegativeValue()
+        if esu != -1 and esu < 0: raise NegativeValue()
+        if k1 < 0: raise NegativeValue()
+
+        # Arguments
+        self.ID = ID
+        self.bc = bc
+        self.dc = dc
+        self.Ac = Ac
+        self.fc = fc
+        self.Ec = Ec
+        self.nr_bars = nr_bars
+        self.D_bars = D_bars
+        self.wx_top = wx_top
+        self.wx_bottom = wx_bottom
+        self.wy = wy
+        self.s = s
+        self.D_hoops = D_hoops
+        self.rho_s_x = rho_s_x
+        self.rho_s_y = rho_s_y
+        self.fs = fs
+        self.ec = -0.002 if ec == 1 else ec
+        self.esu = 0.05 if esu == -1 else esu
+        self.beta = beta
+        self.k1 = k1 # 4.1 from Richart et al. 1928 or 5.6 from Balmer 1949 
+
+        # Initialized the parameters that are dependent from others
+        self.section_name_tag = "None"
+        if safety_factors:
+            #TODO: insert the correct value
+            self.Ry = 1.5
+        else:
+            self.Ry = 1.0
+        self.ReInit(ecp, fct, et)
+
+    def ReInit(self, ecp = 1, fct = -1, et = -1):
+        """Function that computes the value of the parameters that are computed with respect of the arguments.
+        Use after changing the value of argument inside the class (to update the values accordingly). 
+        This function can be very useful in combination with the function "copy()" from the module "copy".
+        """
+        # Check applicability
+        self.CheckApplicability()
+
+        # Arguments
+        self.ecp = self.Compute_ecp() if ecp == 1 else ecp
+        self.fct = self.Compute_fct() if fct == -1 else fct
+        self.et = self.Compute_et() if et == -1 else et
+
+        # Members
+        #TODO: check formulas and units one time more
+        self.ecu = self.Compute_ecu()
+        self.k2 = 5.0*self.k1
+        self.Ai = self.ComputeAi()
+        self.Ae = (self.Ac - self.Ai) * (1.0 - (self.s-self.D_hoops)/2.0/self.bc)*(1.0 - (self.s-self.D_hoops)/2.0/self.dc)
+        self.rho_cc = self.nr_bars*self.D_bars**2/4.0*math.pi / self.Ac
+        self.Acc = self.Ac*(1.0-self.rho_cc)
+        self.ke = self.Ae/self.Acc
+        self.fl_x = -self.rho_s_x * self.fs
+        self.fl_y = -self.rho_s_y * self.fs
+        #TODO: K_combo = combination of flx and fly factor (interpolation graph)
+        self.fl_prime = (self.fl_x + self.fl_y)/2.0 * self.ke # derive the interpolating curve
+        self.K_combo = -1.254 + 2.254 * math.sqrt(1.0+7.94*self.fl_prime/self.fc) - 2.0*self.fl_prime/self.fc # in Mander, it has a prime
+        self.fcc = self.fc * self.K_combo
+        self.ecc = (1.0 + 5.0 * (self.K_combo-1.0)) * self.ec
+        self.eccu = -0.004 + (1.4*(self.rho_s_x+self.rho_s_y)*self.esu*self.fs) / self.fcc # FROM BRIDGE BOOK OF KATRIN BEYER!
+        if self.section_name_tag != "None": self.section_name_tag = self.section_name_tag + " (modified)"
         
 
-#         # List of all indormation of the class (to be used for example in the SaveData/LoadData functions)
-#         self.data = ["Data for Concrete04 material model", 
-#             self.ConfinedID,
-#             self.UnconfinedID,
-#             self.ele.NameTAG,
-#             self.ec,
-#             self.ecp,
-#             self.esu,
-#             self.ecu,
-#             self.k1,
-#             self.k2,
-#             self.ineffectual_area,
-#             self.Ae,
-#             self.rho_cc,
-#             self.Acc,
-#             self.ke,
-#             self.fl_x,
-#             self.fl_y,
-#             self.fl_prime,
-#             self.confinement_factor,
-#             self.fcc,
-#             self.ecc,
-#             self.eccu,
-#             self.N_G, 
-#             self.L_o,
-#             self.K_factor]
+        # Data storage for loading/saving
+        self.UpdateStoredData()
 
 
-
-#     # Methods
-#     def Confined(self, plot = False, block = False):
-#         # Generate the material model using the given parameters
-
-#         # Define Concrete04 Popovics Concrete material model for confined concrete
-#         # uniaxialMaterial("Concrete04", matTag, fcc, ecc, eccu, Ec, <fct et> <beta>)
-#         # matTag     integer tag identifying material
-#         # fcc    floating point values defining concrete compressive strength at 28 days (compression is negative)*
-#         # ecc    floating point values defining concrete strain at maximum strength*
-#         # eccu   floating point values defining concrete strain at crushing strength*
-#         # Ec     floating point values defining initial stiffness**
-#         # fct    floating point value defining the maximum tensile strength of concrete
-#         # et     floating point value defining ultimate tensile strain of concrete
-#         # beta   loating point value defining the exponential curve parameter to define the residual stress (as a factor of ft) at etu 
-
-#         uniaxialMaterial("Concrete04", self.ConfinedID, self.fcc, self.ecc, self.eccu, self.ele.Ec, self.fct, self.et, 0.1)
-
-#         if plot:
-#             fig, ax = plt.subplots()
-#             self.PlotConcrete04("C", ax)
-
-#             print("")
-#             print("Concrete04 Material Model (Confined), ID = {}".format(self.ConfinedID))
-#             print('Stress max fcc = {} kN/mm2'.format(self.fcc))
-#             print('Strain with max stress ecc = {}'.format(self.ecc))
-#             print('Strain max eccu = {}'.format(self.eccu))
-#             print("")
-
-#             if block:
-#                 plt.show()
-
-#     def Unconfined(self, plot = False, block = False):
-#         # Generate the material model using the given parameters
-
-#         # Define Concrete04 Popovics Concrete material model for unconfined concrete
-#         # uniaxialMaterial("Concrete04", matTag, fc, ec, ecu, Ec, <fct et> <beta>)
-#         # matTag     integer tag identifying material
-#         # fc     floating point values defining concrete compressive strength at 28 days (compression is negative)*
-#         # ec     floating point values defining concrete strain at maximum strength*
-#         # ecu    floating point values defining concrete strain at crushing strength*
-#         # Ec     floating point values defining initial stiffness**
-#         # fct    floating point value defining the maximum tensile strength of concrete
-#         # et     floating point value defining ultimate tensile strain of concrete
-#         # beta   loating point value defining the exponential curve parameter to define the residual stress (as a factor of ft) at etu 
-        
-#         uniaxialMaterial("Concrete04", self.UnconfinedID, self.ele.fc, self.ec, self.ecu, self.ele.Ec)
-
-#         if plot:
-#             fig, ax = plt.subplots()
-#             self.PlotConcrete04("U", ax)
-
-#             print("")
-#             print("Concrete04 Material Model (Unconfined), ID = {}".format(self.UnconfinedID))
-#             print('Stress max fc = {} kN/mm2'.format(self.ele.fc))
-#             print('Strain with max stress ec = {}'.format(self.ec))
-#             print('Strain max ecu = {}'.format(self.ecu))
-#             print("")
-
-#             if block:
-#                 plt.show()
+    # Methods
+    def UpdateStoredData(self):
+        self.data = [["INFO_TYPE", "ConfMander1988"], # Tag for differentiating different data
+            ["ID", self.ID],
+            ["section_name_tag", self.section_name_tag],
+            ["bc", self.bc],
+            ["dc", self.dc],
+            ["Ac", self.Ac],
+            ["fc", self.fc],
+            ["Ec", self.Ec],
+            ["ec", self.ec],
+            ["ecp", self.ecp],
+            ["ecu", self.ecu],
+            ["fct", self.fct],
+            ["et", self.et],
+            ["k1", self.k1],
+            ["fcc", self.fcc],
+            ["ecc", self.ecc],
+            ["eccu", self.eccu],
+            ["Ry", self.Ry],
+            ["beta", self.beta],
+            ["nr_bars", self.nr_bars],
+            ["D_bars", self.D_bars],
+            ["wx_top", self.wx_top],
+            ["wx_bottom", self.wx_bottom],
+            ["wy", self.wy],
+            ["s", self.s],
+            ["D_hoops", self.D_hoops],
+            ["rho_s_x", self.rho_s_x],
+            ["rho_s_y", self.rho_s_y],
+            ["fs", self.fs],
+            ["esu", self.esu]]
 
 
+    def ShowInfo(self, plot = False, block = False):
+        """Function that show the data stored in the class in the command window and plots the material model (optional).
+        """
+        print("")
+        print("Requested info for Confined Mander 1988 material model Parameters, ID = {}".format(self.ID))
+        print("Section associated: {} ".format(self.section_name_tag))
+        print('Concrete strength fc = {} MPa'.format(self.fc/MPa_unit))
+        print('Concrete strength confined fcc = {} MPa'.format(self.fcc/MPa_unit))
+        print('Strain at maximal strength ec = {}'.format(self.ec))
+        print('Strain at maximal strength confined ecc = {}'.format(self.ecc))
+        print('Maximal strain ecu = {}'.format(self.ecu))
+        print('Maximal strain confined eccu = {}'.format(self.eccu))
+        print("")
 
-#     def Concrete04Funct(self, fcc, ec, ecc, Ec):
-#         x = ec/ecc
-#         r = Ec / (Ec - fcc/ecc)
-#         return fcc*x*r / (r-1+x**r)
+        if plot:
+            fig, ax = plt.subplots()
+            PlotConcrete04(self.fcc, self.Ec, self.ecc, self.eccu, "C", ax, self.ID)
 
-
-#     def PlotConcrete04(self, Type, ax):
-#         # For ax, just use:
-#         # fig, ax = plt.subplots()
-#         # to generate the figure
-#         # Type is "C" or "U" for confined or unconfined
-
-#         if Type == "C":
-#             fcc = self.fcc
-#             ecc = self.ecc
-#             eccu = self.eccu
-#             name = "Confined"
-#         elif Type == "U":
-#             fcc = self.ele.fc
-#             ecc = self.ec
-#             eccu = self.ecu
-#             name = "Unconfined"
-#         else:
-#             raise NameError("Type should be C or U for Confined and Unconfined in material model (ConfinedID={})".format(self.ConfinedID))
-#         # Data for plotting
-#         N = int(-eccu*1e5)
-#         x_axis = np.zeros(N)
-#         y_axis = np.zeros(N)
-#         for i in range(N):
-#             x_axis[i] = -i/1e5
-#             y_axis[i] = self.Concrete04Funct(fcc, x_axis[i], ecc, self.ele.Ec)
+            if block:
+                plt.show()
 
 
-#         ax.plot(-x_axis*100.0, -y_axis*1000.0, 'k-', label = name)
-#         ax.set(xlabel='Strain [%]', ylabel='Stress MPa]', 
-#                         title='Backbone curve for Concrete04 material model')
-#         plt.grid()
-        
+    def CheckApplicability(self):
+        #TODO: 
+        Check = True
+        if len(self.wy) == 0 or len(self.wx_top) == 0 or len(self.wx_bottom) == 0: 
+            Check = False
+            print("Hypothesis of one bar per corner not fullfilled.")
+        if not Check:
+            print("The validity of the equations is not fullfilled.")
+            print("!!!!!!! WARNING !!!!!!! Check material model of Confined Mander 1988, ID=", self.ID)
+            print("")
 
+
+    def Compute_ecp(self):
+        return 2.0*self.ec
+
+
+    def Compute_fct(self):
+        #TODO: check units. Also, use fcc?
+        return 0.30 * math.pow(-self.fc/MPa_unit, 2/3) * MPa_unit               # SIA 262 2013
+
+
+    def Compute_et(self):
+        return self.fct/self.Ec                               # Mander Eq 45
+
+
+    def Compute_ecu(self):
+        #TODO: add refernce Katrin book
+        return -0.004     # FROM BRIDGE BOOK OF KATRIN BEYER!
+
+
+    def ComputeAi(self):
+        return ( np.sum(np.multiply(self.wy, self.wy))*2.0 +
+            np.sum(np.multiply(self.wx_top, self.wx_top)) +
+            np.sum(np.multiply(self.wx_bottom, self.wx_bottom)) ) / 6.0 # ineffectual area
+
+
+    def Concrete04(self, plot = False, block = False):
+        # Generate the material model using the given parameters
+
+        # Define Concrete04 Popovics Concrete material model for confined concrete
+        # uniaxialMaterial("Concrete04", matTag, fcc, ecc, eccu, Ec, <fct et> <beta>)
+        # matTag     integer tag identifying material
+        # fcc    floating point values defining concrete compressive strength at 28 days (compression is negative)*
+        # ecc    floating point values defining concrete strain at maximum strength*
+        # eccu   floating point values defining concrete strain at crushing strength*
+        # Ec     floating point values defining initial stiffness**
+        # fct    floating point value defining the maximum tensile strength of concrete
+        # et     floating point value defining ultimate tensile strain of concrete
+        # beta   loating point value defining the exponential curve parameter to define the residual stress (as a factor of ft) at etu 
+
+        uniaxialMaterial("Concrete04", self.ID, self.fcc, self.ecc, self.eccu, self.Ec, self.fct, self.et, self.beta)
+        # TODO: ft, et for conf (change way it is compute because it untilize fcc not fc??
+
+
+class ConfMander1988RCRectShape(ConfMander1988):
+    def __init__(self, ID: int, ele: RCRectShape, ec=1, ecp=1, fct=-1, et=-1, esu=-1, beta=0.1, k1=4.1, safety_factors=False):
+        ranges = ele.bars_ranges_position_y
+        bars = ele.bars_position_x
+        wy = self.__Compute_w(ranges, ele.D_bars)
+        wx_top = self.__Compute_w(bars[0], ele.D_bars)
+        wx_bottom = self.__Compute_w(bars[-1], ele.D_bars)
+
+        super().__init__(ID, ele.bc, ele.dc, ele.Ac, ele.fc, ele.Ec, ele.nr_bars, ele.D_bars, wx_top, wx_bottom, wy, ele.s, ele.D_hoops, ele.rho_s_x, ele.rho_s_y, ele.fs,
+            ec=ec, ecp=ecp, fct=fct, et=et, esu=esu, beta=beta, k1=k1, safety_factors=safety_factors)
+        self.section_name_tag = ele.name_tag
+        self.UpdateStoredData()
+
+    def __Compute_w(self, vector, D_bars):
+        l = len(vector)
+        w = np.zeros(l-2)
+        for i, elem in enumerate(vector[1:l-1]):
+            w[i] = elem - D_bars
+        return w
 
 
 
@@ -1115,4 +1366,8 @@ class Skiadopoulos2021SteelIShape(Skiadopoulos2021):
 
 #             if block:
 #                 plt.show()
+
+#TODO: Steel02
+#TODO: UVC
+# uniaxialMaterial('UVCuniaxial', 6, 200, 0.3, 100, 0.5, 100, 0.5, 1, 0.7, 10)
 
