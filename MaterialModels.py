@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import math
 from abc import abstractmethod
-from copy import copy
+from copy import deepcopy
 from OpenSeesPyHelper.Section import *
 from OpenSeesPyHelper.DataManagement import *
 from OpenSeesPyHelper.ErrorHandling import *
@@ -112,7 +112,7 @@ class ModifiedIMK(MaterialModels):
     def ReInit(self, Mc = -1, K = -1, theta_u = -1):
         """Function that computes the value of the parameters that are computed with respect of the arguments.
         Use after changing the value of argument inside the class (to update the values accordingly). 
-        This function can be very useful in combination with the function "copy()" from the module "copy".
+        This function can be very useful in combination with the function "deepcopy()" from the module "copy".
         """
         # Precompute some members
         self.My_star = self.ComputeMyStar()
@@ -475,7 +475,7 @@ class Gupta1999(MaterialModels):
     def ReInit(self):
         """Function that computes the value of the parameters that are computed with respect of the arguments.
         Use after changing the value of argument inside the class (to update the values accordingly). 
-        This function can be very useful in combination with the function "copy()" from the module "copy".
+        This function can be very useful in combination with the function "deepcopy()" from the module "copy".
         """
         # Check applicability
         self.CheckApplicability()
@@ -715,7 +715,7 @@ class Skiadopoulos2021(MaterialModels):
     def ReInit(self):
         """Function that computes the value of the parameters that are computed with respect of the arguments.
         Use after changing the value of argument inside the class (to update the values accordingly). 
-        This function can be very useful in combination with the function "copy()" from the module "copy".
+        This function can be very useful in combination with the function "deepcopy()" from the module "copy".
         """
         # Check applicability
         self.CheckApplicability()
@@ -923,7 +923,7 @@ class UnconfMander1988(MaterialModels):
     def ReInit(self, ecp = 1, fct = -1, et = -1):
         """Function that computes the value of the parameters that are computed with respect of the arguments.
         Use after changing the value of argument inside the class (to update the values accordingly). 
-        This function can be very useful in combination with the function "copy()" from the module "copy".
+        This function can be very useful in combination with the function "deepcopy()" from the module "copy".
         """
         # Check applicability
         self.CheckApplicability()
@@ -1113,9 +1113,9 @@ class ConfMander1988(MaterialModels):
         self.Ec = Ec
         self.nr_bars = nr_bars
         self.D_bars = D_bars
-        self.wx_top = wx_top
-        self.wx_bottom = wx_bottom
-        self.wy = wy
+        self.wx_top = deepcopy(wx_top)
+        self.wx_bottom = deepcopy(wx_bottom)
+        self.wy = deepcopy(wy)
         self.s = s
         self.D_hoops = D_hoops
         self.rho_s_x = rho_s_x
@@ -1138,7 +1138,7 @@ class ConfMander1988(MaterialModels):
     def ReInit(self, ecp = 1, fct = -1, et = -1):
         """Function that computes the value of the parameters that are computed with respect of the arguments.
         Use after changing the value of argument inside the class (to update the values accordingly). 
-        This function can be very useful in combination with the function "copy()" from the module "copy".
+        This function can be very useful in combination with the function "deepcopy()" from the module "copy".
         """
         # Check applicability
         self.CheckApplicability()
@@ -1335,7 +1335,7 @@ class UniaxialBilinear(MaterialModels):
     def ReInit(self):
         """Function that computes the value of the parameters that are computed with respect of the arguments.
         Use after changing the value of argument inside the class (to update the values accordingly). 
-        This function can be very useful in combination with the function "copy()" from the module "copy".
+        This function can be very useful in combination with the function "deepcopy()" from the module "copy".
         """
         # Check applicability
         self.CheckApplicability()
@@ -1408,7 +1408,16 @@ class UniaxialBilinear(MaterialModels):
     def Steel01(self):
         # Generate the material model using the given parameters
 
-        #TODO: copy paste from website
+        # Define a uniaxial bilinear steel material object with kinematic hardening and optional isotropic hardening described by a non-linear evolution equation (REF: Fedeas).
+        # uniaxialMaterial Steel01 $matTag $Fy $E0 $b <$a1 $a2 $a3 $a4>
+        # $matTag 	integer tag identifying material
+        # $Fy 	yield strength
+        # $E0 	initial elastic tangent
+        # $b 	strain-hardening ratio (ratio between post-yield tangent and initial elastic tangent)
+        # $a1 	isotropic hardening parameter, increase of compression yield envelope as proportion of yield strength after a plastic strain of $a2*($Fy/E0). (optional)
+        # $a2 	isotropic hardening parameter (see explanation under $a1). (optional).
+        # $a3 	isotropic hardening parameter, increase of tension yield envelope as proportion of yield strength after a plastic strain of $a4*($Fy/E0). (optional)
+        # $a4 	isotropic hardening parameter (see explanation under $a3). (optional) 
 
         uniaxialMaterial("Steel01", self.ID, self.fy, self.Ey, self.b)
 
@@ -1456,7 +1465,7 @@ class GMP1970(MaterialModels):
     def ReInit(self):
         """Function that computes the value of the parameters that are computed with respect of the arguments.
         Use after changing the value of argument inside the class (to update the values accordingly). 
-        This function can be very useful in combination with the function "copy()" from the module "copy".
+        This function can be very useful in combination with the function "deepcopy()" from the module "copy".
         """
         # Check applicability
         self.CheckApplicability()
@@ -1561,8 +1570,8 @@ class GMP1970RCRectShape(GMP1970):
 
 
 
-#TODO: UVC
-# uniaxialMaterial('UVCuniaxial', 6, 200, 0.3, 100, 0.5, 100, 0.5, 1, 0.7, 10)
+
+#TODO: CalibratedUVC SteelIShape?
 
 # class NAME(MaterialModels):
 #     # Class that stores funcions and material properties of (...). For more information see (...)
@@ -1589,7 +1598,7 @@ class GMP1970RCRectShape(GMP1970):
 #     def ReInit(self):
 #         """Function that computes the value of the parameters that are computed with respect of the arguments.
 #         Use after changing the value of argument inside the class (to update the values accordingly). 
-#         This function can be very useful in combination with the function "copy()" from the module "copy".
+#         This function can be very useful in combination with the function "deepcopy()" from the module "copy".
 #         """
 #         # Check applicability
 #         self.CheckApplicability()

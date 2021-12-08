@@ -3,6 +3,7 @@
 
 import numpy as np
 import math
+from copy import deepcopy
 from OpenSeesPyHelper.DataManagement import *
 from OpenSeesPyHelper.ErrorHandling import *
 from OpenSeesPyHelper.Units import *
@@ -76,7 +77,7 @@ class SteelIShape(Section):
     def ReInit(self):
         """Function that computes the value of the parameters that are computed with respect of the arguments.
         Use after changing the value of argument inside the class (to update the values accordingly). 
-        This function can be very useful in combination with the function "copy()" from the module "copy".
+        This function can be very useful in combination with the function "deepcopy()" from the module "copy".
         """
         # Member
         self.h_1 = self.d - 2.0*self.r -2.0*self.tf
@@ -309,8 +310,8 @@ class RCRectShape(Section):
         self.e = e
         self.fc = fc
         self.D_bars = D_bars
-        self.bars_position_x = bars_position_x
-        self.bars_ranges_position_y = bars_ranges_position_y
+        self.bars_position_x = deepcopy(bars_position_x)
+        self.bars_ranges_position_y = deepcopy(bars_ranges_position_y)
         self.fy = fy
         self.Ey = Ey
         self.D_hoops = D_hoops
@@ -326,7 +327,7 @@ class RCRectShape(Section):
     def ReInit(self, rho_s_x = -1, rho_s_y = -1, Ec = -1):
         """Function that computes the value of the parameters that are computed with respect of the arguments.
         Use after changing the value of argument inside the class (to update the values accordingly). 
-        This function can be very useful in combination with the function "copy()" from the module "copy".
+        This function can be very useful in combination with the function "deepcopy()" from the module "copy".
         """
         # Precompute some members
         self.cl_hoops = self.e + self.D_hoops/2.0 # centerline distance from the border of the extreme confining hoops
