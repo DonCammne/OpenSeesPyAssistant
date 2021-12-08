@@ -190,7 +190,7 @@ class ModifiedIMK(MaterialModels):
             Mr = self.Mc*(1.0-1.0/self.theta_pc*(self.theta_u-self.theta_y-theta_p_plot))
 
         print("")
-        print("Requested info for Modified IMK material model Parameters, ID = {}".format(self.ID))
+        print("Requested info for Modified IMK (Ibarra-Medina-Krawinkler) material model Parameters, ID = {}".format(self.ID))
         print("Section associated: {}".format(self.section_name_tag))
         print('theta y = {}'.format(self.theta_y))
         print('theta p = {}'.format(self.theta_p))
@@ -217,7 +217,7 @@ class ModifiedIMK(MaterialModels):
             ax.plot(x_axis2, y_axis2, 'k--')
 
             ax.set(xlabel='Rotation [rad]', ylabel='Moment [kNm]', 
-                title='Moodified IMK deterioration model (ID={})'.format(self.ID))
+                title='Modified IMK deterioration model (ID={})'.format(self.ID))
             ax.grid()
 
             if block:
@@ -1420,8 +1420,8 @@ class UniaxialBilinearSteelIShape(UniaxialBilinear):
         self.UpdateStoredData()
 
 
-class GiuffreMenegottoPinto(MaterialModels):
-    # Class that stores funcions and material properties of Giuffré-Menegotto-Pinto. For more information see Giuffré, Menegotto and Pinto 1970 and Carreno et Al. 2020
+class GMP1970(MaterialModels):
+    # Class that stores funcions and material properties of GMP1970. For more information see Giuffré, Menegotto and Pinto 1970 and Carreno et Al. 2020
     # Warning: the units should be m and N
     
     def __init__(self, ID: int, fy, Ey, b = 0.02, R0 = 20, cR1 = 0.9, cR2 = 0.08, a1 = 0.039, a2 = 1.0, a3 = 0.029, a4 = 1.0, safety_factors = False):
@@ -1470,7 +1470,7 @@ class GiuffreMenegottoPinto(MaterialModels):
 
     # Methods
     def UpdateStoredData(self):
-        self.data = [["INFO_TYPE", "GiuffreMenegottoPinto"], # Tag for differentiating different data
+        self.data = [["INFO_TYPE", "GMP1970"], # Tag for differentiating different data
             ["ID", self.ID],
             ["section_name_tag", self.section_name_tag],
             ["fy", self.fy],
@@ -1490,7 +1490,7 @@ class GiuffreMenegottoPinto(MaterialModels):
         """Function that show the data stored in the class in the command window and plots the material model (optional).
         """
         print("")
-        print("Requested info for Giuffre-Menegotto-Pinto material model Parameters, ID = {}".format(self.ID))
+        print("Requested info for GMP1970 (Giuffré-Menegotto-Pinto) material model Parameters, ID = {}".format(self.ID))
         print("Section associated: {} ".format(self.section_name_tag))
         print("Yield stress fy = {} MPa".format(self.fy/MPa_unit))
         print("Young modulus Ey = {} MPa".format(self.Ey/MPa_unit))
@@ -1512,7 +1512,7 @@ class GiuffreMenegottoPinto(MaterialModels):
         #     ax.plot(x_axis, y_axis, 'k-')
 
         #     ax.set(xlabel='Strain [%]', ylabel='Stress [MPa]', 
-        #         title='Uniaxial Bilinear model for material ID={}'.format(self.ID))
+        #         title='GMP1970 model for material ID={}'.format(self.ID))
         #     ax.grid()
             
 
@@ -1528,7 +1528,7 @@ class GiuffreMenegottoPinto(MaterialModels):
         #     print("Hypothesis of one bar per corner not fullfilled.")
         if not Check:
             print("The validity of the equations is not fullfilled.")
-            print("!!!!!!! WARNING !!!!!!! Check material model of Giuffre-Menegotto-Pinto, ID=", self.ID)
+            print("!!!!!!! WARNING !!!!!!! Check material model of GMP1970, ID=", self.ID)
             print("")
 
 
@@ -1553,11 +1553,12 @@ class GiuffreMenegottoPinto(MaterialModels):
         uniaxialMaterial('Steel02', self.ID, self.fy, self.Ey, self.b, *[self.R0, self.cR1, self.cR2], self.a1, self.a2, self.a3, self.a4)
 
 
-class GiuffreMenegottoPintoRCRectShape(GiuffreMenegottoPinto):
+class GMP1970RCRectShape(GMP1970):
     def __init__(self, ID: int, ele: RCRectShape, b=0.02, R0=20.0, cR1=0.9, cR2=0.08, a1=0.039, a2=1.0, a3=0.029, a4=1.0, safety_factors=False):
         super().__init__(ID, ele.fy, ele.Ey, b=b, R0=R0, cR1=cR1, cR2=cR2, a1=a1, a2=a2, a3=a3, a4=a4, safety_factors=safety_factors)
         self.section_name_tag = ele.name_tag
         self.UpdateStoredData()
+
 
 
 #TODO: UVC
