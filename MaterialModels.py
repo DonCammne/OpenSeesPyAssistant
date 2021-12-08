@@ -1420,9 +1420,146 @@ class UniaxialBilinearSteelIShape(UniaxialBilinear):
         self.UpdateStoredData()
 
 
+class GiuffreMenegottoPinto(MaterialModels):
+    # Class that stores funcions and material properties of Giuffré-Menegotto-Pinto. For more information see Giuffré, Menegotto and Pinto 1970 and Carreno et Al. 2020
+    # Warning: the units should be m and N
+    
+    def __init__(self, ID: int, fy, Ey, b = 0.02, R0 = 20, cR1 = 0.9, cR2 = 0.08, a1 = 0.039, a2 = 1.0, a3 = 0.029, a4 = 1.0, safety_factors = False):
+        #TODO: security factor
+        # OpenSees Docu suggest b = 0.015, R0 = 10, cR1 = 0.925, cR2 = 0.15 and a-parameters as default
+
+        # Check
+        if ID < 0: raise NegativeValue()
+
+        # Arguments
+        self.ID = ID
+        self.fy = fy
+        self.Ey = Ey
+        self.b = b
+        self.R0 = R0
+        self.cR1 = cR1
+        self.cR2 = cR2
+        self.a1 = a1
+        self.a2 = a2
+        self.a3 = a3
+        self.a4 = a4
+
+        # Initialized the parameters that are dependent from others
+        self.section_name_tag = "None"
+        if safety_factors:
+            #TODO: insert the correct value
+            self.Ry = 1.5
+        else:
+            self.Ry = 1.0
+        self.ReInit()
+
+    def ReInit(self):
+        """Function that computes the value of the parameters that are computed with respect of the arguments.
+        Use after changing the value of argument inside the class (to update the values accordingly). 
+        This function can be very useful in combination with the function "copy()" from the module "copy".
+        """
+        # Check applicability
+        self.CheckApplicability()
+
+        # Members
+        if self.section_name_tag != "None": self.section_name_tag = self.section_name_tag + " (modified)"
+
+        # Data storage for loading/saving
+        self.UpdateStoredData()
 
 
-#TODO: Steel02
+    # Methods
+    def UpdateStoredData(self):
+        self.data = [["INFO_TYPE", "GiuffreMenegottoPinto"], # Tag for differentiating different data
+            ["ID", self.ID],
+            ["section_name_tag", self.section_name_tag],
+            ["fy", self.fy],
+            ["Ey", self.Ey],
+            ["b", self.b],
+            ["R0", self.R0],
+            ["cR1", self.cR1],
+            ["cR2", self.cR2],
+            ["a1", self.a1],
+            ["a2", self.a2],
+            ["a3", self.a3],
+            ["a4", self.a4],
+            ["Ry", self.Ry]]
+
+
+    def ShowInfo(self):
+        """Function that show the data stored in the class in the command window and plots the material model (optional).
+        """
+        print("")
+        print("Requested info for Giuffre-Menegotto-Pinto material model Parameters, ID = {}".format(self.ID))
+        print("Section associated: {} ".format(self.section_name_tag))
+        print("Yield stress fy = {} MPa".format(self.fy/MPa_unit))
+        print("Young modulus Ey = {} MPa".format(self.Ey/MPa_unit))
+        print("Strain hardening ratio b = {}".format(self.b))
+        print("Bauschinger effect factors R0 = {}, cR1 = {} and cR2 = {}".format(self.R0, self.cR1, self.cR2))
+        print("Isotropic hardening factors a1 = {}, a2 = {}, a3 = {} and a4 = {}".format(self.a1, self.a2, self.a3, self.a4))
+        print("")
+
+        #TODO: add plot option (difficult to implement)
+        # if plot:
+        #     # Data for plotting
+        #     e_pl = 10.0 * self.ey # to show that if continues with this slope
+        #     sigma_pl = self.b * self.Ey * e_pl
+
+        #     x_axis = ([0.0, self.ey*100, (self.ey+e_pl)*100])
+        #     y_axis = ([0.0, self.fy/MPa_unit, (self.fy+sigma_pl)/MPa_unit])
+
+        #     fig, ax = plt.subplots()
+        #     ax.plot(x_axis, y_axis, 'k-')
+
+        #     ax.set(xlabel='Strain [%]', ylabel='Stress [MPa]', 
+        #         title='Uniaxial Bilinear model for material ID={}'.format(self.ID))
+        #     ax.grid()
+            
+
+        #     if block:
+        #         plt.show()
+
+
+    def CheckApplicability(self):
+        #TODO: 
+        Check = True
+        # if len(self.wy) == 0 or len(self.wx_top) == 0 or len(self.wx_bottom) == 0: 
+        #     Check = False
+        #     print("Hypothesis of one bar per corner not fullfilled.")
+        if not Check:
+            print("The validity of the equations is not fullfilled.")
+            print("!!!!!!! WARNING !!!!!!! Check material model of Giuffre-Menegotto-Pinto, ID=", self.ID)
+            print("")
+
+
+    def Steel02(self):
+        # Generate the material model using the given parameters
+
+        # Define uniaxial Giuffre-Menegotto-Pinto steel material object with isotropic strain hardening.
+        # uniaxialMaterial Steel02 $matTag $Fy $E $b $R0 $cR1 $cR2 <$a1 $a2 $a3 $a4 $sigInit>
+        # $matTag 	    integer tag identifying material
+        # $Fy 	        yield strength
+        # $E0 	        initial elastic tangent
+        # $b 	        strain-hardening ratio (ratio between post-yield tangent and initial elastic tangent)
+        # $R0 $CR1 $CR2 parameters to control the transition from elastic to plastic branches.
+        #                       Recommended values: $R0=between 10 and 20, $cR1=0.925, $cR2=0.15
+        # $a1 	        isotropic hardening parameter, increase of compression yield envelope as proportion of yield strength after a plastic strain of $a2*($Fy/E0). (optional)
+        # $a2 	        isotropic hardening parameter (see explanation under $a1). (optional default = 1.0).
+        # $a3 	        isotropic hardening parameter, increase of tension yield envelope as proportion of yield strength after a plastic strain of $a4*($Fy/E0). (optional default = 0.0)
+        # $a4 	        isotropic hardening parameter (see explanation under $a3). (optional default = 1.0)
+        # $sigInit 	    Initial Stress Value (optional, default: 0.0) the strain is calculated from epsP=$sigInit/$E
+        #                   if (sigInit!= 0.0) { double epsInit = sigInit/E; eps = trialStrain+epsInit; } else eps = trialStrain; 
+
+        uniaxialMaterial('Steel02', self.ID, self.fy, self.Ey, self.b, *[self.R0, self.cR1, self.cR2], self.a1, self.a2, self.a3, self.a4)
+
+
+class GiuffreMenegottoPintoRCRectShape(GiuffreMenegottoPinto):
+    def __init__(self, ID: int, ele: RCRectShape, b=0.02, R0=20.0, cR1=0.9, cR2=0.08, a1=0.039, a2=1.0, a3=0.029, a4=1.0, safety_factors=False):
+        super().__init__(ID, ele.fy, ele.Ey, b=b, R0=R0, cR1=cR1, cR2=cR2, a1=a1, a2=a2, a3=a3, a4=a4, safety_factors=safety_factors)
+        self.section_name_tag = ele.name_tag
+        self.UpdateStoredData()
+
+
 #TODO: UVC
 # uniaxialMaterial('UVCuniaxial', 6, 200, 0.3, 100, 0.5, 100, 0.5, 1, 0.7, 10)
 
