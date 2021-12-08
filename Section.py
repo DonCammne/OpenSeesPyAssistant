@@ -139,6 +139,7 @@ class SteelIShape(Section):
         print("iz = {} mm".format(self.iz/mm_unit))
         print("My = {} kNm".format(self.My/kNm_unit))
         print("Npl = {} kN".format(self.Npl/kN_unit))
+        print("")
 
 
     def ComputeA(self):
@@ -295,6 +296,11 @@ class RCRectShape(Section):
             if abs(np.sum(bars) - b) > geometry_tol: raise InconsistentGeometry()
         if abs(np.sum(bars_ranges_position_y)-d) > geometry_tol: raise InconsistentGeometry()
         if e > b/2 or e > d/2: raise InconsistentGeometry()
+        warning_min_bars = "!!!!!!! WARNING !!!!!!! The hypothesis of one bar per corner (aligned) is not fullfilled."
+        if len(bars_position_x) < 2:
+            print(warning_min_bars)
+        elif len(bars_position_x[0]) < 3 or len(bars_position_x[-1]) < 3:
+            print(warning_min_bars)
 
         # Arguments
         self.b = b
