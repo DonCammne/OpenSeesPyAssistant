@@ -22,7 +22,7 @@ class MaterialModels(DataManagement):
         pass
 
 class ModifiedIMK(MaterialModels):
-	# Class that stores funcions and material properties of an double symmetric I-shape profile, the default values are valid for a simple cantelever.
+	# Class that stores funcions and material properties of an double symmetric I-shape profile (Bilin), the default values are valid for a simple cantelever.
     # For more information about the empirical model for the computation of the parameters, see Lignos Krawinkler 2011.
     #TODO: the units are mm and kN and Mkg but they should be m and N and kg (define and multiply with the correct unit, divide with the resulting unit to change it)
     #TODO: RBS not implemented
@@ -399,7 +399,7 @@ class Gupta1999(MaterialModels):
     ######################################################################################
     ## PZRotSpringMaterialModel
     ######################################################################################
-    ## Class that stores funcions and material properties of a panel zone rotational spring. For more information, see Gupta 1999
+    ## Class that stores funcions and material properties of a panel zone rotational spring (Hysteresis). For more information, see Gupta 1999
     ## Warning: he units should be mm and kN
     ##          Carmine Schipani, 2021
     ##
@@ -622,7 +622,7 @@ class Skiadopoulos2021(MaterialModels):
     ######################################################################################
     ## PZRotSpringMaterialModel
     ######################################################################################
-    ## Class that stores funcions and material properties of a panel zone rotational spring. For more information, see Gupta 1999
+    ## Class that stores funcions and material properties of a panel zone rotational spring (Hysteresis). For more information, see Gupta 1999
     ## Warning: he units should be mm and kN
     ##          Carmine Schipani, 2021
     ##
@@ -884,7 +884,7 @@ class Skiadopoulos2021SteelIShape(Skiadopoulos2021):
         
 
 class UnconfMander1988(MaterialModels):
-    # Class that stores funcions and material properties of a rectangular shape RC  profile. For more information see Mander et Al. 1988
+    # Class that stores funcions and material properties of a rectangular shape RC  profile (Concrete04). For more information see Mander et Al. 1988
     # Warning: the units should be m and N
       #TODO: validity check: warning if concrete fc is bigger than something (see article Lee)
     
@@ -1066,7 +1066,7 @@ class UnconfMander1988RCRectShape(UnconfMander1988):
 
 
 class ConfMander1988(MaterialModels):
-    # Class that stores funcions and material properties of a rectangular shape RC  profile. For more information see Mander et Al. 1988
+    # Class that stores funcions and material properties of a rectangular shape RC  profile (Concrete04). For more information see Mander et Al. 1988
     # Warning: the units should be m and N
       #TODO: validity check: warning if concrete fc is bigger than something (see article Lee)
     
@@ -1264,7 +1264,7 @@ class ConfMander1988(MaterialModels):
             np.sum(np.multiply(self.wx_bottom, self.wx_bottom)) ) / 6.0 # ineffectual area
 
 
-    def Concrete04(self, plot = False, block = False):
+    def Concrete04(self):
         # Generate the material model using the given parameters
 
         # Define Concrete04 Popovics Concrete material model for confined concrete
@@ -1303,71 +1303,243 @@ class ConfMander1988RCRectShape(ConfMander1988):
         return w
 
 
-
-# class Steel01forRCMaterialModel(DataManagement):
-#     # Class that stores funcions and material properties longitudinal bars for a rectangular shape RC section.
-#     # Warning: the units should be mm and kN
-    
-#     def __init__(self, ID, ele: SectionRCRectShape, b = 0.01):
-#         """
-#         Parameters
-#         ----------
-#         ID : int
-#             The ID of the material model
-#         ele : Section
-#             The element section
-#         b : double
-#             Strain hardening factor (default: 0.01)
-#         """
-#         self.ID = ID
-#         self.ele = ele
-#         self.b = b
-
-#         # List of all indormation of the class (to be used for example in the SaveData/LoadData functions)
-#         self.data = ["Data for Steel01 material model", 
-#             self.ID, 
-#             self.ele.NameTAG,
-#             self.b]
+class UniaxialBilinear(MaterialModels):
+    # Class that stores funcions and material properties of a simple uniaxial bilinear model (Steel01). 
+    # Warning: the units should be m and N
+    #     #     Strain hardening factor (default: 0.01)
 
 
+    def __init__(self, ID: int, fy, Ey, b = 0.01, safety_factors = False):
+        #TODO: security factor
 
-#     # Methods
-#     def Steel01(self, plot = False, block = False):
-#         # Generate the material model using the given parameters
+        # Check
+        if ID < 0: raise NegativeValue()
+        if fy < 0: raise NegativeValue()
+        if Ey < 0: raise NegativeValue()
 
-#         # Define Steel01 material model
-#         # uniaxialMaterial("Steel01", ID, fy, Ey, b)
-        
-#         uniaxialMaterial("Steel01", self.ID, self.ele.fy, self.ele.Ey, self.b)
+        # Arguments
+        self.ID = ID
+        self.fy = fy
+        self.Ey = Ey
+        self.b = b
 
-#         if plot:
-#             # Data for plotting
-#             ey = self.ele.fy/self.ele.Ey
-#             e_pl = 10.0 * ey # to show that if continues with this slope
-#             sigma_pl = self.b * self.ele.Ey * e_pl
+        # Initialized the parameters that are dependent from others
+        self.section_name_tag = "None"
+        if safety_factors:
+            #TODO: insert the correct value
+            self.Ry = 1.5
+        else:
+            self.Ry = 1.0
+        self.ReInit()
 
-#             x_axis = ([0.0, ey, ey+e_pl])
-#             y_axis = ([0.0, self.ele.fy, self.ele.fy+sigma_pl])
+    def ReInit(self):
+        """Function that computes the value of the parameters that are computed with respect of the arguments.
+        Use after changing the value of argument inside the class (to update the values accordingly). 
+        This function can be very useful in combination with the function "copy()" from the module "copy".
+        """
+        # Check applicability
+        self.CheckApplicability()
 
-#             fig, ax = plt.subplots()
-#             ax.plot(x_axis, y_axis, 'k-')
+        # Arguments
 
-#             ax.set(xlabel='Strain [%]', ylabel='Stress [kN]', 
-#                 title='Backbone curve for Steel01 model for material ID={}'.format(self.ID))
-#             ax.grid()
+        # Members
+        self.ey = self.fy / self.Ey
+        if self.section_name_tag != "None": self.section_name_tag = self.section_name_tag + " (modified)"
 
-#             print("")
-#             print("Steel01 Material Model, ID = {}".format(self.ID))
-#             print('Max elastic strain eps y = {}'.format(ey))
-#             print('Yielding stress fy = {} kN/mm2'.format(self.ele.fy))
-#             print('Young modulus = {} kN/mm2'.format(self.ele.Ey))
-#             print('Hardening factor = {}'.format(self.b))
-#             print("")
+        # Data storage for loading/saving
+        self.UpdateStoredData()
 
-#             if block:
-#                 plt.show()
+
+    # Methods
+    def UpdateStoredData(self):
+        self.data = [["INFO_TYPE", "UniaxialBilinear"], # Tag for differentiating different data
+            ["ID", self.ID],
+            ["section_name_tag", self.section_name_tag],
+            ["fy", self.fy],
+            ["Ey", self.Ey],
+            ["ey", self.ey],
+            ["b", self.b],
+            ["Ry", self.Ry]]
+
+
+    def ShowInfo(self, plot = False, block = False):
+        """Function that show the data stored in the class in the command window and plots the material model (optional).
+        """
+        print("")
+        print("Requested info for Uniaxial Bilinear material model Parameters, ID = {}".format(self.ID))
+        print("Section associated: {} ".format(self.section_name_tag))
+        print('Yielding stress fy = {} MPa'.format(self.fy/MPa_unit))
+        print('Young modulus Ey = {} MPa'.format(self.Ey/MPa_unit))
+        print('Maximal elastic strain epsilon y = {}'.format(self.ey))
+        print('Hardening factor b = {}'.format(self.b))
+        print("")
+
+        if plot:
+            # Data for plotting
+            e_pl = 10.0 * self.ey # to show that if continues with this slope
+            sigma_pl = self.b * self.Ey * e_pl
+
+            x_axis = ([0.0, self.ey*100, (self.ey+e_pl)*100])
+            y_axis = ([0.0, self.fy/MPa_unit, (self.fy+sigma_pl)/MPa_unit])
+
+            fig, ax = plt.subplots()
+            ax.plot(x_axis, y_axis, 'k-')
+
+            ax.set(xlabel='Strain [%]', ylabel='Stress [MPa]', 
+                title='Uniaxial Bilinear model for material ID={}'.format(self.ID))
+            ax.grid()
+
+            if block:
+                plt.show()
+
+
+    def CheckApplicability(self):
+        #TODO: 
+        Check = True
+        # if len(self.wy) == 0 or len(self.wx_top) == 0 or len(self.wx_bottom) == 0: 
+        #     Check = False
+        #     print("Hypothesis of one bar per corner not fullfilled.")
+        if not Check:
+            print("The validity of the equations is not fullfilled.")
+            print("!!!!!!! WARNING !!!!!!! Check material model of Uniaxial Bilinear, ID=", self.ID)
+            print("")
+
+
+    def Steel01(self):
+        # Generate the material model using the given parameters
+
+        #TODO: copy paste from website
+
+        uniaxialMaterial("Steel01", self.ID, self.fy, self.Ey, self.b)
+
+
+class UniaxialBilinearSteelIShape(UniaxialBilinear):
+    def __init__(self, ID: int, ele: SteelIShape, b=0.01, safety_factors=False):
+        super().__init__(ID, ele.Fy, ele.E, b=b, safety_factors=safety_factors)
+        self.section_name_tag = ele.name_tag
+        self.UpdateStoredData()
+
+
+
 
 #TODO: Steel02
 #TODO: UVC
 # uniaxialMaterial('UVCuniaxial', 6, 200, 0.3, 100, 0.5, 100, 0.5, 1, 0.7, 10)
 
+# class NAME(MaterialModels):
+#     # Class that stores funcions and material properties of (...). For more information see (...)
+#     # Warning: the units should be m and N
+    
+#     def __init__(self, ID: int, ...):
+#         #TODO: security factor
+
+#         # Check
+#         if ID < 0: raise NegativeValue()
+
+#         # Arguments
+#         self.ID = ID
+
+#         # Initialized the parameters that are dependent from others
+#         self.section_name_tag = "None"
+#         if safety_factors:
+#             #TODO: insert the correct value
+#             self.Ry = 1.5
+#         else:
+#             self.Ry = 1.0
+#         self.ReInit()
+
+#     def ReInit(self):
+#         """Function that computes the value of the parameters that are computed with respect of the arguments.
+#         Use after changing the value of argument inside the class (to update the values accordingly). 
+#         This function can be very useful in combination with the function "copy()" from the module "copy".
+#         """
+#         # Check applicability
+#         self.CheckApplicability()
+
+#         # Arguments
+
+#         # Members
+#         if self.section_name_tag != "None": self.section_name_tag = self.section_name_tag + " (modified)"
+
+
+#         # Data storage for loading/saving
+#         self.UpdateStoredData()
+
+
+#     # Methods
+#     def UpdateStoredData(self):
+#         self.data = [["INFO_TYPE", "NAME"], # Tag for differentiating different data
+#             ["ID", self.ID],
+#             ["section_name_tag", self.section_name_tag]
+#             ]
+
+
+#     def ShowInfo(self, plot = False, block = False):
+#         """Function that show the data stored in the class in the command window and plots the material model (optional).
+#         """
+#         print("")
+#         print("Requested info for NAME material model Parameters, ID = {}".format(self.ID))
+#         print("Section associated: {} ".format(self.section_name_tag))
+#         print("")
+
+#         if plot:
+#             # Data for plotting
+#             e_pl = 10.0 * self.ey # to show that if continues with this slope
+#             sigma_pl = self.b * self.Ey * e_pl
+
+#             x_axis = ([0.0, self.ey*100, (self.ey+e_pl)*100])
+#             y_axis = ([0.0, self.fy/MPa_unit, (self.fy+sigma_pl)/MPa_unit])
+
+#             fig, ax = plt.subplots()
+#             ax.plot(x_axis, y_axis, 'k-')
+
+#             ax.set(xlabel='Strain [%]', ylabel='Stress [MPa]', 
+#                 title='Uniaxial Bilinear model for material ID={}'.format(self.ID))
+#             ax.grid()
+            
+
+#             if block:
+#                 plt.show()
+
+
+#     def CheckApplicability(self):
+#         #TODO: 
+#         Check = True
+#         # if len(self.wy) == 0 or len(self.wx_top) == 0 or len(self.wx_bottom) == 0: 
+#         #     Check = False
+#         #     print("Hypothesis of one bar per corner not fullfilled.")
+#         if not Check:
+#             print("The validity of the equations is not fullfilled.")
+#             print("!!!!!!! WARNING !!!!!!! Check material model of NAME, ID=", self.ID)
+#             print("")
+
+
+#     def UNIAXIALMATFUNCT(self):
+#         # Generate the material model using the given parameters
+
+#         # Define Concrete04 Popovics Concrete material model for confined concrete
+#         # uniaxialMaterial("Concrete04", matTag, fcc, ecc, eccu, Ec, <fct et> <beta>)
+#         # matTag     integer tag identifying material
+#         # fcc    floating point values defining concrete compressive strength at 28 days (compression is negative)*
+#         # ecc    floating point values defining concrete strain at maximum strength*
+#         # eccu   floating point values defining concrete strain at crushing strength*
+#         # Ec     floating point values defining initial stiffness**
+#         # fct    floating point value defining the maximum tensile strength of concrete
+#         # et     floating point value defining ultimate tensile strain of concrete
+#         # beta   loating point value defining the exponential curve parameter to define the residual stress (as a factor of ft) at etu 
+
+#         uniaxialMaterial("Concrete04", self.ID, self.fcc, self.ecc, self.eccu, self.Ec, self.fct, self.et, self.beta)
+
+
+# class CHILD(NAME):
+#     def __init__(self, ID: int, ele: RCRectShape, ec=1, ecp=1, fct=-1, et=-1, esu=-1, beta=0.1, k1=4.1, safety_factors=False):
+#         ranges = ele.bars_ranges_position_y
+#         bars = ele.bars_position_x
+#         wy = self.__Compute_w(ranges, ele.D_bars)
+#         wx_top = self.__Compute_w(bars[0], ele.D_bars)
+#         wx_bottom = self.__Compute_w(bars[-1], ele.D_bars)
+
+#         super().__init__(ID, ele.bc, ele.dc, ele.Ac, ele.fc, ele.Ec, ele.nr_bars, ele.D_bars, wx_top, wx_bottom, wy, ele.s, ele.D_hoops, ele.rho_s_x, ele.rho_s_y, ele.fs,
+#             ec=ec, ecp=ecp, fct=fct, et=et, esu=esu, beta=beta, k1=k1, safety_factors=safety_factors)
+#         self.section_name_tag = ele.name_tag
+#         self.UpdateStoredData()
