@@ -4,16 +4,16 @@
 from openseespy.opensees import *
 import matplotlib.pyplot as plt
 import numpy as np
+import os
 import math
 from abc import abstractmethod
-from copy import deepcopy
+from copy import copy, deepcopy
 from OpenSeesPyHelper.Section import *
 from OpenSeesPyHelper.DataManagement import *
 from OpenSeesPyHelper.ErrorHandling import *
 from OpenSeesPyHelper.Units import *
 
 # Material models
-
 class MaterialModels(DataManagement):
     @abstractmethod
     def CheckApplicability(self):
@@ -1113,9 +1113,9 @@ class ConfMander1988(MaterialModels):
         self.Ec = Ec
         self.nr_bars = nr_bars
         self.D_bars = D_bars
-        self.wx_top = deepcopy(wx_top)
-        self.wx_bottom = deepcopy(wx_bottom)
-        self.wy = deepcopy(wy)
+        self.wx_top = copy(wx_top)
+        self.wx_bottom = copy(wx_bottom)
+        self.wy = copy(wy)
         self.s = s
         self.D_hoops = D_hoops
         self.rho_s_x = rho_s_x
@@ -1569,9 +1569,198 @@ class GMP1970RCRectShape(GMP1970):
         self.UpdateStoredData()
 
 
+class UVC(MaterialModels):
+    # Class that stores funcions and material properties of UVC (Updated Voce-Chaboche). For more information see (...)
+    #TODO: add references above
+    # Warning: the units should be m and N
+    def __init__(self, ID: int, fy, Ey, QInf, b, DInf, a, cK: np.ndarray, gammaK: np.ndarray, safety_factors = False):
+        #TODO: security factor
+
+        # Check
+        if ID < 0: raise NegativeValue()
+        if fy < 0: raise NegativeValue()
+        if Ey < 0: raise NegativeValue()
+        if QInf < 0: raise NegativeValue()
+        if b < 0: raise NegativeValue()
+        if DInf < 0: raise NegativeValue()
+        if a < 0: raise NegativeValue()
+        if len(cK) == 0: raise WrongArgument()
+        if len(cK) != len(gammaK): raise WrongArgument()
+        if len(cK) != 2: print("!!!!!!! WARNING !!!!!!! Number of backstresses should be 2 for optimal performances")
+        if DInf == 0: print("!!!!!!! WARNING !!!!!!! With DInf = 0, the model used is Voce-Chaboche not updated (VC)")
+
+        # Arguments
+        self.ID = ID
+        self.fy = fy
+        self.Ey = Ey
+        self.QInf = QInf
+        self.b = b
+        self.DInf = DInf
+        self.a = a
+        self.cK = copy(cK)
+        self.gammaK = copy(gammaK)
+
+        # Initialized the parameters that are dependent from others
+        self.section_name_tag = "None"
+        if safety_factors:
+            #TODO: insert the correct value
+            self.Ry = 1.5
+        else:
+            self.Ry = 1.0
+        self.ReInit()
+
+    def ReInit(self):
+        """Function that computes the value of the parameters that are computed with respect of the arguments.
+        Use after changing the value of argument inside the class (to update the values accordingly). 
+        This function can be very useful in combination with the function "deepcopy()" from the module "copy".
+        """
+        # Check applicability
+        self.CheckApplicability()
+
+        # Members
+        self.N = len(self.cK)
+        if self.section_name_tag != "None": self.section_name_tag = self.section_name_tag + " (modified)"
+
+        # Data storage for loading/saving
+        self.UpdateStoredData()
 
 
-#TODO: CalibratedUVC SteelIShape?
+    # Methods
+    def UpdateStoredData(self):
+        self.data = [["INFO_TYPE", "UVC"], # Tag for differentiating different data
+            ["ID", self.ID],
+            ["section_name_tag", self.section_name_tag],
+            ["fy", self.fy],
+            ["Ey", self.Ey],
+            ["QInf", self.QInf],
+            ["b", self.b],
+            ["DInf", self.DInf],
+            ["a", self.a],
+            ["N", self.N],
+            ["ck", self.cK],
+            ["gammaK", self.gammaK],
+            ["Ry", self.Ry]]
+
+
+    def ShowInfo(self, plot = False, block = False):
+        """Function that show the data stored in the class in the command window and plots the material model (optional).
+        """
+        print("")
+        print("Requested info for UVC material model Parameters, ID = {}".format(self.ID))
+        print("Section associated: {} ".format(self.section_name_tag))
+        print("Yield strength fy = {} MPa".format(self.fy/MPa_unit))
+        print("Young modulus Ey = {} MPa".format(self.Ey/MPa_unit))
+        print("Isotropic hardening factor QInf = {} MPa and saturation rate  b = {}".format(self.QInf/MPa_unit, self.b))
+        print("Decrease the initial yield stress DInf = {} MPa and saturation rate a = {}".format(self.DInf/MPa_unit, self.a))
+        print("Kinematic hardening vector ({} backstresses) cK = {} MPa".format(self.N, self.cK/MPa_unit))
+        print("And associated saturation rate gammaK = {}".format(self.gammaK))
+        print("")
+
+        #TODO: implement plot (too complex for now)
+        # if plot:
+        #     # Data for plotting
+        #     e_pl = 10.0 * self.ey # to show that if continues with this slope
+        #     sigma_pl = self.b * self.Ey * e_pl
+
+        #     x_axis = ([0.0, self.ey*100, (self.ey+e_pl)*100])
+        #     y_axis = ([0.0, self.fy/MPa_unit, (self.fy+sigma_pl)/MPa_unit])
+
+        #     fig, ax = plt.subplots()
+        #     ax.plot(x_axis, y_axis, 'k-')
+
+        #     ax.set(xlabel='Strain [%]', ylabel='Stress [MPa]', 
+        #         title='Uniaxial Bilinear model for material ID={}'.format(self.ID))
+        #     ax.grid()
+            
+
+        #     if block:
+        #         plt.show()
+
+
+    def CheckApplicability(self):
+        #TODO: 
+        Check = True
+        # if len(self.wy) == 0 or len(self.wx_top) == 0 or len(self.wx_bottom) == 0: 
+        #     Check = False
+        #     print("Hypothesis of one bar per corner not fullfilled.")
+        if not Check:
+            print("The validity of the equations is not fullfilled.")
+            print("!!!!!!! WARNING !!!!!!! Check material model of UVC, ID=", self.ID)
+            print("")
+
+
+    def UVCuniaxial(self):
+        # Generate the material model using the given parameters
+
+        # Define an Updated Voce-Chaboche (UVC) material for uniaxial stress states (e.g., beam elements).
+        # This material is a refined version of the classic nonlinear isotropic/kinematic hardening material model based on the Voce isotropic hardening law and the Chaboche kinematic hardening law.
+        # The UVC model contains an updated isotropic hardening law, with parameter constraints, to simulate the permanent decrease in yield stress with initial plastic loading associated with the discontinuous yielding phenomenon in mild steels.
+        # uniaxialMaterial UVCuniaxial $matTag $E $fy $QInf $b $DInf $a $N $C1 $gamma1 <$C2 $gamma2 $C3 $gamma3 … $C8 $gamma8>
+        # $matTag 	Integer tag identifying the material.
+        # $E 	    Elastic modulus of the steel material.
+        # $fy 	    Initial yield stress of the steel material.
+        # $QInf 	Maximum increase in yield stress due to cyclic hardening (isotropic hardening).
+        # $b 	    Saturation rate of QInf, b > 0.
+        # $DInf 	Decrease in the initial yield stress, to neglect the model updates set DInf = 0.
+        # $a 	    Saturation rate of DInf, a > 0. If DInf == 0, then a is arbitrary (but still a > 0).
+        # $N 	    Number of backstresses to define, N >= 1.
+        # $cK 	    Kinematic hardening parameter associated with backstress component k (vector).
+        # $gammaK 	Saturation rate of kinematic hardening associated with backstress component k (vector).
+        #TODO: if Pa unit used, probelms? Ask Diego
+        #TODO: check that UVCuniaxial take the last arguments like this and not c1 gamma1 c2 gamma2!!!!!!!!!!!
+        uniaxialMaterial('UVCuniaxial', self.ID, self.Ey, self.fy, self.QInf, self.b, self.DInf, self.a, self.N, *self.cK, *self.gammaK)
+
+class UVCCalibrated(UVC):
+    def __init__(self, ID: int, calibration: str, safety_factors=False):
+        #TODO: add in doc this: List of possible calibration parameters:
+        # S355J2_25mm_plate
+        # S355J2_50mm_plate
+        # S355J2_HEB500_flange
+        # S355J2_HEB500_web
+        # S460NL_25mm_plate
+        # S690QL_25mm_plate
+        # A992Gr50_W14X82_web
+        # A992Gr50_W14X82
+        # A500GrB_HSS305X16
+        # BCP325_22mm_plate
+        # BCR295_HSS350X22
+        # HYP400_27mm_plate
+
+        self.calibration = calibration
+
+        # Structure of the data to be stored
+        names = ["Material", "Ey", "fy", "QInf", "b","DInf", "a", "C1", "gamma1", "C2", "gamma2"]
+        # Get the data
+        __location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
+        UVC_data = np.genfromtxt(os.path.join(__location__, 'UVC_calibrated_parameters.txt'), dtype=None, skip_header=1, names = names, encoding='ascii', delimiter='\t')
+        # Define the index (with the location of the correct set of parameters)
+        index = UVC_data["Material"] == calibration
+        # Check
+        if not index.any(): raise NameError("No calibrated parameters with that name. Note that there are no spaces")
+
+        # Assign arguments value
+        super().__init__(ID, UVC_data["fy"][index][0], UVC_data["Ey"][index][0], UVC_data["QInf"][index][0], UVC_data["b"][index][0],
+            UVC_data["DInf"][index][0], UVC_data["a"][index][0],
+            np.array([UVC_data["C1"][index][0], UVC_data["C2"][index][0]]),
+            np.array([UVC_data["gamma1"][index][0], UVC_data["gamma2"][index][0]]),
+            safety_factors=safety_factors)
+
+
+#TODO: fill arguments with calibrated one and then change fy and Ey (and maybe more, ask Diego) accordingly to the section strength (how? ask Diego)
+# class UVCCalibratedRCRectShape(UVCCalibrated):
+#     def __init__(self, ID: int, ele: RCRectShape, ec=1, ecp=1, fct=-1, et=-1, esu=-1, beta=0.1, k1=4.1, safety_factors=False):
+#         ranges = ele.bars_ranges_position_y
+#         bars = ele.bars_position_x
+#         wy = self.__Compute_w(ranges, ele.D_bars)
+#         wx_top = self.__Compute_w(bars[0], ele.D_bars)
+#         wx_bottom = self.__Compute_w(bars[-1], ele.D_bars)
+
+#         super().__init__(ID, ele.bc, ele.dc, ele.Ac, ele.fc, ele.Ec, ele.nr_bars, ele.D_bars, wx_top, wx_bottom, wy, ele.s, ele.D_hoops, ele.rho_s_x, ele.rho_s_y, ele.fs,
+#             ec=ec, ecp=ecp, fct=fct, et=et, esu=esu, beta=beta, k1=k1, safety_factors=safety_factors)
+#         self.section_name_tag = ele.name_tag
+#         self.UpdateStoredData()
+
+#TODO: UVCCalibrated SteelIShape?
 
 # class NAME(MaterialModels):
 #     # Class that stores funcions and material properties of (...). For more information see (...)

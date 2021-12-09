@@ -3,7 +3,7 @@
 
 import numpy as np
 import math
-from copy import deepcopy
+from copy import copy, deepcopy
 from OpenSeesPyHelper.DataManagement import *
 from OpenSeesPyHelper.ErrorHandling import *
 from OpenSeesPyHelper.Units import *
@@ -311,7 +311,7 @@ class RCRectShape(Section):
         self.fc = fc
         self.D_bars = D_bars
         self.bars_position_x = deepcopy(bars_position_x)
-        self.bars_ranges_position_y = deepcopy(bars_ranges_position_y)
+        self.bars_ranges_position_y = copy(bars_ranges_position_y)
         self.fy = fy
         self.Ey = Ey
         self.D_hoops = D_hoops
