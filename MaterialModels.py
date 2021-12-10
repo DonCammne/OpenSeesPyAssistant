@@ -1762,6 +1762,7 @@ class UVCCalibrated(UVC):
 
 #TODO: UVCCalibrated SteelIShape?
 
+# Structure for new material model
 # class NAME(MaterialModels):
 #     # Class that stores funcions and material properties of (...). For more information see (...)
 #     # Warning: the units should be m and N
