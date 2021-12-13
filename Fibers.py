@@ -67,6 +67,7 @@ class FibersRect(Fibers):
 
         # Initialized the parameters that are dependent from others
         self.section_name_tag = "None"
+        self.Initialized = False
         self.ReInit()
 
     def ReInit(self):
@@ -137,7 +138,8 @@ class FibersRect(Fibers):
             ["discr_cover_lateral", self.discr_cover_lateral],
             ["bars_mat_ID", self.bars_mat_ID],
             ["bars_x", self.bars_x],
-            ["ranges_y", self.ranges_y]]
+            ["ranges_y", self.ranges_y],
+            ["Initialized", self.Initialized]]
 
     def ShowInfo(self, plot = False, block = False):
         """Function that show the data stored in the class in the command window and plots the material model (optional).
@@ -163,6 +165,9 @@ class FibersRect(Fibers):
 
     def CreateFibers(self):
         create_fiber_section(self.fib_sec)
+        self.Initialized = True
+        self.UpdateStoredData()
+
 
 class FibersRectRCRectShape(FibersRect):
     def __init__(self, ID: int, ele: RCRectShape, unconf_mat_ID: int, conf_mat_ID: int, bars_mat_ID: int,
@@ -211,8 +216,8 @@ def plot_fiber_section(fiber_info, fill_shapes = True, matcolor=['#808080', '#D3
 
     mat_to_col = {}
     fig, ax = plt.subplots()
-    ax.set_xlabel('x [mm]')
-    ax.set_ylabel('y [mm]')
+    ax.set_xlabel('x [m]')
+    ax.set_ylabel('y [m]')
     ax.grid(False)
 
     for item in fiber_info:

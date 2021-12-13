@@ -99,6 +99,7 @@ class ModifiedIMK(MaterialModels):
 
         # Initialized the parameters that are dependent from others
         self.section_name_tag = "None"
+        self.Initialized = False
         if safety_factors:
             self.gamma_rm = 1.25
             self.prob_factor = 1.15
@@ -113,6 +114,8 @@ class ModifiedIMK(MaterialModels):
         """Function that computes the value of the parameters that are computed with respect of the arguments.
         Use after changing the value of argument inside the class (to update the values accordingly). 
         This function can be very useful in combination with the function "deepcopy()" from the module "copy".
+        Be careful that the parameter self.Initialized is also copied, thus it is safer to copy the class before calling the actual OpenSees commands.
+        TODO: add this last line in every ReInit()!!!
         """
         # Precompute some members
         self.My_star = self.ComputeMyStar()
@@ -174,7 +177,8 @@ class ModifiedIMK(MaterialModels):
             ["theta_u", self.theta_u],
             ["rate_det", self.rate_det],
             ["a", self.a],
-            ["a_s", self.a_s]]
+            ["a_s", self.a_s],
+            ["Initialized", self.Initialized]]
 
 
     def ShowInfo(self, plot = False, block = False):
@@ -384,6 +388,8 @@ class ModifiedIMK(MaterialModels):
         uniaxialMaterial("Bilin", self.ID, self.Ke, self.a_s, self.a_s, self.My_star, -1.0*self.My_star,
             1., 1., 1., 1., 1., 1., 1., 1., self.theta_p, self.theta_p, self.theta_pc, self.theta_pc,
             self.K, self.K, self.theta_u, self.theta_u, self.rate_det, self.rate_det)
+        self.Initialized = True
+        self.UpdateStoredData()
 
 
 class ModifiedIMKSteelIShape(ModifiedIMK):
@@ -468,6 +474,7 @@ class Gupta1999(MaterialModels):
         # Initialized the parameters that are dependent from others
         self.beam_section_name_tag = "None"
         self.col_section_name_tag = "None"
+        self.Initialized = False
         self.ReInit()
 
 
@@ -538,7 +545,8 @@ class Gupta1999(MaterialModels):
             ["gamma2_y", self.gamma2_y],
             ["M2y", self.M2y],
             ["gamma3_y", self.gamma3_y],
-            ["M3y", self.M3y]]
+            ["M3y", self.M3y],
+            ["Initialized", self.Initialized]]
 
     def ShowInfo(self, plot = False, block = False):
         """Function that show the data stored in the class in the command window and plots the material model (optional).
@@ -606,6 +614,8 @@ class Gupta1999(MaterialModels):
             self.M1y, self.gamma1_y, self.M2y, self.gamma2_y, self.M3y, self.gamma3_y,
             -self.M1y, -self.gamma1_y, -self.M2y, -self.gamma2_y, -self.M3y, -self.gamma3_y,
             self.pinchx, self.pinchy, self.dmg1, self.dmg2, self.beta)
+        self.Initialized = True
+        self.UpdateStoredData()
 
 
 class Gupta1999SteelIShape(Gupta1999):
@@ -708,6 +718,7 @@ class Skiadopoulos2021(MaterialModels):
         # Initialized the parameters that are dependent from others
         self.beam_section_name_tag = "None"
         self.col_section_name_tag = "None"
+        self.Initialized = False
         self.ReInit()
 
 
@@ -804,7 +815,8 @@ class Skiadopoulos2021(MaterialModels):
             ["M6", self.M6],
             ["Gamma_1", self.Gamma_1],
             ["Gamma_4", self.Gamma_4],
-            ["Gamma_6", self.Gamma_6]]
+            ["Gamma_6", self.Gamma_6],
+            ["Initialized", self.Initialized]]
 
 
     def ShowInfo(self, plot = False, block = False):
@@ -871,6 +883,8 @@ class Skiadopoulos2021(MaterialModels):
             self.M1, self.Gamma_1, self.M4, self.Gamma_4, self.M6, self.Gamma_6,
             -self.M1, -self.Gamma_1, -self.M4, -self.Gamma_4, -self.M6, -self.Gamma_6,
             self.pinchx, self.pinchy, self.dmg1, self.dmg2, self.beta)
+        self.Initialized = True
+        self.UpdateStoredData()
 
 
 class Skiadopoulos2021SteelIShape(Skiadopoulos2021):
@@ -912,6 +926,7 @@ class UnconfMander1988(MaterialModels):
 
         # Initialized the parameters that are dependent from others
         self.section_name_tag = "None"
+        self.Initialized = False
         if safety_factors:
             #TODO: insert the correct value and see where to put it
             self.Ry = 1.5
@@ -953,7 +968,8 @@ class UnconfMander1988(MaterialModels):
             ["fct", self.fct],
             ["et", self.et],
             ["Ry", self.Ry],
-            ["beta", self.beta]]
+            ["beta", self.beta],
+            ["Initialized", self.Initialized]]
 
 
     def ShowInfo(self, plot = False, block = False):
@@ -1020,6 +1036,8 @@ class UnconfMander1988(MaterialModels):
         # beta   loating point value defining the exponential curve parameter to define the residual stress (as a factor of ft) at etu 
         
         uniaxialMaterial("Concrete04", self.ID, self.fc, self.ec, self.ecu, self.Ec, self.fct, self.et, self.beta)
+        self.Initialized = True
+        self.UpdateStoredData()
         #TODO: ft, et for unconf?
 
 
@@ -1128,6 +1146,7 @@ class ConfMander1988(MaterialModels):
 
         # Initialized the parameters that are dependent from others
         self.section_name_tag = "None"
+        self.Initialized = False
         if safety_factors:
             #TODO: insert the correct value
             self.Ry = 1.5
@@ -1203,7 +1222,8 @@ class ConfMander1988(MaterialModels):
             ["rho_s_x", self.rho_s_x],
             ["rho_s_y", self.rho_s_y],
             ["fs", self.fs],
-            ["esu", self.esu]]
+            ["esu", self.esu],
+            ["Initialized", self.Initialized]]
 
 
     def ShowInfo(self, plot = False, block = False):
@@ -1279,6 +1299,8 @@ class ConfMander1988(MaterialModels):
         # beta   loating point value defining the exponential curve parameter to define the residual stress (as a factor of ft) at etu 
 
         uniaxialMaterial("Concrete04", self.ID, self.fcc, self.ecc, self.eccu, self.Ec, self.fct, self.et, self.beta)
+        self.Initialized = True
+        self.UpdateStoredData()
         # TODO: ft, et for conf (change way it is compute because it untilize fcc not fc??
 
 
@@ -1325,6 +1347,7 @@ class UniaxialBilinear(MaterialModels):
 
         # Initialized the parameters that are dependent from others
         self.section_name_tag = "None"
+        self.Initialized = False
         if safety_factors:
             #TODO: insert the correct value
             self.Ry = 1.5
@@ -1359,7 +1382,8 @@ class UniaxialBilinear(MaterialModels):
             ["Ey", self.Ey],
             ["ey", self.ey],
             ["b", self.b],
-            ["Ry", self.Ry]]
+            ["Ry", self.Ry],
+            ["Initialized", self.Initialized]]
 
 
     def ShowInfo(self, plot = False, block = False):
@@ -1420,6 +1444,8 @@ class UniaxialBilinear(MaterialModels):
         # $a4 	isotropic hardening parameter (see explanation under $a3). (optional) 
 
         uniaxialMaterial("Steel01", self.ID, self.fy, self.Ey, self.b)
+        self.Initialized = True
+        self.UpdateStoredData()
 
 
 class UniaxialBilinearSteelIShape(UniaxialBilinear):
@@ -1455,6 +1481,7 @@ class GMP1970(MaterialModels):
 
         # Initialized the parameters that are dependent from others
         self.section_name_tag = "None"
+        self.Initialized = False
         if safety_factors:
             #TODO: insert the correct value
             self.Ry = 1.5
@@ -1492,7 +1519,8 @@ class GMP1970(MaterialModels):
             ["a2", self.a2],
             ["a3", self.a3],
             ["a4", self.a4],
-            ["Ry", self.Ry]]
+            ["Ry", self.Ry],
+            ["Initialized", self.Initialized]]
 
 
     def ShowInfo(self):
@@ -1560,6 +1588,8 @@ class GMP1970(MaterialModels):
         #                   if (sigInit!= 0.0) { double epsInit = sigInit/E; eps = trialStrain+epsInit; } else eps = trialStrain; 
 
         uniaxialMaterial('Steel02', self.ID, self.fy, self.Ey, self.b, *[self.R0, self.cR1, self.cR2], self.a1, self.a2, self.a3, self.a4)
+        self.Initialized = True
+        self.UpdateStoredData()
 
 
 class GMP1970RCRectShape(GMP1970):
@@ -1602,6 +1632,7 @@ class UVC(MaterialModels):
 
         # Initialized the parameters that are dependent from others
         self.section_name_tag = "None"
+        self.Initialized = False
         if safety_factors:
             #TODO: insert the correct value
             self.Ry = 1.5
@@ -1639,7 +1670,8 @@ class UVC(MaterialModels):
             ["N", self.N],
             ["ck", self.cK],
             ["gammaK", self.gammaK],
-            ["Ry", self.Ry]]
+            ["Ry", self.Ry],
+            ["Initialized", self.Initialized]]
 
 
     def ShowInfo(self, plot = False, block = False):
@@ -1709,7 +1741,10 @@ class UVC(MaterialModels):
         #TODO: if Pa unit used, probelms? Ask Diego
         #TODO: check that UVCuniaxial take the last arguments like this and not c1 gamma1 c2 gamma2!!!!!!!!!!!
         uniaxialMaterial('UVCuniaxial', self.ID, self.Ey, self.fy, self.QInf, self.b, self.DInf, self.a, self.N, *self.cK, *self.gammaK)
+        self.Initialized = True
+        self.UpdateStoredData()
 
+        
 class UVCCalibrated(UVC):
     def __init__(self, ID: int, calibration: str, safety_factors=False):
         #TODO: add in doc this: List of possible calibration parameters:
