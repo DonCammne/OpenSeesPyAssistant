@@ -36,3 +36,9 @@ class MemberFailure(Exception):
     """
     pass
 
+class WrongNodeIDConvention(Exception):
+    """Exception class for the "wrong node ID convention definition" error.
+    """
+    def __init__(self, node):
+        self.node = node
+
