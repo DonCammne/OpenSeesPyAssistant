@@ -42,3 +42,7 @@ class WrongNodeIDConvention(Exception):
     def __init__(self, node):
         self.node = node
 
+class NoApplicability(Exception):
+    """Exception class for the "no applicability of formula of theory" error.
+    """
+    pass
