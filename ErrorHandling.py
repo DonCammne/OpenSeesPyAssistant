@@ -46,3 +46,9 @@ class NoApplicability(Exception):
     """Exception class for the "no applicability of formula of theory" error.
     """
     pass
+
+class ZeroLength(Exception):
+    """Exception class for the "zero length element (non intentional)" error.
+    """
+    def __init__(self, element):
+        self.element = element
