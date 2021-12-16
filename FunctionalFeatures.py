@@ -3,7 +3,9 @@
 
 import math
 import numpy as np
-
+import matplotlib.pyplot as plt
+import openseespy.postprocessing.internal_plotting_functions as ipltf
+from openseespy.opensees import *
 from OpenSeesPyHelper.ErrorHandling import *
 
 
@@ -41,21 +43,21 @@ def DiscretizeLoadProtocol(SDR_LP: np.ndarray, nr_cycles_LP: np.ndarray, discr_f
 	#TODO: check that SDR_LP and nr_cycles_LP are nonnegative, that nr_cycles_LP should have only int, they are 1 dimensions and size(SDR_LP)==size(nr_cycles_LP)
 
 	if discr_first_cycle % 2 == 0:
-    		discr_first_cycle = discr_first_cycle + 1
+			discr_first_cycle = discr_first_cycle + 1
 	discr_factor = discr_first_cycle / (SDR_LP[0]*2)
 	discretized_LP = [0.0]
 	for i in range(np.size(SDR_LP)):
-	    discr_i = math.ceil(discr_factor*SDR_LP[i]*2)-1;
-	    if discr_i % 2 == 0:
-	        discr_i = discr_i + 1
-	    length_tmp = int((discr_i+1)/2)
-	    tmp_up = np.linspace(0.0, SDR_LP[i], length_tmp)
-	    tmp_down = np.linspace(SDR_LP[i], 0.0, length_tmp)
-	    for j in range(nr_cycles_LP[i]):
-	    	discretized_LP = np.append(discretized_LP, tmp_up[1:length_tmp])
-	    	discretized_LP = np.append(discretized_LP, tmp_down[1:length_tmp])
-	    	discretized_LP = np.append(discretized_LP, -tmp_up[1:length_tmp])
-	    	discretized_LP = np.append(discretized_LP, -tmp_down[1:length_tmp])
+		discr_i = math.ceil(discr_factor*SDR_LP[i]*2)-1;
+		if discr_i % 2 == 0:
+			discr_i = discr_i + 1
+		length_tmp = int((discr_i+1)/2)
+		tmp_up = np.linspace(0.0, SDR_LP[i], length_tmp)
+		tmp_down = np.linspace(SDR_LP[i], 0.0, length_tmp)
+		for j in range(nr_cycles_LP[i]):
+			discretized_LP = np.append(discretized_LP, tmp_up[1:length_tmp])
+			discretized_LP = np.append(discretized_LP, tmp_down[1:length_tmp])
+			discretized_LP = np.append(discretized_LP, -tmp_up[1:length_tmp])
+			discretized_LP = np.append(discretized_LP, -tmp_down[1:length_tmp])
 	return discretized_LP
 
 def DiscretizeLinearly(LP: np.ndarray, discr: int):
@@ -102,3 +104,66 @@ def IDConvention(iNodeID: int, jNodeID: int, n_zeros_between: int = 0):
 	if n_zeros_between < 0: raise NegativeValue()
 	
 	return int(str(iNodeID*10**n_zeros_between) + str(jNodeID))
+
+def NodesOrientation(iNode_ID, jNode_ID):
+	iNode = np.array(nodeCoord(iNode_ID))
+	jNode = np.array(nodeCoord(jNode_ID))
+	if abs(iNode[0]-jNode[0]) + abs(iNode[1]-jNode[1]) == 0:
+		return "zero_length"
+	elif abs(iNode[0]-jNode[0]) < abs(iNode[1]-jNode[1]):
+		return "vertical"
+	else:
+		return "horizontal"
+
+def plotMember(element_array: np.ndarray, show_element_ID = True, show_node_ID = True):
+	ele_style = {'color':'black', 'linewidth':1, 'linestyle':'-'}
+	node_style = {'color':'black', 'marker':'o', 'facecolor':'black','linewidth':0.}
+	node_style_animation = {'color':'black', 'marker':'o','markersize':2., 'linewidth':0.} 
+
+	node_text_style = {'fontsize':8, 'fontweight':'regular', 'color':'green'} 
+	ele_text_style = {'fontsize':8, 'fontweight':'bold', 'color':'darkred'} 
+	track_node = {}
+
+	if show_element_ID:
+		show_e_ID = 'yes'
+	else:
+		show_e_ID = 'no'
+
+	fig = plt.figure()
+	ax = fig.add_subplot(1,1,1)
+
+	for ele in element_array:
+		eleTag = int(ele[0])
+		Nodes =ele[1:]
+
+		if len(Nodes) == 2:
+			# 2D element
+			iNode = np.array(nodeCoord(Nodes[0].item()))
+			jNode = np.array(nodeCoord(Nodes[1].item()))
+			ipltf._plotBeam2D(iNode, jNode, ax, show_e_ID, eleTag, "solid")
+			ax.scatter(*iNode, **node_style)
+			ax.scatter(*jNode, **node_style)
+			if show_node_ID:
+				if abs(sum(iNode - jNode)) > 1e-6:
+					# beam-col
+					__plt_node(Nodes[0], track_node, iNode, ax, node_text_style)
+					__plt_node(Nodes[1], track_node, jNode, ax, node_text_style, h_align='right', v_align='bottom')
+				else:
+					# zerolength
+					__plt_node(Nodes[0], track_node, iNode, ax, node_text_style, h_align='right')
+					__plt_node(Nodes[1], track_node, jNode, ax, node_text_style, v_align='bottom')
+		else:
+			print("Too many nodes in this elemnet (see shell elements)")
+		
+	ax.set_xlabel('x [m]')
+	ax.set_ylabel('y [m]')
+	plt.axis('equal')
+
+
+def __plt_node(nodeID: int, track_node: dict, NodeXY, ax, node_text_style, x_off = 0, y_off = 0, h_align = 'left', v_align='top'):
+	print(track_node)
+	if not nodeID in track_node:
+		track_node[nodeID] = True
+		ax.text(NodeXY[0]+x_off, NodeXY[1]+y_off, nodeID,**node_text_style, horizontalalignment=h_align, verticalalignment=v_align)
+
+
