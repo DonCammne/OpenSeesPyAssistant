@@ -179,7 +179,7 @@ class FibersRectRCRectShape(FibersRect):
 
 
 def plot_fiber_section(fiber_info, fill_shapes = True, matcolor=['#808080', '#D3D3D3', 'r', 'b', 'g', 'y']):
-    """Plot fiber cross-section.
+    """Plot fiber cross-section. Coordinate system used: (y, z) 
 
     Args:
         fiber_info (list): list of lists in the format similar to the parameters
@@ -192,7 +192,7 @@ def plot_fiber_section(fiber_info, fill_shapes = True, matcolor=['#808080', '#D3
             assigned to fibers (number of colors should not be less than the number of mat model used)
 
     Examples:
-        ::
+        :: first matID, discr_width, discr_height
 
             fib_sec_1 = [['section', 'Fiber', 1, '-GJ', 1.0e6],
                          ['patch', 'quad', 1, 4, 1,  0.032, 0.317, -0.311, 0.067, -0.266, 0.005, 0.077, 0.254],  # noqa: E501
@@ -281,7 +281,7 @@ def plot_fiber_section(fiber_info, fill_shapes = True, matcolor=['#808080', '#D3
             # outJKxJL = (Ky-Jy)*(Lz-Jz) - (Ly-Jy)*(Kz-Jz)
 
             if outIJxIK <= 0 or outIKxIL <= 0 or outIJxIL <= 0:
-                print('Warning! Patch quad is non-convex or counter-clockwise defined or has at least 3 colinear points in line')
+                print('Warning! Patch quad is non-convex or non-counter-clockwise defined or has at least 3 colinear points in line')
 
             IJz, IJy = np.linspace(Iz, Jz, nIJ+1), np.linspace(Iy, Jy, nIJ+1)
             JKz, JKy = np.linspace(Jz, Kz, nJK+1), np.linspace(Jy, Ky, nJK+1)
@@ -331,7 +331,7 @@ def plot_fiber_section(fiber_info, fill_shapes = True, matcolor=['#808080', '#D3
                 for i in range(nc):
                     thi = a0 + i * dth
                     thi1 = thi + dth
-                    wedge = Wedge((yC, -zC), rj1, thi, thi1, width=dr, ec='k',
+                    wedge = Wedge((yC, -zC), rj1, thi, thi1, width=dr, ec='k', #TODO: -zC, yC ??
                                   lw=1, fc=mat_to_col[matID])
                     ax.add_patch(wedge)
 
@@ -355,7 +355,7 @@ def create_fiber_section(fiber_info):
     the OpenSees domain, this function is a workaround. The idea is to
     prepare data similar to the one the regular OpenSees commands
     (``section('Fiber', ...)``, ``fiber()``, ``patch()`` and/or
-    ``layer()``) require.
+    ``layer()``) require. Coordinate system used: (y, z) 
 
     Args:
         fiber_info (list): is a list of fiber section data. First sub-list
