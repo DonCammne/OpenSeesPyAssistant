@@ -4,6 +4,8 @@
 import math
 import numpy as np
 
+from OpenSeesPyHelper.ErrorHandling import *
+
 
 def ProgressingPercentage(max_iter, i, next_step, step = 10):
 	"""Function that shows the progressing percentage of an iterative process.
@@ -96,4 +98,7 @@ def DiscretizeLinearly(LP: np.ndarray, discr: int):
 
 	return discr_LP
 
-
+def IDConvention(iNodeID: int, jNodeID: int, n_zeros_between: int = 0):
+	if n_zeros_between < 0: raise NegativeValue()
+	
+	return int(str(iNodeID*10**n_zeros_between) + str(jNodeID))
