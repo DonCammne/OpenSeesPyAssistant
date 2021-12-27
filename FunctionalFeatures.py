@@ -26,10 +26,9 @@ def ProgressingPercentage(max_iter, i, next_step, step = 10):
 		print("The progression is {}%".format(next_step))
 		return next_step + step
 
-	# else
 	return next_step
 
-def DiscretizeLoadProtocol(SDR_LP: np.ndarray, nr_cycles_LP: np.ndarray, discr_first_cycle: int):
+def DiscretizeLoadProtocol(SDR_LP: np.ndarray, nr_cycles_LP: np.ndarray, discr_first_cycle: int, plot = False, block = False):
 	"""Discretized a load protocol maintening a similar discretisation throughout the different cycles and keeping in the output the extremes (peaks).
 
 	Args:
@@ -58,9 +57,21 @@ def DiscretizeLoadProtocol(SDR_LP: np.ndarray, nr_cycles_LP: np.ndarray, discr_f
 			discretized_LP = np.append(discretized_LP, tmp_down[1:length_tmp])
 			discretized_LP = np.append(discretized_LP, -tmp_up[1:length_tmp])
 			discretized_LP = np.append(discretized_LP, -tmp_down[1:length_tmp])
+	
+	if plot:
+		fig, ax = plt.subplots()
+		ax.plot(discretized_LP)
+
+		ax.set(xlabel='Step number [-]', ylabel='Unit of the loading protocol', 
+			title='Discretized loading protocol')
+		ax.grid()
+
+		if block:
+			plt.show()
+
 	return discretized_LP
 
-def DiscretizeLinearly(LP: np.ndarray, discr: int):
+def DiscretizeLinearly(LP: np.ndarray, discr: int, plot = False, block = False):
 	"""
 	This function creates a discretized LP with the number of point given by discr between every point from LP (linearly).
 	
@@ -97,6 +108,17 @@ def DiscretizeLinearly(LP: np.ndarray, discr: int):
 		# Prepare for next iteration
 		yprev = ynext
 		iter = iter + discr + 1
+
+	if plot:
+		fig, ax = plt.subplots()
+		ax.plot(discr_LP)
+
+		ax.set(xlabel='Step number [-]', ylabel='Unit of the loading protocol', 
+			title='Discretized loading protocol')
+		ax.grid()
+
+		if block:
+			plt.show()
 
 	return discr_LP
 
@@ -155,13 +177,12 @@ def plot_member(element_array: np.ndarray, show_element_ID = True, show_node_ID 
 		else:
 			print("Too many nodes in this elemnet (see shell elements)")
 		
-	ax.set_xlabel('x [m]')
-	ax.set_ylabel('y [m]')
+	ax.set_xlabel('x [{}]'.format(length_unit))
+	ax.set_ylabel('y [{}]'.format(length_unit))
 	plt.axis('equal')
 
 
 def __plt_node(nodeID: int, track_node: dict, NodeXY, ax, node_text_style, x_off = 0, y_off = 0, h_align = 'left', v_align='top'):
-	print(track_node)
 	if not nodeID in track_node:
 		track_node[nodeID] = True
 		ax.text(NodeXY[0]+x_off, NodeXY[1]+y_off, nodeID,**node_text_style, horizontalalignment=h_align, verticalalignment=v_align)

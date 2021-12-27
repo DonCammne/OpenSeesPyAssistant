@@ -6,10 +6,13 @@ Note that the decision of which unit for each measure (distance, force, mass, ti
 for example the natural frequency is computed behind the scene by the OpenSeesPy framework, thus the stiffness of the structure divided by the mass should result in a unit of 1 (thus seconds). 
 Furthermore, there are constants like the gravitational one g that is dependent on this decision.
 """
+# Fundamental
 m_unit = 1
+length_unit = "m" # It's the length unit associated with 1 (fundamental)
 N_unit = 1
-kg_unit = 1
+force_unit = "N" # It's the force unit associated with 1 (fundamental)
 s_unit = 1
+time_unit = "s" # It's the time unit associated with 1 (fundamental)
 
 # Distance
 mm_unit = m_unit*1e-3
@@ -50,7 +53,7 @@ MN_unit = N_unit*1e6
 GN_unit = N_unit*1e9
 kip_unit = N_unit*4448.2216
 
-# Moment
+# Moment (and rotational stiffnes (moment-rotation))
 Nm_unit = N_unit*m_unit
 kNm_unit = kN_unit*m_unit
 MNm_unit = MN_unit*m_unit
@@ -59,6 +62,7 @@ kNmm_unit = kN_unit*mm_unit
 MNmm_unit = MN_unit*mm_unit
 
 # Mass
+kg_unit = N_unit*s_unit**2/m_unit
 t_unit = kg_unit*1e3
 pound_unit = kg_unit*0.45359237
 

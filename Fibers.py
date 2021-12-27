@@ -1,7 +1,7 @@
 # Module with the fibers
 #   Carmine Schipani, 2021
 
-from numpy.matrixlib import mat
+# from numpy.matrixlib import mat
 from openseespy.opensees import *
 import matplotlib.pyplot as plt
 from matplotlib.patches import Circle, Polygon, Wedge
@@ -97,7 +97,8 @@ class FibersRect(Fibers):
         cover_down_cmd = ['patch', 'rect', self.unconf_mat_ID, self.discr_cover_topbottom[1], self.discr_cover_topbottom[0], *cover_down]
         cover_left_cmd = ['patch', 'rect', self.unconf_mat_ID, self.discr_cover_lateral[1], self.discr_cover_lateral[0], *cover_left]
         cover_right_cmd = ['patch', 'rect', self.unconf_mat_ID, self.discr_cover_lateral[1], self.discr_cover_lateral[0], *cover_right]
-        self.fib_sec = [core_cmd, cover_up_cmd, cover_down_cmd, cover_left_cmd, cover_right_cmd]
+        self.fib_sec = [['section', 'Fiber', self.ID, '-GJ', self.GJ], 
+            core_cmd, cover_up_cmd, cover_down_cmd, cover_left_cmd, cover_right_cmd]
         
         # Create the reinforcing fibers (top, middle, bottom)
         nr_bars = 0
@@ -216,8 +217,8 @@ def plot_fiber_section(fiber_info, fill_shapes = True, matcolor=['#808080', '#D3
 
     mat_to_col = {}
     fig, ax = plt.subplots()
-    ax.set_xlabel('x [m]')
-    ax.set_ylabel('y [m]')
+    ax.set_xlabel('x [{}]'.format(length_unit))
+    ax.set_ylabel('y [{}]'.format(length_unit))
     ax.grid(False)
 
     for item in fiber_info:
@@ -374,7 +375,7 @@ def create_fiber_section(fiber_info):
     for dat in fiber_info:
         if dat[0] == 'section':
             secTag, GJ = dat[2], dat[4]
-            section('Fiber', secTag, '-GJ', GJ)
+            section('Fiber', secTag, 'GJ', GJ)
 
         if dat[0] == 'layer':
             matTag = dat[2]

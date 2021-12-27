@@ -213,8 +213,8 @@ class ModifiedIMK(MaterialModels):
             # Data for plotting
             x_axis = np.array([0.0, self.theta_y, self.theta_y + theta_p_plot, theta_r, self.theta_u, self.theta_u])
             x_axis2 = np.array([self.theta_y + theta_p_plot, self.theta_y + theta_p_plot + self.theta_pc])
-            y_axis = ([0.0, self.My_star/kNm_unit, self.Mc/kNm_unit, Mr/kNm_unit, Mr/kNm_unit, 0.0])
-            y_axis2 = ([self.Mc/kNm_unit, 0.0])
+            y_axis = np.array([0.0, self.My_star, self.Mc, Mr, Mr, 0.0])/kNm_unit
+            y_axis2 = np.array([self.Mc, 0.0])/kNm_unit
 
             fig, ax = plt.subplots()
             ax.plot(x_axis, y_axis, 'k-')
@@ -243,10 +243,10 @@ class ModifiedIMK(MaterialModels):
             if self.L/self.d < 2.5 or self.L/self.d > 7:
                 Check = False
                 print("The check L/d was not fullfilled")
-            if self.d < 0.102 or self.d > 0.914:
+            if self.d < 102*mm_unit or self.d > 914*mm_unit:
                 Check = False
                 print("The d check was not fullfilled")
-            if self.Fy < 240e6 or self.Fy > 450e6:
+            if self.Fy < 240*MPa_unit or self.Fy > 450*MPa_unit:
                 Check = False
                 print("The Fy check was not fullfilled")
         else:
@@ -307,9 +307,9 @@ class ModifiedIMK(MaterialModels):
     def ComputeTheta_p(self):
         if self.Type == "Beam":
             if self.d < 533.0*mm_unit:
-                return 0.0865*(self.h_1/self.tw)**(-0.365)*(self.bf/2.0/self.tf)**(-0.14)*(self.L_0/self.d)**(0.34)*(self.d/533.0*mm_unit)**(-0.721)*(self.Fy/355.0*MPa_unit)**(-0.23)
+                return 0.0865*(self.h_1/self.tw)**(-0.365)*(self.bf/2.0/self.tf)**(-0.14)*(self.L_0/self.d)**(0.34)*(self.d/(533.0*mm_unit))**(-0.721)*(self.Fy/(355.0*MPa_unit))**(-0.23)
             else:
-                return 0.318*(self.h_1/self.tw)**(-0.550)*(self.bf/2.0/self.tf)**(-0.345)*(self.L_0/self.d)**(0.090)*(self.L_b/self.iz)**(-0.023)*(self.d/533.0*mm_unit)**(-0.330)*(self.Fy/355.0*MPa_unit)**(-0.130)
+                return 0.318*(self.h_1/self.tw)**(-0.550)*(self.bf/2.0/self.tf)**(-0.345)*(self.L_0/self.d)**(0.090)*(self.L_b/self.iz)**(-0.023)*(self.d/(533.0*mm_unit))**(-0.330)*(self.Fy/(355.0*MPa_unit))**(-0.130)
                 # With RBS: ...
         else:
             tmp = 294.0*(self.h_1/self.tw)**(-1.7)*(self.L_b/self.iz)**(-0.7)*(1.0-self.N_G/self.Npl)**(1.6) # *(self.E/self.Fy/gamma_rm)**(0.2) # EC8
@@ -322,15 +322,13 @@ class ModifiedIMK(MaterialModels):
     def ComputeTheta_pc(self):
         if self.Type == "Beam":
             if self.d < 533.0*mm_unit:
-                return 5.63*(self.h_1/self.tw)**(-0.565)*(self.bf/2.0/self.tf)**(-0.800)*(self.d/533.0*mm_unit)**(-0.280)*(self.Fy/355.0*MPa_unit)**(-0.430)
+                return 5.63*(self.h_1/self.tw)**(-0.565)*(self.bf/2.0/self.tf)**(-0.800)*(self.d/(533.0*mm_unit))**(-0.280)*(self.Fy/(355.0*MPa_unit))**(-0.430)
             else:
-                return 7.50*(self.h_1/self.tw)**(-0.610)*(self.bf/2.0/self.tf)**(-0.710)*(self.L_b/self.iz)**(-0.110)*(self.d/533.0*mm_unit)**(-0.161)*(self.Fy/355.0*MPa_unit)**(-0.320)
+                return 7.50*(self.h_1/self.tw)**(-0.610)*(self.bf/2.0/self.tf)**(-0.710)*(self.L_b/self.iz)**(-0.110)*(self.d/(533.0*mm_unit))**(-0.161)*(self.Fy/(355.0*MPa_unit))**(-0.320)
                 # With RBS: ...
         else:
             tmp =  90.0*(self.h_1/self.tw)**(-0.8)*(self.L_b/self.iz)**(-0.8)*(1.0-self.N_G/self.Npl)**(2.5) # *(self.E/self.Fy/gamma_rm)**(0.07) # EC8
-            if tmp > 0.3:
-                tmp = 0.3
-            return tmp
+            return min(tmp, 0.3)
 
     def ComputeTheta_u(self):
         if self.Type == "Beam":
@@ -341,21 +339,17 @@ class ModifiedIMK(MaterialModels):
     def ComputeRefEnergyDissipationCap(self):
         if self.Type == "Beam":
             if self.d < 533.0*mm_unit:
-                return 495.0*(self.h_1/self.tw)**(-1.34)*(self.bf/2.0/self.tf)**(-0.595)*(self.Fy/355.0*MPa_unit)**(-0.360)
+                return 495.0*(self.h_1/self.tw)**(-1.34)*(self.bf/2.0/self.tf)**(-0.595)*(self.Fy/(355.0*MPa_unit))**(-0.360)
             else:
-                return 536.0*(self.h_1/self.tw)**(-1.26)*(self.bf/2.0/self.tf)**(-0.525)*(self.L_b/self.iz)**(-0.130)*(self.Fy/355.0*MPa_unit)**(-0.291)
+                return 536.0*(self.h_1/self.tw)**(-1.26)*(self.bf/2.0/self.tf)**(-0.525)*(self.L_b/self.iz)**(-0.130)*(self.Fy/(355.0*MPa_unit))**(-0.291)
                 # With RBS: ...
         else:
             if self.N_G/self.Npl > 0.35:
                 tmp = 268000.0*(self.h_1/self.tw)**(-2.30)*(self.L_b/self.iz)**(-1.130)*(1.0-self.N_G/self.Npl)**(1.19)
-                if tmp > 3.0:
-                    tmp = 3.0
-                return tmp
+                return min(tmp, 3.0)
             else:
                 tmp = 25000.0*(self.h_1/self.tw)**(-2.14)*(self.L_b/self.iz)**(-0.53)*(1.0-self.N_G/self.Npl)**(4.92)
-                if tmp > 3.0:
-                    tmp = 3.0
-                return tmp
+                return min(tmp, 3.0)
 
 
     def Bilin(self):
@@ -555,9 +549,9 @@ class Gupta1999(MaterialModels):
         print("Requested info for Gupta 1999 material model Parameters, ID = {}".format(self.ID))
         print("Sections associated, column: {} ".format(self.col_section_name_tag))
         print("Sections associated, beam: {} ".format(self.beam_section_name_tag))
-        print("gamma1_y = {}".format(self.gamma1_y))
-        print("gamma2_y = {}".format(self.gamma2_y))
-        print("gamma3_y = {}".format(self.gamma3_y))
+        print("gamma1_y = {} rad".format(self.gamma1_y))
+        print("gamma2_y = {} rad".format(self.gamma2_y))
+        print("gamma3_y = {} rad".format(self.gamma3_y))
         print("M1y = {} kNm".format(self.M1y/kNm_unit))
         print("M2y = {} kNm".format(self.M2y/kNm_unit))
         print("M3y = {} kNm".format(self.M3y/kNm_unit))
@@ -570,7 +564,7 @@ class Gupta1999(MaterialModels):
             M3y_plot = self.M2y + (self.a_s * self.Ke * self.d_b) * (gamma3_y_plot - self.gamma2_y)
 
             x_axis = np.array([0.0, self.gamma1_y, self.gamma2_y, gamma3_y_plot])
-            y_axis = ([0.0, self.M1y/kNm_unit, self.M2y/kNm_unit, M3y_plot/kNm_unit])
+            y_axis = np.array([0.0, self.M1y, self.M2y, M3y_plot])/kNm_unit
 
             fig, ax = plt.subplots()
             ax.plot(x_axis, y_axis, 'k-')
@@ -826,9 +820,9 @@ class Skiadopoulos2021(MaterialModels):
         print("Requested info for Skiadopoulos 2021 material model Parameters, ID = {}".format(self.ID))
         print("Sections associated, column: {} ".format(self.col_section_name_tag))
         print("Sections associated, beam: {} ".format(self.beam_section_name_tag))
-        print("Gamma_1 = {}".format(self.Gamma_1))
-        print("Gamma_4 = {}".format(self.Gamma_4))
-        print("Gamma_6 = {}".format(self.Gamma_6))
+        print("Gamma_1 = {} rad".format(self.Gamma_1))
+        print("Gamma_4 = {} rad".format(self.Gamma_4))
+        print("Gamma_6 = {} rad".format(self.Gamma_6))
         print("M1 = {} kNm".format(self.M1/kNm_unit))
         print("M4 = {} kNm".format(self.M4/kNm_unit))
         print("M6 = {} kNm".format(self.M6/kNm_unit))
@@ -837,7 +831,7 @@ class Skiadopoulos2021(MaterialModels):
         if plot:
             # Data for plotting
             x_axis = np.array([0.0, self.Gamma_1, self.Gamma_4, self.Gamma_6])
-            y_axis = ([0.0, self.M1/kNm_unit, self.M4/kNm_unit, self.M6/kNm_unit])
+            y_axis = np.array([0.0, self.M1, self.M4, self.M6])/kNm_unit
 
             fig, ax = plt.subplots()
             ax.plot(x_axis, y_axis, 'k-')
@@ -1060,6 +1054,7 @@ def PlotConcrete04(fc, Ec, ec, ecu, Type, ax, ID = 0):
     else:
         raise NameError("Type should be C or U (ID={})".format(ID))
 
+    #TODO: strange way to compute N, check 
     # Data for plotting
     N = int(-ecu*1e5)
     x_axis = np.zeros(N)
@@ -1297,7 +1292,9 @@ class ConfMander1988(MaterialModels):
         self.rho_s_x = rho_s_x
         self.rho_s_y = rho_s_y
         self.fs = fs
-        self.ec = -0.002 if ec == 1 else ec
+        # self.ec = -0.002 if ec == 1 else ec
+        #TODO: find best fit
+        self.ec = -0.0015 + self.fc/MPa_unit/70000 # KarthikMander2011
         self.esu = 0.05 if esu == -1 else esu
         self.beta = beta
         self.k1 = k1 # 4.1 from Richart et al. 1928 or 5.6 from Balmer 1949 
@@ -1339,7 +1336,9 @@ class ConfMander1988(MaterialModels):
         self.K_combo = self.ComputeConfinementFactor()
         self.fcc = self.fc * self.K_combo
         self.ecc = (1.0 + 5.0 * (self.K_combo-1.0)) * self.ec
-        self.eccu = -0.004 + (1.4*(self.rho_s_x+self.rho_s_y)*self.esu*self.fs) / self.fcc # FROM BRIDGE BOOK OF KATRIN BEYER!
+        # self.eccu = -0.004 + (1.4*(self.rho_s_x+self.rho_s_y)*self.esu*self.fs) / self.fcc # FROM BRIDGE BOOK OF KATRIN BEYER!
+        #TODO: find best fit
+        self.eccu = 5*self.ecc # KarthikMander2011
         if self.section_name_tag != "None": self.section_name_tag = self.section_name_tag + " (modified)"
         
 
@@ -1465,6 +1464,7 @@ class ConfMander1988(MaterialModels):
                     fl2 = [item[1] for item in curve_fl2]
                     K_res =  np.interp(fl2_ratio, fl2, K)
 
+                    #TODO: after check, remove this for final release
                     fig, ax = plt.subplots()
                     ax.plot(fl2, K, 'k-')
                     ax.scatter(fl2_ratio, K_res, color='k')
@@ -1613,8 +1613,8 @@ class UniaxialBilinear(MaterialModels):
             e_pl = 10.0 * self.ey # to show that if continues with this slope
             sigma_pl = self.b * self.Ey * e_pl
 
-            x_axis = ([0.0, self.ey*100, (self.ey+e_pl)*100])
-            y_axis = ([0.0, self.fy/MPa_unit, (self.fy+sigma_pl)/MPa_unit])
+            x_axis = np.array([0.0, self.ey, (self.ey+e_pl)])*100
+            y_axis = np.array([0.0, self.fy, (self.fy+sigma_pl)])/MPa_unit
 
             fig, ax = plt.subplots()
             ax.plot(x_axis, y_axis, 'k-')
@@ -1984,9 +1984,9 @@ class UVCCalibrated(UVC):
         if not index.any(): raise NameError("No calibrated parameters with that name. Note that there are no spaces")
 
         # Assign arguments value
-        super().__init__(ID, UVC_data["fy"][index][0], UVC_data["Ey"][index][0], UVC_data["QInf"][index][0], UVC_data["b"][index][0],
-            UVC_data["DInf"][index][0], UVC_data["a"][index][0],
-            np.array([UVC_data["C1"][index][0], UVC_data["C2"][index][0]]),
+        super().__init__(ID, UVC_data["fy"][index][0]*MPa_unit, UVC_data["Ey"][index][0]*GPa_unit, UVC_data["QInf"][index][0]*MPa_unit, UVC_data["b"][index][0],
+            UVC_data["DInf"][index][0]*MPa_unit, UVC_data["a"][index][0],
+            np.array([UVC_data["C1"][index][0], UVC_data["C2"][index][0]])*MPa_unit,
             np.array([UVC_data["gamma1"][index][0], UVC_data["gamma2"][index][0]]),
             safety_factors=safety_factors)
 
