@@ -1077,8 +1077,13 @@ class UnconfMander1988RCRectShape(UnconfMander1988):
         self.section_name_tag = ele.name_tag
         self.UpdateStoredData()
 
+class UnconfMander1988RCCircShape(UnconfMander1988):
+    def __init__(self, ID: int, ele: RCCircShape, ec=1, ecp=1, fct=-1, et=-1, beta=0.1, safety_factors=False):
+        super().__init__(ID, ele.fc, ele.Ec, ec=ec, ecp=ecp, fct=fct, et=et, beta=beta, safety_factors=safety_factors)
+        self.section_name_tag = ele.name_tag
+        self.UpdateStoredData()
 
-class ConfMander1988(MaterialModels):
+class ConfMander1988Rect(MaterialModels):
     # Class that stores funcions and material properties of a rectangular shape RC  profile (Concrete04). For more information see Mander et Al. 1988
     # Warning: the units should be m and N
     #TODO: validity check: warning if concrete fc is bigger than something (see article Lee)
@@ -1242,7 +1247,7 @@ class ConfMander1988(MaterialModels):
     array_fl2[15] = [[2.2962962962962963, 0.3]]
     
     def __init__(self, ID: int, bc, dc, Ac, fc, Ec, nr_bars, D_bars, wx_top: np.ndarray, wx_bottom: np.ndarray, wy: np.ndarray, s, D_hoops, rho_s_x, rho_s_y, fs, 
-        ec = 1, ecp = 1, fct = -1, et = -1, esu = -1, beta = 0.1, k1 = 4.1, safety_factors = False):
+        ec = 1, ecp = 1, fct = -1, et = -1, esu = -1, beta = 0.1, safety_factors = False):
         #TODO: security factor
         # self.ec = -0.002
         # self.ecp = 2.0*self.ec                                  # concrete spalling
@@ -1273,7 +1278,6 @@ class ConfMander1988(MaterialModels):
         if fct != -1 and fct < 0: raise NegativeValue()
         if et != -1 and et < 0: raise NegativeValue()
         if esu != -1 and esu < 0: raise NegativeValue()
-        if k1 < 0: raise NegativeValue()
 
         # Arguments
         self.ID = ID
@@ -1297,7 +1301,6 @@ class ConfMander1988(MaterialModels):
         self.ec = -0.0015 + self.fc/MPa_unit/70000 # KarthikMander2011
         self.esu = 0.05 if esu == -1 else esu
         self.beta = beta
-        self.k1 = k1 # 4.1 from Richart et al. 1928 or 5.6 from Balmer 1949 
 
         # Initialized the parameters that are dependent from others
         self.section_name_tag = "None"
@@ -1325,7 +1328,6 @@ class ConfMander1988(MaterialModels):
         # Members
         #TODO: check formulas and units one time more
         self.ecu = self.Compute_ecu()
-        self.k2 = 5.0*self.k1
         self.Ai = self.ComputeAi()
         self.Ae = (self.Ac - self.Ai) * (1.0 - (self.s-self.D_hoops)/2.0/self.bc)*(1.0 - (self.s-self.D_hoops)/2.0/self.dc)
         self.rho_cc = self.nr_bars*self.D_bars**2/4.0*math.pi / self.Ac
@@ -1361,7 +1363,6 @@ class ConfMander1988(MaterialModels):
             ["ecu", self.ecu],
             ["fct", self.fct],
             ["et", self.et],
-            ["k1", self.k1],
             ["fcc", self.fcc],
             ["ecc", self.ecc],
             ["eccu", self.eccu],
@@ -1385,7 +1386,7 @@ class ConfMander1988(MaterialModels):
         """Function that show the data stored in the class in the command window and plots the material model (optional).
         """
         print("")
-        print("Requested info for Confined Mander 1988 material model Parameters, ID = {}".format(self.ID))
+        print("Requested info for Confined Mander 1988 (rectangular) material model Parameters, ID = {}".format(self.ID))
         print("Section associated: {} ".format(self.section_name_tag))
         print('Concrete strength fc = {} MPa'.format(self.fc/MPa_unit))
         print('Concrete strength confined fcc = {} MPa'.format(self.fcc/MPa_unit))
@@ -1514,8 +1515,8 @@ class ConfMander1988(MaterialModels):
         # TODO: ft, et for conf (change way it is compute because it untilize fcc not fc??
 
 
-class ConfMander1988RCRectShape(ConfMander1988):
-    def __init__(self, ID: int, ele: RCRectShape, ec=1, ecp=1, fct=-1, et=-1, esu=-1, beta=0.1, k1=4.1, safety_factors=False):
+class ConfMander1988RectRCRectShape(ConfMander1988Rect):
+    def __init__(self, ID: int, ele: RCRectShape, ec=1, ecp=1, fct=-1, et=-1, esu=-1, beta=0.1, safety_factors=False):
         ranges = ele.bars_ranges_position_y
         bars = ele.bars_position_x
         wy = self.__Compute_w(ranges, ele.D_bars)
@@ -1523,7 +1524,7 @@ class ConfMander1988RCRectShape(ConfMander1988):
         wx_bottom = self.__Compute_w(bars[-1], ele.D_bars)
 
         super().__init__(ID, ele.bc, ele.dc, ele.Ac, ele.fc, ele.Ec, ele.nr_bars, ele.D_bars, wx_top, wx_bottom, wy, ele.s, ele.D_hoops, ele.rho_s_x, ele.rho_s_y, ele.fs,
-            ec=ec, ecp=ecp, fct=fct, et=et, esu=esu, beta=beta, k1=k1, safety_factors=safety_factors)
+            ec=ec, ecp=ecp, fct=fct, et=et, esu=esu, beta=beta, safety_factors=safety_factors)
         self.section_name_tag = ele.name_tag
         self.UpdateStoredData()
 
@@ -1533,6 +1534,209 @@ class ConfMander1988RCRectShape(ConfMander1988):
         for i, elem in enumerate(vector[1:l-1]):
             w[i] = elem - D_bars
         return w
+
+
+class ConfMander1988Circ(MaterialModels):
+    # Class that stores funcions and material properties of a circular shape RC profile (Concrete04). For more information see Mander et Al. 1988
+    # Warning: the units should be m and N
+    #TODO: validity check: warning if concrete fc is bigger than something (see article Lee)
+
+    def __init__(self, ID: int, bc, Ac, fc, Ec, nr_bars, D_bars, s, D_hoops, rho_s_vol, fs, 
+        ec = 1, ecp = 1, fct = -1, et = -1, esu = -1, beta = 0.1, safety_factors = False):
+        #TODO: security factor
+        # self.ec = -0.002
+        # self.ecp = 2.0*self.ec                                  # concrete spalling
+        # self.esu = 0.05                                         # strain capacity of stirrups 0.012-0.05 experimental results (BOOK BEYER)
+        
+        # Check
+        if ID < 0: raise NegativeValue()
+        if bc < 0: raise NegativeValue()
+        if Ac < 0: raise NegativeValue()
+        if fc > 0: raise PositiveValue()
+        if Ec < 0: raise NegativeValue()
+        if nr_bars < 0: raise NegativeValue()
+        if D_bars < 0: raise NegativeValue()
+        if s < 0: raise NegativeValue()
+        if D_hoops < 0: raise NegativeValue()
+        if rho_s_vol < 0: raise NegativeValue()
+        if fs < 0: raise NegativeValue()
+        if ec != 1 and ec > 0: raise PositiveValue()
+        if ecp != 1 and ecp > 0: raise PositiveValue()
+        if fct != -1 and fct < 0: raise NegativeValue()
+        if et != -1 and et < 0: raise NegativeValue()
+        if esu != -1 and esu < 0: raise NegativeValue()
+
+        # Arguments
+        self.ID = ID
+        self.bc = bc
+        self.Ac = Ac
+        self.fc = fc
+        self.Ec = Ec
+        self.nr_bars = nr_bars
+        self.D_bars = D_bars
+        self.s = s
+        self.D_hoops = D_hoops
+        self.rho_s_vol = rho_s_vol
+        self.fs = fs
+        # self.ec = -0.002 if ec == 1 else ec
+        #TODO: find best fit
+        self.ec = -0.0015 + self.fc/MPa_unit/70000 # KarthikMander2011
+        self.esu = 0.05 if esu == -1 else esu
+        self.beta = beta
+
+        # Initialized the parameters that are dependent from others
+        self.section_name_tag = "None"
+        self.Initialized = False
+        if safety_factors:
+            #TODO: insert the correct value
+            self.Ry = 1.5
+        else:
+            self.Ry = 1.0
+        self.ReInit(ecp, fct, et)
+
+    def ReInit(self, ecp = 1, fct = -1, et = -1):
+        """Function that computes the value of the parameters that are computed with respect of the arguments.
+        Use after changing the value of argument inside the class (to update the values accordingly). 
+        This function can be very useful in combination with the function "deepcopy()" from the module "copy".
+        """
+        # Check applicability
+        self.CheckApplicability()
+
+        # Arguments
+        self.ecp = self.Compute_ecp() if ecp == 1 else ecp
+        self.fct = self.Compute_fct() if fct == -1 else fct
+        self.et = self.Compute_et() if et == -1 else et
+
+        # Members
+        s_prime = self.s - self.D_hoops
+
+        self.ecu = self.Compute_ecu()
+        self.Ae = math.pi/4 * (self.bc - s_prime/2)**2
+        self.rho_cc = self.nr_bars*self.D_bars**2/4.0*math.pi / self.Ac
+        self.Acc = self.Ac*(1.0-self.rho_cc)
+        self.ke = self.Ae/self.Acc
+        self.fl = -self.rho_s_vol * self.fs / 2
+        self.fl_prime = self.fl * self.ke
+        self.K_combo = -1.254 + 2.254 * math.sqrt(1.0+7.94*self.fl_prime/self.fc) - 2.0*self.fl_prime/self.fc
+        self.fcc = self.fc * self.K_combo
+        self.ecc = (1.0 + 5.0 * (self.K_combo-1.0)) * self.ec
+        # self.eccu = -0.004 + (1.4*(self.rho_s_x+self.rho_s_y)*self.esu*self.fs) / self.fcc # FROM BRIDGE BOOK OF KATRIN BEYER!
+        #TODO: find best fit
+        self.eccu = 5*self.ecc # KarthikMander2011
+        if self.section_name_tag != "None": self.section_name_tag = self.section_name_tag + " (modified)"
+        
+
+        # Data storage for loading/saving
+        self.UpdateStoredData()
+
+
+    # Methods
+    def UpdateStoredData(self):
+        self.data = [["INFO_TYPE", "ConfMander1988"], # Tag for differentiating different data
+            ["ID", self.ID],
+            ["section_name_tag", self.section_name_tag],
+            ["bc", self.bc],
+            ["Ac", self.Ac],
+            ["fc", self.fc],
+            ["Ec", self.Ec],
+            ["ec", self.ec],
+            ["ecp", self.ecp],
+            ["ecu", self.ecu],
+            ["fct", self.fct],
+            ["et", self.et],
+            ["fcc", self.fcc],
+            ["ecc", self.ecc],
+            ["eccu", self.eccu],
+            ["Ry", self.Ry],
+            ["beta", self.beta],
+            ["nr_bars", self.nr_bars],
+            ["D_bars", self.D_bars],
+            ["s", self.s],
+            ["D_hoops", self.D_hoops],
+            ["rho_s_vol", self.rho_s_vol],
+            ["fs", self.fs],
+            ["esu", self.esu],
+            ["Initialized", self.Initialized]]
+
+
+    def ShowInfo(self, plot = False, block = False):
+        """Function that show the data stored in the class in the command window and plots the material model (optional).
+        """
+        print("")
+        print("Requested info for Confined Mander 1988 (circular) material model Parameters, ID = {}".format(self.ID))
+        print("Section associated: {} ".format(self.section_name_tag))
+        print('Concrete strength fc = {} MPa'.format(self.fc/MPa_unit))
+        print('Concrete strength confined fcc = {} MPa'.format(self.fcc/MPa_unit))
+        print('Strain at maximal strength ec = {}'.format(self.ec))
+        print('Strain at maximal strength confined ecc = {}'.format(self.ecc))
+        print('Maximal strain ecu = {}'.format(self.ecu))
+        print('Maximal strain confined eccu = {}'.format(self.eccu))
+        print("")
+
+        if plot:
+            fig, ax = plt.subplots()
+            PlotConcrete04(self.fcc, self.Ec, self.ecc, self.eccu, "C", ax, self.ID)
+
+            if block:
+                plt.show()
+
+
+    def CheckApplicability(self):
+        #TODO: 
+        Check = True
+        # if len(self.wy) == 0 or len(self.wx_top) == 0 or len(self.wx_bottom) == 0: 
+        #     Check = False
+        #     print("Hypothesis of one bar per corner not fullfilled.")
+        if not Check:
+            print("The validity of the equations is not fullfilled.")
+            print("!!!!!!! WARNING !!!!!!! Check material model of Confined Mander 1988, ID=", self.ID)
+            print("")
+
+
+    def Compute_ecp(self):
+        return 2.0*self.ec
+
+
+    def Compute_fct(self):
+        #TODO: check units. Also, use fcc?
+        return 0.30 * math.pow(-self.fc/MPa_unit, 2/3) * MPa_unit               # SIA 262 2013
+
+
+    def Compute_et(self):
+        return self.fct/self.Ec                               # Mander Eq 45
+
+
+    def Compute_ecu(self):
+        #TODO: add refernce Katrin book
+        return -0.004     # FROM BRIDGE BOOK OF KATRIN BEYER!
+
+
+    def Concrete04(self):
+        # Generate the material model using the given parameters
+
+        # Define Concrete04 Popovics Concrete material model for confined concrete
+        # uniaxialMaterial("Concrete04", matTag, fcc, ecc, eccu, Ec, <fct et> <beta>)
+        # matTag     integer tag identifying material
+        # fcc    floating point values defining concrete compressive strength at 28 days (compression is negative)*
+        # ecc    floating point values defining concrete strain at maximum strength*
+        # eccu   floating point values defining concrete strain at crushing strength*
+        # Ec     floating point values defining initial stiffness**
+        # fct    floating point value defining the maximum tensile strength of concrete
+        # et     floating point value defining ultimate tensile strain of concrete
+        # beta   loating point value defining the exponential curve parameter to define the residual stress (as a factor of ft) at etu 
+
+        uniaxialMaterial("Concrete04", self.ID, self.fcc, self.ecc, self.eccu, self.Ec, self.fct, self.et, self.beta)
+        self.Initialized = True
+        self.UpdateStoredData()
+        # TODO: ft, et for conf (change way it is compute because it untilize fcc not fc??
+
+
+class ConfMander1988CircRCCircShape(ConfMander1988Circ):
+    def __init__(self, ID: int, ele: RCCircShape, ec=1, ecp=1, fct=-1, et=-1, esu=-1, beta=0.1, safety_factors=False):
+        super().__init__(ID, ele.bc, ele.Ac, ele.fc, ele.Ec, ele.n_bars, ele.D_bars, ele.s, ele.D_hoops, ele.rho_s_vol, ele.fs,
+            ec=ec, ecp=ecp, fct=fct, et=et, esu=esu, beta=beta, safety_factors=safety_factors)
+        self.section_name_tag = ele.name_tag
+        self.UpdateStoredData()
 
 
 class UniaxialBilinear(MaterialModels):
