@@ -22,10 +22,15 @@ class Fibers(DataManagement):
 class FibersRect(Fibers):
     # Class that stores funcions and material properties of the rectangular fiber section.
     # Warning: the units should be m and N
-    # Coordinates: plotting coordinte (x, y) = fiber section coordinate (-z, y)
+    # Coordinates: plotting coordinte (x, y) = fiber section coordinate (z, y)= (-x, y)
     
     def __init__(self, ID: int, b, d, Ay, D_hoops, e, unconf_mat_ID: int, conf_mat_ID: int, bars_mat_ID: int,
         bars_x: np.ndarray, ranges_y: np.ndarray, discr_core: list, discr_cover_lateral: list, discr_cover_topbottom: list, GJ = 0.0):
+        # bars_x (np.ndarray): Distances from border to bar centerline, bar to bar centerlines and finally bar centerline to border in the x direction (aligned).
+        #         Starting from the left to right, from the top range to the bottom one. The number of bars for each range can vary; in this case, add this argument when defining the array " dtype = object"
+        # ranges_y (np.ndarray): Distances from border to range centerlines, range to range centerlines and finally range centerline to border in the y direction.
+        #     Starting from the top range to the bottom one
+        # discr in IJ (x or z) and JK (y)
 
         # Check
         if ID < 1: raise NegativeValue()
@@ -85,22 +90,23 @@ class FibersRect(Fibers):
         yc = y1-self.e-self.D_hoops
 
         # Create the concrete core fibers
-        core = [-yc, -zc, yc, zc]
-        core_cmd = ['patch', 'rect', self.conf_mat_ID, self.discr_core[1], self.discr_core[0], *core]
+        core = [-yc, zc, yc, -zc]
+        core_cmd = ['patch', 'rect', self.conf_mat_ID, *self.discr_core, *core]
 
-        # Create the concrete cover fibers (top, bottom, left, right)
-        cover_up = [yc, -z1, y1, z1]
-        cover_down = [-y1, -z1, -yc, z1]
-        cover_left = [-yc, zc, yc, z1]
-        cover_right = [-yc, -z1, yc, -zc]
-        cover_up_cmd = ['patch', 'rect', self.unconf_mat_ID, self.discr_cover_topbottom[1], self.discr_cover_topbottom[0], *cover_up]
-        cover_down_cmd = ['patch', 'rect', self.unconf_mat_ID, self.discr_cover_topbottom[1], self.discr_cover_topbottom[0], *cover_down]
-        cover_left_cmd = ['patch', 'rect', self.unconf_mat_ID, self.discr_cover_lateral[1], self.discr_cover_lateral[0], *cover_left]
-        cover_right_cmd = ['patch', 'rect', self.unconf_mat_ID, self.discr_cover_lateral[1], self.discr_cover_lateral[0], *cover_right]
+        # Create the concrete cover fibers (bottom left, top right)
+        cover_up = [yc, z1, y1, -z1]
+        cover_down = [-y1, z1, -yc, -z1]
+        cover_left = [-yc, z1, yc, zc]
+        cover_right = [-yc, -zc, yc, -z1]
+        cover_up_cmd = ['patch', 'rect', self.unconf_mat_ID, *self.discr_cover_topbottom, *cover_up]
+        cover_down_cmd = ['patch', 'rect', self.unconf_mat_ID, *self.discr_cover_topbottom, *cover_down]
+        cover_left_cmd = ['patch', 'rect', self.unconf_mat_ID, *self.discr_cover_lateral, *cover_left]
+        cover_right_cmd = ['patch', 'rect', self.unconf_mat_ID, *self.discr_cover_lateral, *cover_right]
         self.fib_sec = [['section', 'Fiber', self.ID, '-GJ', self.GJ], 
             core_cmd, cover_up_cmd, cover_down_cmd, cover_left_cmd, cover_right_cmd]
         
         # Create the reinforcing fibers (top, middle, bottom)
+        # NB: note the order of definition of bars_x and ranges_y
         nr_bars = 0
         for range in self.bars_x:
             nr_bars += np.size(range)-1
@@ -152,9 +158,9 @@ class FibersRect(Fibers):
         print("Confined material model ID = {}".format(self.conf_mat_ID))
         print("Unconfined material model ID = {}".format(self.unconf_mat_ID))
         print("Bars material model ID = {}".format(self.bars_mat_ID))
-        print("Discretisation in the core [x dir, y dir] = {}".format(self.discr_core))
-        print("Discretisation in the lateral covers [x dir, y dir] = {}".format(self.discr_cover_lateral))
-        print("Discretisation in the top and bottom covers [x dir, y dir] = {}".format(self.discr_cover_topbottom))
+        print("Discretisation in the core [IJ or x/z dir, JK or y dir] = {}".format(self.discr_core))
+        print("Discretisation in the lateral covers [IJ or x/z dir, JK or y dir] = {}".format(self.discr_cover_lateral))
+        print("Discretisation in the top and bottom covers [IJ or x/z dir, JK or y dir] = {}".format(self.discr_cover_topbottom))
         print("")
 
         if plot:
@@ -272,8 +278,10 @@ def plot_fiber_section(fiber_info, fill_shapes = True, matcolor=['#808080', '#D3
 
             if item[1] == 'rect':
                 Iy, Iz, Ky, Kz = item[5], item[6], item[7], item[8]
-                Jy, Jz, Ly, Lz = Ky, Iz, Iy, Kz
-
+                Jy, Jz, Ly, Lz = Iy, Kz, Ky, Iz
+                # check order of definition
+                if Iz-Kz < 0 or Ky-Iy < 0: print("!!!!!!! WARNING !!!!!!! The fiber is not defined bottom left, top right")
+            
             # check for convexity (vector products)
             outIJxIK = (Jy-Iy)*(Kz-Iz) - (Ky-Iy)*(Jz-Iz)
             outIKxIL = (Ky-Iy)*(Lz-Iz) - (Ly-Iy)*(Kz-Iz)
@@ -282,7 +290,7 @@ def plot_fiber_section(fiber_info, fill_shapes = True, matcolor=['#808080', '#D3
             # outJKxJL = (Ky-Jy)*(Lz-Jz) - (Ly-Jy)*(Kz-Jz)
 
             if outIJxIK <= 0 or outIKxIL <= 0 or outIJxIL <= 0:
-                print('Warning! Patch quad is non-convex or non-counter-clockwise defined or has at least 3 colinear points in line')
+                print('!!!!!!! WARNING !!!!!!! Patch quad is non-convex or non-counter-clockwise defined or has at least 3 colinear points in line')
 
             IJz, IJy = np.linspace(Iz, Jz, nIJ+1), np.linspace(Iy, Jy, nIJ+1)
             JKz, JKy = np.linspace(Jz, Kz, nJK+1), np.linspace(Jy, Ky, nJK+1)
@@ -332,7 +340,7 @@ def plot_fiber_section(fiber_info, fill_shapes = True, matcolor=['#808080', '#D3
                 for i in range(nc):
                     thi = a0 + i * dth
                     thi1 = thi + dth
-                    wedge = Wedge((yC, -zC), rj1, thi, thi1, width=dr, ec='k', #TODO: -zC, yC ??
+                    wedge = Wedge((-zC, yC), rj1, thi, thi1, width=dr, ec='k', #TODO: old: (yC, -zC), wrong, right??
                                   lw=1, fc=mat_to_col[matID])
                     ax.add_patch(wedge)
 
@@ -403,7 +411,6 @@ def create_fiber_section(fiber_info):
 
             if dat[1] == 'rect':
                 Iy, Iz, Ky, Kz = dat[5], dat[6], dat[7], dat[8]
-                Jy, Jz, Ly, Lz = Ky, Iz, Iy, Kz
                 patch('rect', matTag, nIJ, nJK, Iy, Iz, Ky, Kz)
 
         

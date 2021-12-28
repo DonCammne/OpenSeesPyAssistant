@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 import openseespy.postprocessing.internal_plotting_functions as ipltf
 from openseespy.opensees import *
 from OpenSeesPyHelper.ErrorHandling import *
+from OpenSeesPyHelper.Units import *
 
 
 def ProgressingPercentage(max_iter, i, next_step, step = 10):
