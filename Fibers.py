@@ -184,6 +184,144 @@ class FibersRectRCRectShape(FibersRect):
         self.section_name_tag = ele.name_tag
         self.UpdateStoredData()
 
+class FibersIShape(Fibers):
+    # Class that stores funcions and material properties of the I shape fiber section.
+    # Warning: the units should be m and N
+    # Coordinates: plotting coordinte (x, y) = fiber section coordinate (z, y)= (-x, y)
+    
+    def __init__(self, ID: int, d, bf_t, bf_b, tf_t, tf_b, tw, top_flange_mat_ID: int, bottom_flange_mat_ID: int, web_mat_ID: int,
+        discr_top_flange: list, discr_bottom_flange: list, discr_web: list,  GJ = 0.0):
+
+        # Check
+        if ID < 1: raise NegativeValue()
+        if d < 0: raise NegativeValue()
+        if bf_t < 0: raise NegativeValue()
+        if bf_b < 0: raise NegativeValue()
+        if tf_b < 0: raise NegativeValue()
+        if tf_t < 0: raise NegativeValue()
+        if tw < 0: raise NegativeValue()
+        if top_flange_mat_ID < 1: raise NegativeValue()
+        if bottom_flange_mat_ID < 1: raise NegativeValue()
+        if web_mat_ID < 1: raise NegativeValue()
+        if len(discr_top_flange) != 2: raise WrongDimension()
+        if len(discr_bottom_flange) != 2: raise WrongDimension()
+        if len(discr_web) != 2: raise WrongDimension()
+        if tf_t+tf_b >= d: raise InconsistentGeometry()
+
+        # Arguments
+        self.ID = ID
+        self.d = d
+        self.bf_t = bf_t
+        self.bf_b = bf_b
+        self.tf_t = tf_t
+        self.tf_b = tf_b
+        self.tw = tw
+        self.top_flange_mat_ID = top_flange_mat_ID
+        self.bottom_flange_mat_ID = bottom_flange_mat_ID
+        self.web_mat_ID = web_mat_ID
+        self.discr_top_flange = discr_top_flange
+        self.discr_bottom_flange = discr_bottom_flange
+        self.discr_web = discr_web
+        self.GJ = GJ #TODO: check if with 0, no problems or how to compute it
+
+        # Initialized the parameters that are dependent from others
+        self.section_name_tag = "None"
+        self.Initialized = False
+        self.ReInit()
+
+    def ReInit(self):
+        """Function that computes the value of the parameters that are computed with respect of the arguments.
+        Use after changing the value of argument inside the class (to update the values accordingly). 
+        This function can be very useful in combination with the function "deepcopy()" from the module "copy".
+        """
+        # Memebers
+        if self.section_name_tag != "None": self.section_name_tag = self.section_name_tag + " (modified)"
+        
+        # Parameters
+        z1 = self.tw/2
+        y1 = (self.d - self.tf_t - self.tf_b)/2
+
+        # Create the flange top
+        flange_top = [y1, self.bf_t/2, y1+self.tf_t, -self.bf_t/2]
+        flange_top_cmd = ['patch', 'rect', self.top_flange_mat_ID, *self.discr_top_flange, *flange_top]
+
+        # Create the flange bottom
+        flange_bottom = [-y1-self.tf_b, self.bf_b/2, -y1, -self.bf_b/2]
+        flange_bottom_cmd = ['patch', 'rect', self.bottom_flange_mat_ID, *self.discr_bottom_flange, *flange_bottom]
+
+        # Create the web
+        web = [-y1, z1, y1, -z1]
+        web_cmd = ['patch', 'rect', self.web_mat_ID, *self.discr_web, *web]
+
+        self.fib_sec = [['section', 'Fiber', self.ID, '-GJ', self.GJ], 
+            flange_top_cmd, web_cmd, flange_bottom_cmd]
+
+        # Data storage for loading/saving
+        self.UpdateStoredData()
+
+
+    # Methods
+    def UpdateStoredData(self):
+        self.data = [["INFO_TYPE", "FibersIShape"], # Tag for differentiating different data
+            ["ID", self.ID],
+            ["section_name_tag", self.section_name_tag],
+            ["d", self.d],
+            ["bf_t", self.bf_t],
+            ["bf_b", self.bf_b],
+            ["tf_t", self.tf_t],
+            ["tf_b", self.tf_b],
+            ["tw", self.tw],
+            ["GJ", self.GJ],
+            ["top_flange_mat_ID", self.top_flange_mat_ID],
+            ["bottom_flange_mat_ID", self.bottom_flange_mat_ID],
+            ["web_mat_ID", self.web_mat_ID],
+            ["discr_top_flange", self.discr_top_flange],
+            ["discr_bottom_flange", self.discr_bottom_flange],
+            ["discr_web", self.discr_web],
+            ["Initialized", self.Initialized]]
+
+
+    def ShowInfo(self, plot = False, block = False):
+        """Function that show the data stored in the class in the command window and plots the material model (optional).
+        """
+        print("")
+        print("Requested info for FibersRect, ID = {}".format(self.ID))
+        print("Section associated: {} ".format(self.section_name_tag))
+        print("Depth d = {} mm and web thickness tw = {} mm".format(self.d/mm_unit, self.tw/mm_unit))
+        print("Top flange width bf_t = {} mm and thickness tf_t = {} mm".format(self.bf_t/mm_unit, self.tf_t/mm_unit))
+        print("Bottom flange width bf_b = {} mm and thickness tf_b = {} mm".format(self.bf_b/mm_unit, self.tf_b/mm_unit))
+        print("Web material model ID = {}".format(self.web_mat_ID))
+        print("Top flange material model ID = {}".format(self.top_flange_mat_ID))
+        print("Bottom flange material model ID = {}".format(self.bottom_flange_mat_ID))
+        print("Discretisation in the web [IJ or x/z dir, JK or y dir] = {}".format(self.discr_web))
+        print("Discretisation in the top flange [IJ or x/z dir, JK or y dir] = {}".format(self.discr_top_flange))
+        print("Discretisation in the bottom flange [IJ or x/z dir, JK or y dir] = {}".format(self.discr_bottom_flange))
+        print("")
+
+        if plot:
+            plot_fiber_section(self.fib_sec, ['r', 'b', 'g', 'k'])
+            
+            if block:
+                plt.show()
+
+
+    def CreateFibers(self):
+        create_fiber_section(self.fib_sec)
+        self.Initialized = True
+        self.UpdateStoredData()
+
+
+class FibersIShapeSteelIShape(FibersIShape):
+    def __init__(self, ID: int, ele: SteelIShape, top_flange_mat_ID: int, discr_top_flange: list, discr_bottom_flange: list, discr_web: list,
+        GJ=0, bottom_flange_mat_ID = -1, web_mat_ID = -1):
+        if bottom_flange_mat_ID == -1: bottom_flange_mat_ID = top_flange_mat_ID
+        if web_mat_ID == -1: web_mat_ID = top_flange_mat_ID
+
+        super().__init__(ID, ele.d, ele.bf, ele.bf, ele.tf, ele.tf, ele.tw, top_flange_mat_ID, bottom_flange_mat_ID, web_mat_ID,
+            discr_top_flange, discr_bottom_flange, discr_web, GJ)
+        self.section_name_tag = ele.name_tag
+        self.UpdateStoredData()  
+
 
 def plot_fiber_section(fiber_info, fill_shapes = True, matcolor=['#808080', '#D3D3D3', 'r', 'b', 'g', 'y']):
     """Plot fiber cross-section. Coordinate system used: (y, z) 
