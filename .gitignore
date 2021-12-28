@@ -1,4 +1,6 @@
 /pytest/
+/scratch/
+UnitsClass.py
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
