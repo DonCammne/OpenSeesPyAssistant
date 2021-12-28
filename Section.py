@@ -392,22 +392,22 @@ class RCRectShape(Section):
         """
         print("")
         print("Requested info for RC rectangular section of name tag = {}".format(self.name_tag))
-        print("b = {} mm".format(self.b/mm_unit))
-        print("d = {} mm".format(self.d/mm_unit))
-        print("e = {} mm".format(self.e/mm_unit))
-        print("A = {} mm2".format(self.A/mm2_unit))
-        print("Ac = {} mm2".format(self.Ac/mm2_unit))
-        print("fc = {} MPa".format(self.fc/MPa_unit))
-        print("Ec = {} GPa".format(self.Ec/GPa_unit))
-        print("D bars = {} mm and Ay = {} mm2 with {} bars".format(self.D_bars/mm_unit, self.Ay/mm2_unit, self.nr_bars))
-        print("D hoops = {} mm and As = {} mm2".format(self.D_hoops/mm_unit, self.As/mm2_unit))
-        print("rho bars = {} ".format(self.rho_bars))
-        print("rho hoops in x = {} ".format(self.rho_s_x))
-        print("rho hoops in y = {} ".format(self.rho_s_y))
-        print("Iy = {} mm4".format(self.Iy/mm4_unit))
-        print("Iz = {} mm4".format(self.Iz/mm4_unit))
+        print("Width of the section b = {} mm".format(self.b/mm_unit))
+        print("Depth of the section d = {} mm".format(self.d/mm_unit))
+        print("Concrete cover e = {} mm".format(self.e/mm_unit))
+        print("Concrete area A = {} mm2".format(self.A/mm2_unit))
+        print("Core concrete area Ac = {} mm2".format(self.Ac/mm2_unit))
+        print("Unconfined concrete compressive strength fc = {} MPa".format(self.fc/MPa_unit))
+        print("Young modulus for concrete Ec = {} GPa".format(self.Ec/GPa_unit))
+        print("Diameter of the reinforcing bars D_bars = {} mm and area of one bar Ay = {} mm2 with {} bars".format(self.D_bars/mm_unit, self.Ay/mm2_unit, self.nr_bars))
+        print("Diameter of the hoops D_hoops = {} mm and area of one stirrup As = {} mm2".format(self.D_hoops/mm_unit, self.As/mm2_unit))
+        print("Ratio of area of longitudinal reinforcement to area of concrete section rho_bars = {}".format(self.rho_bars))
+        print("Ratio of area of lateral reinforcement to lateral area of concrete section in x rho_s_x = {} ".format(self.rho_s_x))
+        print("Ratio of area of lateral reinforcement to lateral area of concrete section in y rho_s_y = {} ".format(self.rho_s_y))
+        print("Moment of inertia of the circular section (strong axis) Iy = {} mm4".format(self.Iy/mm4_unit))
+        print("Moment of inertia of the circular section (weak axis) Iz = {} mm4".format(self.Iz/mm4_unit))
         print("")
-    
+        
 
     def ComputeNrBars(self):
         """Compute the number of vertical bars in the array bars_position_x (note that this list of lists can have different list sizes).
@@ -468,6 +468,178 @@ class RCRectShape(Section):
         return self.d * self.b**3 / 12.0
 
 
+class RCSquareShape(RCRectShape):
+    def __init__(self, b, L, e, fc, D_bars, bars_position_x: np.ndarray, bars_ranges_position_y: np.ndarray, fy, Ey, D_hoops, s, fs, Es, name_tag="Not Defined", rho_s_x=-1, rho_s_y=-1, Ec=-1):
+        super().__init__(b, b, L, e, fc, D_bars, bars_position_x, bars_ranges_position_y, fy, Ey, D_hoops, s, fs, Es, name_tag, rho_s_x, rho_s_y, Ec)
+
+
+class RCCircShape(Section):
+    """Class that stores funcions, geometric and mechanical properties of RC circular shape profile.
+
+    Args:
+        Section: Parent abstract class
+    """
+
+    def __init__(self, b, L, e, fc, D_bars, n_bars: int, fy, Ey, D_hoops, s, fs, Es, name_tag = "Not Defined", Ec = -1):
+        """The conctructor of the class.
+
+        Args:
+            b (double): Width of the section
+            L (double): Length of the element
+            e (double): Concrete cover
+            fc (double): Unconfined concrete compressive strength (cylinder test)
+            D_bars (double): Diameter of the reinforcing bars
+            n_bars (int): number of reinforcing bars
+            fy (double): Yield stress for reinforcing bars
+            Ey (double): Young modulus for reinforcing bars
+            D_hoops (double): Diameter of the hoops
+            s (double): Centerline distance for the hoops
+            fs (double): Yield stress for the hoops
+            Es (double): Young modulus for the hoops
+            name_tag (str, optional): A nametag for the section. Defaults to "Not Defined".
+            Ec (double, optional): Young modulus for concrete. Defaults to -1 (e.g. computed in __init__()).
+        """
+        # Note that for the validity of the formulas, at least one bar per corner and at least one hoop closed with 135 degress!
+        #TODO: ask someone good with concrete (Katrin Beyer, Diego,... ) if rho_s is volumtric or not (and how to compute it)
+        
+        # Check
+        if b < 0: raise NegativeValue()
+        if L < 0: raise NegativeValue()
+        if e < 0: raise NegativeValue()
+        if fc > 0: raise PositiveValue()
+        if D_bars < 0: raise NegativeValue()
+        if n_bars < 0: raise NegativeValue()
+        if fy < 0: raise NegativeValue()
+        if Ey < 0: raise NegativeValue()
+        if D_hoops < 0: raise NegativeValue()
+        if s < 0: raise NegativeValue()
+        if fs < 0: raise NegativeValue()
+        if Es < 0: raise NegativeValue()
+        if Ec != -1 and Ec < 0: raise NegativeValue()
+        if e > b/2: raise InconsistentGeometry()
+
+        # Arguments
+        self.b = b
+        self.L = L
+        self.e = e
+        self.fc = fc
+        self.D_bars = D_bars
+        self.n_bars = n_bars
+        self.fy = fy
+        self.Ey = Ey
+        self.D_hoops = D_hoops
+        self.s = s
+        self.fs = fs
+        self.Es = Es
+        self.name_tag = name_tag
+
+        # Initialized the parameters that are dependent from others
+        self.ReInit(Ec)
+
+
+    def ReInit(self, Ec = -1):
+        """Function that computes the value of the parameters that are computed with respect of the arguments.
+        Use after changing the value of argument inside the class (to update the values accordingly). 
+        This function can be very useful in combination with the function "deepcopy()" from the module "copy".
+        """
+        # Precompute some members
+        self.cl_hoops = self.e + self.D_hoops/2.0 # centerline distance from the border of the extreme confining hoops
+        self.cl_bars = self.e + self.D_bars/2.0 + self.D_hoops # centerline distance from the border of the corner bars
+        self.bc = self.b - self.cl_hoops # diameter of spiral (hoops) between bar centerline
+
+        # Arguments
+        self.Ec = self.ComputeEc() if Ec == -1 else Ec
+
+        # Members
+        self.As = ComputeACircle(self.D_hoops)
+        self.rho_s_vol = self.ComputeRhoVol()
+        self.A = ComputeACircle(self.b)
+        self.Ac = ComputeACircle(self.bc)
+        self.Ay = ComputeACircle(self.D_bars)
+        self.rho_bars = ComputeRho(self.Ay, self.n_bars, self.A)
+        self.I = self.ComputeI()
+
+        # Data storage for loading/saving
+        self.UpdateStoredData()
+
+
+    def UpdateStoredData(self):
+        self.data = [["INFO_TYPE", "RCCircShape"], # Tag for differentiating different data
+            ["name_tag", self.name_tag],
+            ["b", self.b],
+            ["bc", self.bc],
+            ["L", self.L],
+            ["e", self.e],
+            ["A", self.A],
+            ["Ac", self.Ac],
+            ["I", self.I],
+            ["fc", self.fc],
+            ["Ec", self.Ec],
+            ["D_bars", self.D_bars],
+            ["n_bars", self.n_bars],
+            ["Ay", self.Ay],
+            ["rho_bars", self.rho_bars],
+            ["cl_bars", self.cl_bars],
+            ["fy", self.fy],
+            ["Ey", self.Ey],
+            ["D_hoops", self.D_hoops],
+            ["s", self.s],
+            ["As", self.As],
+            ["rho_s_vol", self.rho_s_vol],
+            ["cl_hoops", self.cl_hoops],
+            ["fs", self.fs],
+            ["Es", self.Es]]
+
+    def ShowInfo(self):
+        """Function that show the data stored in the class in the command window.
+        """
+        print("")
+        print("Requested info for RC rectangular section of name tag = {}".format(self.name_tag))
+        print("Width of the section b = {} mm".format(self.b/mm_unit))
+        print("Concrete cover e = {} mm".format(self.e/mm_unit))
+        print("Concrete area A = {} mm2".format(self.A/mm2_unit))
+        print("Core concrete area Ac = {} mm2".format(self.Ac/mm2_unit))
+        print("Unconfined concrete compressive strength fc = {} MPa".format(self.fc/MPa_unit))
+        print("Young modulus for concrete Ec = {} GPa".format(self.Ec/GPa_unit))
+        print("Diameter of the reinforcing bars D_bars = {} mm and area of one bar Ay = {} mm2 with {} bars".format(self.D_bars/mm_unit, self.Ay/mm2_unit, self.n_bars))
+        print("Diameter of the hoops D_hoops = {} mm and area of one stirrup As = {} mm2".format(self.D_hoops/mm_unit, self.As/mm2_unit))
+        print("Ratio of area of longitudinal reinforcement to area of concrete section rho_bars = {} ".format(self.rho_bars))
+        print("Ratio of the volume of transverse confining steel to the volume of confined concrete core rho_s = {} ".format(self.rho_s_vol)) 
+        print("Moment of inertia of the circular section I = {} mm4".format(self.I/mm4_unit))
+        print("")
+    
+
+    def ComputeRhoVol(self):
+        """Compute the ratio of the volume of transverse confining steel to the volume of confined concrete core.
+
+        Returns:
+            double: Ratio
+        """
+        vol_s = self.As*math.pi*self.bc
+        vol_c = math.pi/4*self.bc**2*self.s
+
+        return vol_s/vol_c
+
+
+    def ComputeEc(self):
+        """Compute Ec using the formula from Mander et Al. 1988.
+
+        Returns:
+            double: Young modulus of concrete
+        """
+
+        return 5000.0 * math.sqrt(-self.fc/MPa_unit) * MPa_unit
+
+
+    def ComputeI(self):
+        """Compute the moment of inertia of the circular section.
+
+        Returns:
+            double: Moment of inertia
+        """
+        return self.b**4*math.pi/64
+
+
 def ComputeACircle(D):
     """Compute the area of one circle (reinforcing bar or hoop).
 
@@ -492,7 +664,3 @@ def ComputeRho(A, nr, A_tot):
         double: Ratio
     """
     return nr * A / A_tot
-
-class RCSquareShape(RCRectShape):
-    def __init__(self, b, L, e, fc, D_bars, bars_position_x: np.ndarray, bars_ranges_position_y: np.ndarray, fy, Ey, D_hoops, s, fs, Es, name_tag="Not Defined", rho_s_x=-1, rho_s_y=-1, Ec=-1):
-        super().__init__(b, b, L, e, fc, D_bars, bars_position_x, bars_ranges_position_y, fy, Ey, D_hoops, s, fs, Es, name_tag, rho_s_x, rho_s_y, Ec)
