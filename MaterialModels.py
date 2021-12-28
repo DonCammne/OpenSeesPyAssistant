@@ -388,6 +388,7 @@ class ModifiedIMK(MaterialModels):
 
 class ModifiedIMKSteelIShape(ModifiedIMK):
     def __init__(self, ID, section: SteelIShape, N_G = 0, K_factor = 3, L_0 = -1, L_b = -1, Mc = -1, K = -1, theta_u = -1, safety_factors = False):
+        self.section = section
         super().__init__(ID, section.Type, section.d, section.bf, section.tf, section.tw, section.h_1,
             section.Iy_mod, section.iz, section.E, section.Fy, section.Npl, section.My, section.L, N_G,
             K_factor, L_0, L_b, Mc, K, theta_u, safety_factors)
@@ -615,6 +616,8 @@ class Gupta1999(MaterialModels):
 class Gupta1999SteelIShape(Gupta1999):
     def __init__(self, ID: int, col: SteelIShape, beam: SteelIShape,
         t_dp = 0.0, a_s = 0.03, pinchx = 1.0, pinchy = 1.0, dmg1 = 0.0, dmg2 = 0.0, beta = 0.0, safety_factor = False):
+        self.col = col
+        self.beam = beam
         super().__init__(ID, col.d, col.bf, col.tf, col.Iy, beam.d, beam.tf, col.Fy_web, col.E, col.tw,
             t_dp, a_s, pinchx, pinchy, dmg1, dmg2, beta, safety_factor)
         self.beam_section_name_tag = beam.name_tag
@@ -884,6 +887,8 @@ class Skiadopoulos2021(MaterialModels):
 class Skiadopoulos2021SteelIShape(Skiadopoulos2021):
     def __init__(self, ID: int, col: SteelIShape, beam: SteelIShape,
         t_dp=0, a_s=0.03, pinchx=1, pinchy=1, dmg1=0, dmg2=0, beta=0, safety_factor=False):
+        self.col = col
+        self.beam = beam
         super().__init__(ID, col.d, col.bf, col.tf, col.Iy, beam.d, beam.tf, col.Fy_web, col.E, col.tw,
             t_dp=t_dp, a_s=a_s, pinchx=pinchx, pinchy=pinchy, dmg1=dmg1, dmg2=dmg2, beta=beta, safety_factor=safety_factor)
         self.beam_section_name_tag = beam.name_tag
@@ -1072,15 +1077,17 @@ def PlotConcrete04(fc, Ec, ec, ecu, Type, ax, ID = 0):
 
 
 class UnconfMander1988RCRectShape(UnconfMander1988):
-    def __init__(self, ID: int, ele: RCRectShape, ec=1, ecp=1, fct=-1, et=-1, beta=0.1, safety_factors=False):
-        super().__init__(ID, ele.fc, ele.Ec, ec=ec, ecp=ecp, fct=fct, et=et, beta=beta, safety_factors=safety_factors)
-        self.section_name_tag = ele.name_tag
+    def __init__(self, ID: int, section: RCRectShape, ec=1, ecp=1, fct=-1, et=-1, beta=0.1, safety_factors=False):
+        self.section = section
+        super().__init__(ID, section.fc, section.Ec, ec=ec, ecp=ecp, fct=fct, et=et, beta=beta, safety_factors=safety_factors)
+        self.section_name_tag = section.name_tag
         self.UpdateStoredData()
 
 class UnconfMander1988RCCircShape(UnconfMander1988):
-    def __init__(self, ID: int, ele: RCCircShape, ec=1, ecp=1, fct=-1, et=-1, beta=0.1, safety_factors=False):
-        super().__init__(ID, ele.fc, ele.Ec, ec=ec, ecp=ecp, fct=fct, et=et, beta=beta, safety_factors=safety_factors)
-        self.section_name_tag = ele.name_tag
+    def __init__(self, ID: int, section: RCCircShape, ec=1, ecp=1, fct=-1, et=-1, beta=0.1, safety_factors=False):
+        self.section = section
+        super().__init__(ID, section.fc, section.Ec, ec=ec, ecp=ecp, fct=fct, et=et, beta=beta, safety_factors=safety_factors)
+        self.section_name_tag = section.name_tag
         self.UpdateStoredData()
 
 class ConfMander1988Rect(MaterialModels):
@@ -1516,16 +1523,18 @@ class ConfMander1988Rect(MaterialModels):
 
 
 class ConfMander1988RectRCRectShape(ConfMander1988Rect):
-    def __init__(self, ID: int, ele: RCRectShape, ec=1, ecp=1, fct=-1, et=-1, esu=-1, beta=0.1, safety_factors=False):
-        ranges = ele.bars_ranges_position_y
-        bars = ele.bars_position_x
-        wy = self.__Compute_w(ranges, ele.D_bars)
-        wx_top = self.__Compute_w(bars[0], ele.D_bars)
-        wx_bottom = self.__Compute_w(bars[-1], ele.D_bars)
+    def __init__(self, ID: int, section: RCRectShape, ec=1, ecp=1, fct=-1, et=-1, esu=-1, beta=0.1, safety_factors=False):
+        self.section = section
+        ranges = section.bars_ranges_position_y
+        bars = section.bars_position_x
+        wy = self.__Compute_w(ranges, section.D_bars)
+        wx_top = self.__Compute_w(bars[0], section.D_bars)
+        wx_bottom = self.__Compute_w(bars[-1], section.D_bars)
 
-        super().__init__(ID, ele.bc, ele.dc, ele.Ac, ele.fc, ele.Ec, ele.nr_bars, ele.D_bars, wx_top, wx_bottom, wy, ele.s, ele.D_hoops, ele.rho_s_x, ele.rho_s_y, ele.fs,
+        super().__init__(ID, section.bc, section.dc, section.Ac, section.fc, section.Ec, section.nr_bars, section.D_bars,
+            wx_top, wx_bottom, wy, section.s, section.D_hoops, section.rho_s_x, section.rho_s_y, section.fs,
             ec=ec, ecp=ecp, fct=fct, et=et, esu=esu, beta=beta, safety_factors=safety_factors)
-        self.section_name_tag = ele.name_tag
+        self.section_name_tag = section.name_tag
         self.UpdateStoredData()
 
     def __Compute_w(self, vector, D_bars):
@@ -1732,10 +1741,11 @@ class ConfMander1988Circ(MaterialModels):
 
 
 class ConfMander1988CircRCCircShape(ConfMander1988Circ):
-    def __init__(self, ID: int, ele: RCCircShape, ec=1, ecp=1, fct=-1, et=-1, esu=-1, beta=0.1, safety_factors=False):
-        super().__init__(ID, ele.bc, ele.Ac, ele.fc, ele.Ec, ele.n_bars, ele.D_bars, ele.s, ele.D_hoops, ele.rho_s_vol, ele.fs,
-            ec=ec, ecp=ecp, fct=fct, et=et, esu=esu, beta=beta, safety_factors=safety_factors)
-        self.section_name_tag = ele.name_tag
+    def __init__(self, ID: int, section: RCCircShape, ec=1, ecp=1, fct=-1, et=-1, esu=-1, beta=0.1, safety_factors=False):
+        self.section = section
+        super().__init__(ID, section.bc, section.Ac, section.fc, section.Ec, section.n_bars, section.D_bars, section.s, section.D_hoops,
+            section.rho_s_vol, section.fs, ec=ec, ecp=ecp, fct=fct, et=et, esu=esu, beta=beta, safety_factors=safety_factors)
+        self.section_name_tag = section.name_tag
         self.UpdateStoredData()
 
 
@@ -1863,9 +1873,10 @@ class UniaxialBilinear(MaterialModels):
 
 
 class UniaxialBilinearSteelIShape(UniaxialBilinear):
-    def __init__(self, ID: int, ele: SteelIShape, b=0.01, safety_factors=False):
-        super().__init__(ID, ele.Fy, ele.E, b=b, safety_factors=safety_factors)
-        self.section_name_tag = ele.name_tag
+    def __init__(self, ID: int, section: SteelIShape, b=0.01, safety_factors=False):
+        self.section = section
+        super().__init__(ID, section.Fy, section.E, b=b, safety_factors=safety_factors)
+        self.section_name_tag = section.name_tag
         self.UpdateStoredData()
 
 
@@ -2007,9 +2018,10 @@ class GMP1970(MaterialModels):
 
 
 class GMP1970RCRectShape(GMP1970):
-    def __init__(self, ID: int, ele: RCRectShape, b=0.02, R0=20.0, cR1=0.9, cR2=0.08, a1=0.039, a2=1.0, a3=0.029, a4=1.0, safety_factors=False):
-        super().__init__(ID, ele.fy, ele.Ey, b=b, R0=R0, cR1=cR1, cR2=cR2, a1=a1, a2=a2, a3=a3, a4=a4, safety_factors=safety_factors)
-        self.section_name_tag = ele.name_tag
+    def __init__(self, ID: int, section: RCRectShape, b=0.02, R0=20.0, cR1=0.9, cR2=0.08, a1=0.039, a2=1.0, a3=0.029, a4=1.0, safety_factors=False):
+        self.section = section
+        super().__init__(ID, section.fy, section.Ey, b=b, R0=R0, cR1=cR1, cR2=cR2, a1=a1, a2=a2, a3=a3, a4=a4, safety_factors=safety_factors)
+        self.section_name_tag = section.name_tag
         self.UpdateStoredData()
 
 
@@ -2197,7 +2209,8 @@ class UVCCalibrated(UVC):
 
 #TODO: fill arguments with calibrated one and then change fy and Ey (and maybe more, ask Diego) accordingly to the section strength (how? ask Diego)
 # class UVCCalibratedRCRectShape(UVCCalibrated):
-#     def __init__(self, ID: int, ele: RCRectShape, ec=1, ecp=1, fct=-1, et=-1, esu=-1, beta=0.1, k1=4.1, safety_factors=False):
+#     def __init__(self, ID: int, section: RCRectShape, ec=1, ecp=1, fct=-1, et=-1, esu=-1, beta=0.1, k1=4.1, safety_factors=False):
+#         self.section = section
 #         ranges = ele.bars_ranges_position_y
 #         bars = ele.bars_position_x
 #         wy = self.__Compute_w(ranges, ele.D_bars)

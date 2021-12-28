@@ -177,11 +177,12 @@ class FibersRect(Fibers):
 
 
 class FibersRectRCRectShape(FibersRect):
-    def __init__(self, ID: int, ele: RCRectShape, unconf_mat_ID: int, conf_mat_ID: int, bars_mat_ID: int,
+    def __init__(self, ID: int, section: RCRectShape, unconf_mat_ID: int, conf_mat_ID: int, bars_mat_ID: int,
         discr_core: list, discr_cover_lateral: list, discr_cover_topbottom: list, GJ=0):
-        super().__init__(ID, ele.b, ele.d, ele.Ay, ele.D_hoops, ele.e, unconf_mat_ID, conf_mat_ID, bars_mat_ID,
-            ele.bars_position_x, ele.bars_ranges_position_y, discr_core, discr_cover_lateral, discr_cover_topbottom, GJ=GJ)
-        self.section_name_tag = ele.name_tag
+        self.section = section
+        super().__init__(ID, section.b, section.d, section.Ay, section.D_hoops, section.e, unconf_mat_ID, conf_mat_ID, bars_mat_ID,
+            section.bars_position_x, section.bars_ranges_position_y, discr_core, discr_cover_lateral, discr_cover_topbottom, GJ=GJ)
+        self.section_name_tag = section.name_tag
         self.UpdateStoredData()
 
 class FibersIShape(Fibers):
@@ -312,14 +313,15 @@ class FibersIShape(Fibers):
 
 
 class FibersIShapeSteelIShape(FibersIShape):
-    def __init__(self, ID: int, ele: SteelIShape, top_flange_mat_ID: int, discr_top_flange: list, discr_bottom_flange: list, discr_web: list,
+    def __init__(self, ID: int, section: SteelIShape, top_flange_mat_ID: int, discr_top_flange: list, discr_bottom_flange: list, discr_web: list,
         GJ=0, bottom_flange_mat_ID = -1, web_mat_ID = -1):
+        self.section = section
         if bottom_flange_mat_ID == -1: bottom_flange_mat_ID = top_flange_mat_ID
         if web_mat_ID == -1: web_mat_ID = top_flange_mat_ID
 
-        super().__init__(ID, ele.d, ele.bf, ele.bf, ele.tf, ele.tf, ele.tw, top_flange_mat_ID, bottom_flange_mat_ID, web_mat_ID,
+        super().__init__(ID, section.d, section.bf, section.bf, section.tf, section.tf, section.tw, top_flange_mat_ID, bottom_flange_mat_ID, web_mat_ID,
             discr_top_flange, discr_bottom_flange, discr_web, GJ)
-        self.section_name_tag = ele.name_tag
+        self.section_name_tag = section.name_tag
         self.UpdateStoredData()  
 
 

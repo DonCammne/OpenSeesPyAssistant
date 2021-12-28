@@ -142,6 +142,8 @@ class PanelZone(MemberModel):
 
 class PanelZoneSteelIShape(PanelZone):
     def __init__(self, master_node_ID: int, col: SteelIShape, beam: SteelIShape, geo_transf_ID: int, mat_ID, RIGID = 100.0):
+        self.col = col
+        self.beam = beam
         super().__init__(master_node_ID, col.d/2.0, beam.d/2.0, col.E, max(col.A, beam.A)*RIGID, max(col.Iy, beam.Iy)*RIGID, geo_transf_ID, mat_ID)
 
         self.col_section_name_tag = col.name_tag
@@ -150,6 +152,8 @@ class PanelZoneSteelIShape(PanelZone):
 
 class PanelZoneSteelIShapeGupta1999(PanelZoneSteelIShape):
     def __init__(self, master_node_ID: int, col: SteelIShape, beam: SteelIShape, geo_transf_ID: int, t_dp = 0, RIGID=100):
+        self.col = col
+        self.beam = beam
         mat_ID = master_node_ID
         pz_spring = Gupta1999SteelIShape(mat_ID, col, beam, t_dp)
         pz_spring.Hysteretic()
@@ -158,6 +162,8 @@ class PanelZoneSteelIShapeGupta1999(PanelZoneSteelIShape):
 
 class PanelZoneSteelIShapeSkiadopoulos2021(PanelZoneSteelIShape):
     def __init__(self, master_node_ID: int, col: SteelIShape, beam: SteelIShape, geo_transf_ID: int, t_dp = 0, RIGID=100):
+        self.col = col
+        self.beam = beam
         mat_ID = master_node_ID
         pz_spring = Skiadopoulos2021SteelIShape(mat_ID, col, beam, t_dp)
         pz_spring.Hysteretic()
@@ -444,30 +450,192 @@ class SpringBasedElement(MemberModel):
 
 class SpringBasedElementModifiedIMKSteelIShape(SpringBasedElement):
     # L_b = assumed the same for top and bottom springs
-    def __init__(self, iNode_ID: int, jNode_ID: int, ele: SteelIShape, geo_transf_ID: int, mat_ID_i=-1, mat_ID_j=-1, N_G = 0, L_b = -1):
+    def __init__(self, iNode_ID: int, jNode_ID: int, section: SteelIShape, geo_transf_ID: int, mat_ID_i=-1, mat_ID_j=-1, N_G = 0, L_b = -1):
+        self.section = section
         if mat_ID_i != -1 and mat_ID_i < 0: raise NegativeValue()
         if mat_ID_j != -1 and mat_ID_j < 0: raise NegativeValue()
         if mat_ID_i == -1 and mat_ID_j == -1: raise NameError("No springs defined for element ID = {}".format(IDConvention(iNode_ID, jNode_ID)))
 
         if mat_ID_i != -1 and mat_ID_j != -1:
-            L_0 = ele.L/2
+            L_0 = section.L/2
         else:
-            L_0 = ele.L
+            L_0 = section.L
 
         if mat_ID_i != -1:
             # Create mat i
-            iSpring = ModifiedIMKSteelIShape(mat_ID_i, ele, N_G, L_0 = L_0, L_b = L_b)
+            iSpring = ModifiedIMKSteelIShape(mat_ID_i, section, N_G, L_0 = L_0, L_b = L_b)
             iSpring.Bilin()
 
         if mat_ID_j != -1:
             # Create mat j
-            jSpring = ModifiedIMKSteelIShape(mat_ID_j, ele, N_G, L_0 = L_0, L_b = L_b)
+            jSpring = ModifiedIMKSteelIShape(mat_ID_j, section, N_G, L_0 = L_0, L_b = L_b)
             jSpring.Bilin()
 
-        super().__init__(iNode_ID, jNode_ID, ele.A, ele.E, ele.Iy_mod, geo_transf_ID, mat_ID_i=mat_ID_i, mat_ID_j=mat_ID_j)
-        self.section_name_tag = ele.name_tag
+        super().__init__(iNode_ID, jNode_ID, section.A, section.E, section.Iy_mod, geo_transf_ID, mat_ID_i=mat_ID_i, mat_ID_j=mat_ID_j)
+        self.section_name_tag = section.name_tag
         self.UpdateStoredData()
 
+
+class GIFBElement(MemberModel):
+    # Class that stores funcions and material properties of a Gradient-Inelastic Flexibility-based element.
+    # Warning: the units should be m and N
+    # Convention:																							
+    # 		NodeID: 		xy 			with x = pier, y = floor 											o xy7	|	
+    #		PlHingeID:		xya			with x = pier, y = floor, a:	 --o xy  xy2 o-----o xy3  xy o--	|		o xy
+    #																										|	
+    #																										|		o xy
+    #																										o xy6	|
+    #		ElementID:		xy(a)xy(a)	with xy(a) = NodeID i and j
+    #		TrussID:		xy(a)xy(a)	with xy(a) = NodeID i and j
+    #		PDeltaColID:	xy(a)xy(a)	with xy(a) = NodeID i and j
+    #		Spring:			xy(a)xy(a)	with xy(a) = NodeID i and j
+    
+    def __init__(self, iNode_ID: int, jNode_ID: int, fiber_ID: int, D_bars, fy, geo_transf_ID: int, 
+        lambda_i = -1, lambda_j = -1, Lp = -1, Ip = -1, integration_ID = -1):
+    
+        # Check
+        if iNode_ID < 1: raise NegativeValue()
+        if jNode_ID < 1: raise NegativeValue()
+        if fiber_ID < 1: raise NegativeValue()
+        if D_bars < 0: raise NegativeValue()
+        if fy < 0: raise NegativeValue()
+        if geo_transf_ID < 1: raise NegativeValue()
+        if lambda_i != -1 and lambda_i < 0: raise NegativeValue()
+        if lambda_j != -1 and lambda_j < 0: raise NegativeValue()
+        if lambda_i == 0 and lambda_j == 0: raise print("!!!!!!! WARNING !!!!!!! No plastic length defined for element ID = {}".format(IDConvention(iNode_ID, jNode_ID)))
+        if Lp != -1 and Lp < 0: raise NegativeValue()
+        if Ip != -1 and Ip < 3: raise NegativeValue()
+        if integration_ID != -1 and integration_ID < 1: raise NegativeValue()
+
+        # Arguments
+        self.iNode_ID = iNode_ID
+        self.jNode_ID = jNode_ID
+        self.D_bars = D_bars
+        self.fy = fy
+        self.geo_transf_ID = geo_transf_ID
+        self.fiber_ID = fiber_ID 
+
+        # Initialized the parameters that are dependent from others
+        self.section_name_tag = "None"
+        self.Initialized = False
+        self.ReInit(lambda_i, lambda_j, Lp, Ip, integration_ID)
+
+    def ReInit(self, lambda_i = -1, lambda_j = -1, Lp = -1, Ip = -1, integration_ID = -1):
+        """Function that computes the value of the parameters that are computed with respect of the arguments.
+        Use after changing the value of argument inside the class (to update the values accordingly). 
+        This function can be very useful in combination with the function "deepcopy()" from the module "copy".
+        """
+        # Precompute some members
+        iNode = np.array(nodeCoord(self.iNode_ID))
+        jNode = np.array(nodeCoord(self.jNode_ID))
+        self.L = np.linalg.norm(iNode-jNode)
+        self.element_ID = IDConvention(self.iNode_ID, self.jNode_ID)
+
+        # Arguments
+        self.Lp = self.ComputeLp() if Lp == -1 else Lp
+        self.Ip = self.ComputeIp() if Ip == -1 else Ip
+        self.lambda_i = self.L/self.Lp if lambda_i == -1 else lambda_i
+        self.lambda_j = self.L/self.Lp if lambda_j == -1 else lambda_j
+        self.integration_ID = self.element_ID if integration_ID == -1 else integration_ID
+
+        # Members
+        if self.section_name_tag != "None": self.section_name_tag = self.section_name_tag + " (modified)"
+        
+        # Data storage for loading/saving
+        self.UpdateStoredData()
+
+
+    # Methods
+    def UpdateStoredData(self):
+        self.data = [["INFO_TYPE", "GIFBElement"], # Tag for differentiating different data
+            ["element_ID", self.element_ID],
+            ["section_name_tag", self.section_name_tag],
+            ["L", self.L],
+            ["D_bars", self.D_bars],
+            ["fy", self.fy],
+            ["Lp", self.Lp],
+            ["Ip", self.Ip],
+            ["iNode_ID", self.iNode_ID],
+            ["lambda_i", self.lambda_i],
+            ["jNode_ID", self.jNode_ID],
+            ["lambda_j", self.lambda_j],
+            ["fiber_ID", self.fiber_ID],
+            ["integration_ID", self.integration_ID],
+            ["tranf_ID", self.geo_transf_ID],
+            ["Initialized", self.Initialized]]
+
+
+    def ShowInfo(self, plot = False, block = False):
+        """Function that show the data stored in the class in the command window and plots the member model (optional).
+        """
+        print("")
+        print("Requested info for GIFBElement member model, ID = {}".format(self.element_ID))
+        print("Fiber associated, ID = {} ".format(self.fiber_ID))
+        print("Integration type, ID = {}".format(self.integration_ID))
+        print("Section associated {} ".format(self.section_name_tag))
+        print("Length L = {} m".format(self.L/m_unit))
+        print("Diameter of the reinforcing bars D_bars = {} mm2".format(self.D_bars/mm2_unit))
+        print("Reinforcing bar steel strength fy = {} MPa".format(self.fy/MPa_unit))
+        print("Plastic length Lp = {} mm".format(self.Lp/mm_unit))
+        print("Number of integration points along the element Ip = {}".format(self.Ip))
+        print("Lambda_i = {} and lambda_j = {}".format(self.lambda_i, self.lambda_j))
+        print("Geometric transformation = {}".format(self.geo_transf_ID))
+        print("")
+
+        if plot:
+            if self.Initialized:
+                plot_member(np.array(self.element_array))
+                if block:
+                    plt.show()
+            else:
+                print("The GIFBElement is not initialized (element not created), ID = {}".format(self.element_ID))
+
+
+    def CreateMember(self):
+        self.element_array = [[self.element_ID, self.iNode_ID, self.jNode_ID]]
+
+        # Define integration type
+        beamIntegration('Simpson', self.integration_ID, self.fiber_ID, self.Ip)
+        
+        # Define element
+        element('gradientInelasticBeamColumn', self.element_ID, self.iNode_ID, self.jNode_ID, self.geo_transf_ID, self.integration_ID, self.lambda_i, self.lambda_j, self.Lp)
+
+        # Update class
+        self.Initialized = True
+        self.UpdateStoredData()
+
+    def ComputeLp(self):
+        """Compute the plastic length using Paulay 1992.
+
+        Returns:
+            double: Plastic length
+        """
+        return (0.08*self.L/m_unit + 0.022*self.D_bars/m_unit*self.fy/MPa_unit)*m_unit
+
+
+    def ComputeIp(self):
+        """Compute the number of integration points with equal distance along the element. For more information, see Salehi and Sideris 2020.
+
+        Returns:
+            int: Number of integration points
+        """
+        return math.ceil(1.5*self.L/self.Lp + 1)
+
+
+class GIFBElementRCRectShape(GIFBElement):
+    def __init__(self, iNode_ID: int, jNode_ID: int, fiber_ID: int, section: RCRectShape, geo_transf_ID: int, lambda_i=-1, lambda_j=-1, Lp=-1, Ip=-1, integration_ID=-1):
+        self.section = section
+        super().__init__(iNode_ID, jNode_ID, fiber_ID, section.D_bars, section.fy, geo_transf_ID, lambda_i=lambda_i, lambda_j=lambda_j, Lp=Lp, Ip=Ip, integration_ID=integration_ID)
+        self.section_name_tag = section.name_tag
+        self.UpdateStoredData()
+
+
+class GIFBElementFibersRectRCRectShape(GIFBElement):
+    def __init__(self, iNode_ID: int, jNode_ID: int, fib: FibersRectRCRectShape, geo_transf_ID: int, lambda_i=-1, lambda_j=-1, Lp=-1, Ip=-1, integration_ID=-1):
+        self.section = fib.section
+        super().__init__(iNode_ID, jNode_ID, fib.ID, self.section.D_bars, self.section.fy, geo_transf_ID, lambda_i=lambda_i, lambda_j=lambda_j, Lp=Lp, Ip=Ip, integration_ID=integration_ID)
+        self.section_name_tag = self.section.name_tag
+        self.UpdateStoredData()
 
 
 # Structure of the class declaration
