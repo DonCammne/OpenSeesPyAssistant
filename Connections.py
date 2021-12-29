@@ -46,7 +46,7 @@ def RotationalSpring(ElementID, NodeRID, NodeCID, MatID, Rigid = False):
         element("zeroLength", ElementID, NodeRID, NodeCID, "-mat", MatID, "-dir", 6)
 	    
         # Constrain the translational DOF with a multi-point constraint	
-        Pin(NodeCID, NodeRID)
+        Pin(NodeRID, NodeCID)
     else:
         equalDOF(NodeRID, NodeCID, 1, 2, 3)
 
