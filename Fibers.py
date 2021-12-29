@@ -65,9 +65,9 @@ class FibersRect(Fibers):
         self.bars_mat_ID = bars_mat_ID
         self.bars_x = deepcopy(bars_x)
         self.ranges_y = copy(ranges_y)
-        self.discr_core = discr_core
-        self.discr_cover_lateral = discr_cover_lateral
-        self.discr_cover_topbottom = discr_cover_topbottom
+        self.discr_core = copy(discr_core)
+        self.discr_cover_lateral = copy(discr_cover_lateral)
+        self.discr_cover_topbottom = copy(discr_cover_topbottom)
         self.GJ = GJ #TODO: check if with 0, no problems or how to compute it
 
         # Initialized the parameters that are dependent from others
@@ -86,8 +86,8 @@ class FibersRect(Fibers):
         # Parameters
         z1 = self.b/2
         y1 = self.d/2
-        zc = z1-self.e-self.D_hoops
-        yc = y1-self.e-self.D_hoops
+        zc = z1-self.e-self.D_hoops/2
+        yc = y1-self.e-self.D_hoops/2
 
         # Create the concrete core fibers
         core = [-yc, zc, yc, -zc]
@@ -164,7 +164,7 @@ class FibersRect(Fibers):
         print("")
 
         if plot:
-            plot_fiber_section(self.fib_sec, ['#808080', '#D3D3D3', 'k'])
+            plot_fiber_section(self.fib_sec, matcolor=['#808080', '#D3D3D3', 'k'])
             
             if block:
                 plt.show()
@@ -184,6 +184,142 @@ class FibersRectRCRectShape(FibersRect):
             section.bars_position_x, section.bars_ranges_position_y, discr_core, discr_cover_lateral, discr_cover_topbottom, GJ=GJ)
         self.section_name_tag = section.name_tag
         self.UpdateStoredData()
+
+class FibersCirc(Fibers):
+    # Class that stores funcions and material properties of the circular fiber section.
+    # Warning: the units should be m and N
+    # Coordinates: plotting coordinte (x, y) = fiber section coordinate (z, y)= (-x, y)
+    
+    def __init__(self, ID: int, b, e, D_bars, Ay, n_bars, D_hoops, unconf_mat_ID: int, conf_mat_ID: int, bars_mat_ID: int,
+        discr_core: list, discr_cover: list, alpha_i = 0, GJ = 0.0):
+        # discr = (number of subdivisions (fibers) in the circumferential direction (number of wedges), number of subdivisions (fibers) in the radial direction (number of rings))
+        # alpha_i in deg with respect to the y axis, counterclockwise
+
+        # Check
+        if ID < 1: raise NegativeValue()
+        if b < 0: raise NegativeValue()
+        if e < 0: raise NegativeValue()
+        if e > b/2: raise InconsistentGeometry()
+        if D_bars < 0: raise NegativeValue()
+        if Ay < 0: raise NegativeValue()
+        if n_bars < 0: raise NegativeValue()
+        if D_hoops < 0: raise NegativeValue()
+        if unconf_mat_ID < 1: raise NegativeValue()
+        if conf_mat_ID < 1: raise NegativeValue()
+        if bars_mat_ID < 1: raise NegativeValue()
+        if len(discr_core) != 2: raise WrongDimension()
+        if len(discr_cover) != 2: raise WrongDimension()
+        if GJ < 0: raise NegativeValue()
+
+        # Arguments
+        self.ID = ID
+        self.b = b
+        self.e = e
+        self.D_bars = D_bars
+        self.Ay = Ay
+        self.n_bars = n_bars
+        self.D_hoops = D_hoops
+        self.unconf_mat_ID = unconf_mat_ID
+        self.conf_mat_ID = conf_mat_ID
+        self.bars_mat_ID = bars_mat_ID
+        self.discr_core = copy(discr_core)
+        self.discr_cover = copy(discr_cover)
+        self.alpha_i = alpha_i
+        self.GJ = GJ #TODO: check if with 0, no problems or how to compute it
+
+        # Initialized the parameters that are dependent from others
+        self.section_name_tag = "None"
+        self.Initialized = False
+        self.ReInit()
+
+    def ReInit(self):
+        """Function that computes the value of the parameters that are computed with respect of the arguments.
+        Use after changing the value of argument inside the class (to update the values accordingly). 
+        This function can be very useful in combination with the function "deepcopy()" from the module "copy".
+        """
+        # Memebers
+        if self.section_name_tag != "None": self.section_name_tag = self.section_name_tag + " (modified)"
+        
+        # Parameters
+        self.r_bars = self.b/2 - self.e - self.D_hoops - self.D_bars/2
+        self.r_core = self.b/2 - self.e - self.D_hoops/2
+
+        # Create the concrete core fibers
+        core_cmd = ['patch', 'circ', self.conf_mat_ID, *self.discr_core, 0, 0, 0, self.r_core]
+
+        # Create the concrete cover fibers
+        cover_cmd = ['patch', 'circ', self.unconf_mat_ID, *self.discr_cover, 0, 0, self.r_core, self.b/2]
+        self.fib_sec = [['section', 'Fiber', self.ID, '-GJ', self.GJ], 
+            core_cmd, cover_cmd]
+        
+        # Create the reinforcing fibers
+        bars_cmd = ['layer', 'circ', self.bars_mat_ID, self.n_bars, self.Ay, 0, 0, self.r_bars, self.alpha_i]
+        self.fib_sec.append(bars_cmd)
+
+        # Data storage for loading/saving
+        self.UpdateStoredData()
+
+
+    # Methods
+    def UpdateStoredData(self):
+        self.data = [["INFO_TYPE", "FibersCirc"], # Tag for differentiating different data
+            ["ID", self.ID],
+            ["section_name_tag", self.section_name_tag],
+            ["b", self.b],
+            ["e", self.e],
+            ["r_core", self.r_core],
+            ["D_bars", self.D_bars],
+            ["Ay", self.Ay],
+            ["n_bars", self.n_bars],
+            ["r_bars", self.r_bars],
+            ["D_hoops", self.D_hoops],
+            ["alpha_i", self.alpha_i],
+            ["GJ", self.GJ],
+            ["conf_mat_ID", self.conf_mat_ID],
+            ["discr_core", self.discr_core],
+            ["unconf_mat_ID", self.unconf_mat_ID],
+            ["discr_cover", self.discr_cover],
+            ["bars_mat_ID", self.bars_mat_ID],
+            ["Initialized", self.Initialized]]
+        
+
+    def ShowInfo(self, plot = False, block = False):
+        """Function that show the data stored in the class in the command window and plots the material model (optional).
+        """
+        print("")
+        print("Requested info for FibersCirc, ID = {}".format(self.ID))
+        print("Section associated: {} ".format(self.section_name_tag))
+        print("Base b = {} mm and concrete cover e = {} mm".format(self.b/mm_unit, self.e/mm_unit))
+        print("Radius of the confined core r_core = {} mm, radius of the bars range r_bars = {} mm and initial angle alpha_i = {} deg".format(self.r_core/mm_unit, self.r_bars/mm_unit, self.alpha_i))
+        print("Confined material model ID = {}".format(self.conf_mat_ID))
+        print("Unconfined material model ID = {}".format(self.unconf_mat_ID))
+        print("Bars material model ID = {}".format(self.bars_mat_ID))
+        print("Discretisation in the core [number of wedges, number of rings] = {}".format(self.discr_core))
+        print("Discretisation in the lateral covers [number of wedges, number of rings] = {}".format(self.discr_cover))
+        print("")
+
+        if plot:
+            plot_fiber_section(self.fib_sec, matcolor=['#808080', '#D3D3D3', 'k'])
+            
+            if block:
+                plt.show()
+
+
+    def CreateFibers(self):
+        create_fiber_section(self.fib_sec)
+        self.Initialized = True
+        self.UpdateStoredData()
+
+
+class FibersCircRCCircShape(FibersCirc):
+    def __init__(self, ID: int, section: RCCircShape, unconf_mat_ID: int, conf_mat_ID: int, bars_mat_ID: int,
+        discr_core: list, discr_cover: list, alpha_i=0, GJ=0):
+        self.section = section
+        super().__init__(ID, section.b, section.e, section.D_bars, section.Ay, section.n_bars, section.D_hoops, unconf_mat_ID, conf_mat_ID, bars_mat_ID,
+            discr_core, discr_cover, alpha_i=alpha_i, GJ=GJ)
+        self.section_name_tag = section.name_tag
+        self.UpdateStoredData()
+
 
 class FibersIShape(Fibers):
     # Class that stores funcions and material properties of the I shape fiber section.
@@ -220,9 +356,9 @@ class FibersIShape(Fibers):
         self.top_flange_mat_ID = top_flange_mat_ID
         self.bottom_flange_mat_ID = bottom_flange_mat_ID
         self.web_mat_ID = web_mat_ID
-        self.discr_top_flange = discr_top_flange
-        self.discr_bottom_flange = discr_bottom_flange
-        self.discr_web = discr_web
+        self.discr_top_flange = copy(discr_top_flange)
+        self.discr_bottom_flange = copy(discr_bottom_flange)
+        self.discr_web = copy(discr_web)
         self.GJ = GJ #TODO: check if with 0, no problems or how to compute it
 
         # Initialized the parameters that are dependent from others
@@ -300,7 +436,7 @@ class FibersIShape(Fibers):
         print("")
 
         if plot:
-            plot_fiber_section(self.fib_sec, ['r', 'b', 'g', 'k'])
+            plot_fiber_section(self.fib_sec, matcolor=['r', 'b', 'g', 'k'])
             
             if block:
                 plt.show()
@@ -360,7 +496,7 @@ def plot_fiber_section(fiber_info, fill_shapes = True, matcolor=['#808080', '#D3
     See also:
         ``ops_vis.fiber_info_to_cmds()``
     """
-
+    # Inspired by plot_fiber_section from ops_vis written by Seweryn Kokot
     mat_to_col = {}
     fig, ax = plt.subplots()
     ax.set_xlabel('x [{}]'.format(length_unit))
@@ -391,17 +527,19 @@ def plot_fiber_section(fiber_info, fill_shapes = True, matcolor=['#808080', '#D3
                     ax.add_patch(bar)
             if item[1] == 'circ':
                 n_bars, As = item[3], item[4]
-                yC, zC, arc_radius = item[5], item[6], item[7]
+                yC, zC, r = item[5], item[6], item[7]
                 if len(item) > 8:
-                    a0_deg, a1_deg = item[8], item[9]
+                    a0_deg = item[8]
                 else:
-                    a0_deg, a1_deg = 0., 360. - 360./n_bars
+                    a0_deg = 0.
+                a1_deg = 360. - 360./n_bars + a0_deg
+                if len(item) > 9: a1_deg = item[9]
 
                 a0_rad, a1_rad = np.pi * a0_deg / 180., np.pi * a1_deg / 180.
                 r_bar = np.sqrt(As / np.pi)
                 thetas = np.linspace(a0_rad, a1_rad, n_bars)
-                Y = yC + arc_radius * np.cos(thetas)
-                Z = zC + arc_radius * np.sin(thetas)
+                Y = yC + r * np.cos(thetas)
+                Z = zC + r * np.sin(thetas)
                 for zi, yi in zip(Z, Y):
                     bar = Circle((-zi, yi), r_bar, ec='k', fc=mat_to_col[matID], zorder=10)
                     ax.add_patch(bar)
@@ -468,7 +606,12 @@ def plot_fiber_section(fiber_info, fill_shapes = True, matcolor=['#808080', '#D3
             mat_to_col = __assignColorToMat(matID, mat_to_col, matcolor)
 
             yC, zC, ri, re = item[5], item[6], item[7], item[8]
-            a0, a1 = item[9], item[10]
+            if len(item) > 9:
+                a0 = item[9]
+            else:
+                a0 = 0.
+            a1 = 360. + a0
+            if len(item) > 10: a1 = item[10]
 
             dr = (re - ri) / nr
             dth = (a1 - a0) / nc
@@ -481,13 +624,14 @@ def plot_fiber_section(fiber_info, fill_shapes = True, matcolor=['#808080', '#D3
                     thi = a0 + i * dth
                     thi1 = thi + dth
                     wedge = Wedge((-zC, yC), rj1, thi, thi1, width=dr, ec='k', #TODO: old: (yC, -zC), wrong, right??
-                                  lw=1, fc=mat_to_col[matID])
+                        lw=1, fc=mat_to_col[matID])
                     ax.add_patch(wedge)
 
     ax.axis('equal')
 
 
 def __assignColorToMat(matID: int, mat_to_col: dict, matcolor: list):
+    print(matcolor)
     if not matID in mat_to_col:
         if len(mat_to_col) >= len(matcolor):
             print("Warning: not enough colors defined for fiber section plot (white used)")
@@ -520,37 +664,58 @@ def create_fiber_section(fiber_info):
     ``ops_vis.plot_fiber_section()``
 
     """
+    # Inspired by fib_sec_list_to_cmds from ops_vis written by Seweryn Kokot 
     for dat in fiber_info:
         if dat[0] == 'section':
-            secTag, GJ = dat[2], dat[4]
-            section('Fiber', secTag, 'GJ', GJ)
+            fib_ID, GJ = dat[2], dat[4]
+            section('Fiber', fib_ID, 'GJ', GJ)
 
         if dat[0] == 'layer':
-            matTag = dat[2]
+            mat_ID = dat[2]
             if dat[1] == 'straight':
                 n_bars = dat[3]
                 As = dat[4]
                 Iy, Iz, Jy, Jz = dat[5], dat[6], dat[7], dat[8]
-                layer('straight', matTag, n_bars, As, Iy, Iz, Jy, Jz)
+                layer('straight', mat_ID, n_bars, As, Iy, Iz, Jy, Jz)
             if dat[1] == 'bar':
                 As = dat[3]
                 Iy = dat[4]
                 Iz = dat[5]
-                layer('straight', matTag, 1, As, Iy, Iz, Iy, Iz)
+                layer('straight', mat_ID, 1, As, Iy, Iz, Iy, Iz)
+            if dat[1] == 'circ':
+                n_bars, As = dat[3], dat[4]
+                yC, zC, r = dat[5], dat[6], dat[7]
+                if len(dat) > 8:
+                    a0_deg = dat[8]
+                else:
+                    a0_deg = 0.
+                a1_deg = 360. - 360./n_bars + a0_deg
+                if len(dat) > 9: a1_deg = dat[9]
+                layer('circ', mat_ID, n_bars, As, yC, zC, r, a0_deg, a1_deg)
 
         if dat[0] == 'patch':
-            matTag = dat[2]
+            mat_ID = dat[2]
             nIJ = dat[3]
             nJK = dat[4]
 
             if dat[1] == 'quad' or dat[1] == 'quadr':
                 Iy, Iz, Jy, Jz = dat[5], dat[6], dat[7], dat[8]
                 Ky, Kz, Ly, Lz = dat[9], dat[10], dat[11], dat[12]
-                patch('quad', matTag, nIJ, nJK, Iy, Iz, Jy, Jz, Ky, Kz,
+                patch('quad', mat_ID, nIJ, nJK, Iy, Iz, Jy, Jz, Ky, Kz,
                         Ly, Lz)
 
             if dat[1] == 'rect':
                 Iy, Iz, Ky, Kz = dat[5], dat[6], dat[7], dat[8]
-                patch('rect', matTag, nIJ, nJK, Iy, Iz, Ky, Kz)
+                patch('rect', mat_ID, nIJ, nJK, Iy, Iz, Ky, Kz)
 
+            if dat[1] == 'circ':
+                mat_ID, nc, nr = dat[2], dat[3], dat[4]
+                yC, zC, ri, re = dat[5], dat[6], dat[7], dat[8]
+                if len(dat) > 9:
+                    a0 = dat[9]
+                else:
+                    a0 = 0.
+                a1 = 360. + a0
+                if len(dat) > 10: a1 = dat[10]
+                patch('circ', mat_ID, nc, nr, yC, zC, ri, re, a0, a1)
         

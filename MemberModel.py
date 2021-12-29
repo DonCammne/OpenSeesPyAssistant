@@ -638,6 +638,22 @@ class GIFBElementFibersRectRCRectShape(GIFBElement):
         self.UpdateStoredData()
 
 
+class GIFBElementRCCircShape(GIFBElement):
+    def __init__(self, iNode_ID: int, jNode_ID: int, fiber_ID: int, section: RCCircShape, geo_transf_ID: int, lambda_i=-1, lambda_j=-1, Lp=-1, Ip=-1, integration_ID=-1):
+        self.section = section
+        super().__init__(iNode_ID, jNode_ID, fiber_ID, section.D_bars, section.fy, geo_transf_ID, lambda_i=lambda_i, lambda_j=lambda_j, Lp=Lp, Ip=Ip, integration_ID=integration_ID)
+        self.section_name_tag = section.name_tag
+        self.UpdateStoredData()
+
+
+class GIFBElementFibersCircRCCircShape(GIFBElement):
+    def __init__(self, iNode_ID: int, jNode_ID: int, fib: FibersCircRCCircShape, geo_transf_ID: int, lambda_i=-1, lambda_j=-1, Lp=-1, Ip=-1, integration_ID=-1):
+        self.section = fib.section
+        super().__init__(iNode_ID, jNode_ID, fib.ID, self.section.D_bars, self.section.fy, geo_transf_ID, lambda_i=lambda_i, lambda_j=lambda_j, Lp=Lp, Ip=Ip, integration_ID=integration_ID)
+        self.section_name_tag = self.section.name_tag
+        self.UpdateStoredData()
+
+
 # Structure of the class declaration
 # class NAME(MemberModel):
 #     # Class that stores funcions and material properties of a NAME.
