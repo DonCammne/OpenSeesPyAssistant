@@ -900,8 +900,8 @@ class UnconfMander1988(MaterialModels):
     # Class that stores funcions and material properties of a rectangular shape RC  profile (Concrete04). For more information see Mander et Al. 1988
     # Warning: the units should be m and N
       #TODO: validity check: warning if concrete fc is bigger than something (see article Lee)
-    
-    def __init__(self, ID: int, fc, Ec, ec = 1, ecp = 1, fct = -1, et = -1, beta = 0.1, safety_factors = False):
+
+    def __init__(self, ID: int, fc, Ec, ec = 1, ecp = 1, fct = -1, et = -1, beta = 0.1):
         #TODO: security factor
         # self.ec = -0.002
         # self.ecp = 2.0*self.ec                                  # concrete spalling
@@ -926,11 +926,6 @@ class UnconfMander1988(MaterialModels):
         # Initialized the parameters that are dependent from others
         self.section_name_tag = "None"
         self.Initialized = False
-        if safety_factors:
-            #TODO: insert the correct value and see where to put it
-            self.Ry = 1.5
-        else:
-            self.Ry = 1.0
         self.ReInit(ecp, fct, et)
 
     # Methods
@@ -966,7 +961,6 @@ class UnconfMander1988(MaterialModels):
             ["ecu", self.ecu],
             ["fct", self.fct],
             ["et", self.et],
-            ["Ry", self.Ry],
             ["beta", self.beta],
             ["Initialized", self.Initialized]]
 
@@ -1077,16 +1071,16 @@ def PlotConcrete04(fc, Ec, ec, ecu, Type, ax, ID = 0):
 
 
 class UnconfMander1988RCRectShape(UnconfMander1988):
-    def __init__(self, ID: int, section: RCRectShape, ec=1, ecp=1, fct=-1, et=-1, beta=0.1, safety_factors=False):
+    def __init__(self, ID: int, section: RCRectShape, ec=1, ecp=1, fct=-1, et=-1, beta=0.1):
         self.section = section
-        super().__init__(ID, section.fc, section.Ec, ec=ec, ecp=ecp, fct=fct, et=et, beta=beta, safety_factors=safety_factors)
+        super().__init__(ID, section.fc, section.Ec, ec=ec, ecp=ecp, fct=fct, et=et, beta=beta)
         self.section_name_tag = section.name_tag
         self.UpdateStoredData()
 
 class UnconfMander1988RCCircShape(UnconfMander1988):
-    def __init__(self, ID: int, section: RCCircShape, ec=1, ecp=1, fct=-1, et=-1, beta=0.1, safety_factors=False):
+    def __init__(self, ID: int, section: RCCircShape, ec=1, ecp=1, fct=-1, et=-1, beta=0.1):
         self.section = section
-        super().__init__(ID, section.fc, section.Ec, ec=ec, ecp=ecp, fct=fct, et=et, beta=beta, safety_factors=safety_factors)
+        super().__init__(ID, section.fc, section.Ec, ec=ec, ecp=ecp, fct=fct, et=et, beta=beta)
         self.section_name_tag = section.name_tag
         self.UpdateStoredData()
 
@@ -1254,7 +1248,7 @@ class ConfMander1988Rect(MaterialModels):
     array_fl2[15] = [[2.2962962962962963, 0.3]]
     
     def __init__(self, ID: int, bc, dc, Ac, fc, Ec, nr_bars, D_bars, wx_top: np.ndarray, wx_bottom: np.ndarray, wy: np.ndarray, s, D_hoops, rho_s_x, rho_s_y, fs, 
-        ec = 1, ecp = 1, fct = -1, et = -1, esu = -1, beta = 0.1, safety_factors = False):
+        ec = 1, ecp = 1, fct = -1, et = -1, esu = -1, beta = 0.1):
         #TODO: security factor
         # self.ec = -0.002
         # self.ecp = 2.0*self.ec                                  # concrete spalling
@@ -1312,11 +1306,6 @@ class ConfMander1988Rect(MaterialModels):
         # Initialized the parameters that are dependent from others
         self.section_name_tag = "None"
         self.Initialized = False
-        if safety_factors:
-            #TODO: insert the correct value
-            self.Ry = 1.5
-        else:
-            self.Ry = 1.0
         self.ReInit(ecp, fct, et)
 
     def ReInit(self, ecp = 1, fct = -1, et = -1):
@@ -1373,7 +1362,6 @@ class ConfMander1988Rect(MaterialModels):
             ["fcc", self.fcc],
             ["ecc", self.ecc],
             ["eccu", self.eccu],
-            ["Ry", self.Ry],
             ["beta", self.beta],
             ["nr_bars", self.nr_bars],
             ["D_bars", self.D_bars],
@@ -1523,7 +1511,7 @@ class ConfMander1988Rect(MaterialModels):
 
 
 class ConfMander1988RectRCRectShape(ConfMander1988Rect):
-    def __init__(self, ID: int, section: RCRectShape, ec=1, ecp=1, fct=-1, et=-1, esu=-1, beta=0.1, safety_factors=False):
+    def __init__(self, ID: int, section: RCRectShape, ec=1, ecp=1, fct=-1, et=-1, esu=-1, beta=0.1):
         self.section = section
         ranges = section.bars_ranges_position_y
         bars = section.bars_position_x
@@ -1533,7 +1521,7 @@ class ConfMander1988RectRCRectShape(ConfMander1988Rect):
 
         super().__init__(ID, section.bc, section.dc, section.Ac, section.fc, section.Ec, section.nr_bars, section.D_bars,
             wx_top, wx_bottom, wy, section.s, section.D_hoops, section.rho_s_x, section.rho_s_y, section.fs,
-            ec=ec, ecp=ecp, fct=fct, et=et, esu=esu, beta=beta, safety_factors=safety_factors)
+            ec=ec, ecp=ecp, fct=fct, et=et, esu=esu, beta=beta)
         self.section_name_tag = section.name_tag
         self.UpdateStoredData()
 
@@ -1551,7 +1539,7 @@ class ConfMander1988Circ(MaterialModels):
     #TODO: validity check: warning if concrete fc is bigger than something (see article Lee)
 
     def __init__(self, ID: int, bc, Ac, fc, Ec, nr_bars, D_bars, s, D_hoops, rho_s_vol, fs, 
-        ec = 1, ecp = 1, fct = -1, et = -1, esu = -1, beta = 0.1, safety_factors = False):
+        ec = 1, ecp = 1, fct = -1, et = -1, esu = -1, beta = 0.1):
         #TODO: security factor
         # self.ec = -0.002
         # self.ecp = 2.0*self.ec                                  # concrete spalling
@@ -1596,11 +1584,6 @@ class ConfMander1988Circ(MaterialModels):
         # Initialized the parameters that are dependent from others
         self.section_name_tag = "None"
         self.Initialized = False
-        if safety_factors:
-            #TODO: insert the correct value
-            self.Ry = 1.5
-        else:
-            self.Ry = 1.0
         self.ReInit(ecp, fct, et)
 
     def ReInit(self, ecp = 1, fct = -1, et = -1):
@@ -1656,7 +1639,6 @@ class ConfMander1988Circ(MaterialModels):
             ["fcc", self.fcc],
             ["ecc", self.ecc],
             ["eccu", self.eccu],
-            ["Ry", self.Ry],
             ["beta", self.beta],
             ["nr_bars", self.nr_bars],
             ["D_bars", self.D_bars],
@@ -1741,10 +1723,10 @@ class ConfMander1988Circ(MaterialModels):
 
 
 class ConfMander1988CircRCCircShape(ConfMander1988Circ):
-    def __init__(self, ID: int, section: RCCircShape, ec=1, ecp=1, fct=-1, et=-1, esu=-1, beta=0.1, safety_factors=False):
+    def __init__(self, ID: int, section: RCCircShape, ec=1, ecp=1, fct=-1, et=-1, esu=-1, beta=0.1):
         self.section = section
         super().__init__(ID, section.bc, section.Ac, section.fc, section.Ec, section.n_bars, section.D_bars, section.s, section.D_hoops,
-            section.rho_s_vol, section.fs, ec=ec, ecp=ecp, fct=fct, et=et, esu=esu, beta=beta, safety_factors=safety_factors)
+            section.rho_s_vol, section.fs, ec=ec, ecp=ecp, fct=fct, et=et, esu=esu, beta=beta)
         self.section_name_tag = section.name_tag
         self.UpdateStoredData()
 
@@ -1755,7 +1737,7 @@ class UniaxialBilinear(MaterialModels):
     #     #     Strain hardening factor (default: 0.01)
 
 
-    def __init__(self, ID: int, fy, Ey, b = 0.01, safety_factors = False):
+    def __init__(self, ID: int, fy, Ey, b = 0.01):
         #TODO: security factor
 
         # Check
@@ -1772,11 +1754,6 @@ class UniaxialBilinear(MaterialModels):
         # Initialized the parameters that are dependent from others
         self.section_name_tag = "None"
         self.Initialized = False
-        if safety_factors:
-            #TODO: insert the correct value
-            self.Ry = 1.5
-        else:
-            self.Ry = 1.0
         self.ReInit()
 
     def ReInit(self):
@@ -1806,7 +1783,6 @@ class UniaxialBilinear(MaterialModels):
             ["Ey", self.Ey],
             ["ey", self.ey],
             ["b", self.b],
-            ["Ry", self.Ry],
             ["Initialized", self.Initialized]]
 
 
@@ -1873,9 +1849,9 @@ class UniaxialBilinear(MaterialModels):
 
 
 class UniaxialBilinearSteelIShape(UniaxialBilinear):
-    def __init__(self, ID: int, section: SteelIShape, b=0.01, safety_factors=False):
+    def __init__(self, ID: int, section: SteelIShape, b=0.01):
         self.section = section
-        super().__init__(ID, section.Fy, section.E, b=b, safety_factors=safety_factors)
+        super().__init__(ID, section.Fy, section.E, b=b)
         self.section_name_tag = section.name_tag
         self.UpdateStoredData()
 
@@ -1884,7 +1860,7 @@ class GMP1970(MaterialModels):
     # Class that stores funcions and material properties of GMP1970. For more information see Giuffré, Menegotto and Pinto 1970 and Carreno et Al. 2020
     # Warning: the units should be m and N
     
-    def __init__(self, ID: int, fy, Ey, b = 0.02, R0 = 20, cR1 = 0.9, cR2 = 0.08, a1 = 0.039, a2 = 1.0, a3 = 0.029, a4 = 1.0, safety_factors = False):
+    def __init__(self, ID: int, fy, Ey, b = 0.02, R0 = 20, cR1 = 0.9, cR2 = 0.08, a1 = 0.039, a2 = 1.0, a3 = 0.029, a4 = 1.0):
         #TODO: security factor
         # OpenSees Docu suggest b = 0.015, R0 = 10, cR1 = 0.925, cR2 = 0.15 and a-parameters as default
 
@@ -1907,11 +1883,6 @@ class GMP1970(MaterialModels):
         # Initialized the parameters that are dependent from others
         self.section_name_tag = "None"
         self.Initialized = False
-        if safety_factors:
-            #TODO: insert the correct value
-            self.Ry = 1.5
-        else:
-            self.Ry = 1.0
         self.ReInit()
 
     def ReInit(self):
@@ -1944,7 +1915,6 @@ class GMP1970(MaterialModels):
             ["a2", self.a2],
             ["a3", self.a3],
             ["a4", self.a4],
-            ["Ry", self.Ry],
             ["Initialized", self.Initialized]]
 
 
@@ -2018,9 +1988,9 @@ class GMP1970(MaterialModels):
 
 
 class GMP1970RCRectShape(GMP1970):
-    def __init__(self, ID: int, section: RCRectShape, b=0.02, R0=20.0, cR1=0.9, cR2=0.08, a1=0.039, a2=1.0, a3=0.029, a4=1.0, safety_factors=False):
+    def __init__(self, ID: int, section: RCRectShape, b=0.02, R0=20.0, cR1=0.9, cR2=0.08, a1=0.039, a2=1.0, a3=0.029, a4=1.0):
         self.section = section
-        super().__init__(ID, section.fy, section.Ey, b=b, R0=R0, cR1=cR1, cR2=cR2, a1=a1, a2=a2, a3=a3, a4=a4, safety_factors=safety_factors)
+        super().__init__(ID, section.fy, section.Ey, b=b, R0=R0, cR1=cR1, cR2=cR2, a1=a1, a2=a2, a3=a3, a4=a4)
         self.section_name_tag = section.name_tag
         self.UpdateStoredData()
 
@@ -2029,7 +1999,7 @@ class UVC(MaterialModels):
     # Class that stores funcions and material properties of UVC (Updated Voce-Chaboche). For more information see (...)
     #TODO: add references above
     # Warning: the units should be m and N
-    def __init__(self, ID: int, fy, Ey, QInf, b, DInf, a, cK: np.ndarray, gammaK: np.ndarray, safety_factors = False):
+    def __init__(self, ID: int, fy, Ey, QInf, b, DInf, a, cK: np.ndarray, gammaK: np.ndarray):
         #TODO: security factor
 
         # Check
@@ -2059,11 +2029,6 @@ class UVC(MaterialModels):
         # Initialized the parameters that are dependent from others
         self.section_name_tag = "None"
         self.Initialized = False
-        if safety_factors:
-            #TODO: insert the correct value
-            self.Ry = 1.5
-        else:
-            self.Ry = 1.0
         self.ReInit()
 
     def ReInit(self):
@@ -2096,7 +2061,6 @@ class UVC(MaterialModels):
             ["N", self.N],
             ["ck", self.cK],
             ["gammaK", self.gammaK],
-            ["Ry", self.Ry],
             ["Initialized", self.Initialized]]
 
 
@@ -2172,7 +2136,7 @@ class UVC(MaterialModels):
 
         
 class UVCCalibrated(UVC):
-    def __init__(self, ID: int, calibration: str, safety_factors=False):
+    def __init__(self, ID: int, calibration: str):
         #TODO: add in doc this: List of possible calibration parameters:
         # S355J2_25mm_plate
         # S355J2_50mm_plate
@@ -2203,8 +2167,7 @@ class UVCCalibrated(UVC):
         super().__init__(ID, UVC_data["fy"][index][0]*MPa_unit, UVC_data["Ey"][index][0]*GPa_unit, UVC_data["QInf"][index][0]*MPa_unit, UVC_data["b"][index][0],
             UVC_data["DInf"][index][0]*MPa_unit, UVC_data["a"][index][0],
             np.array([UVC_data["C1"][index][0], UVC_data["C2"][index][0]])*MPa_unit,
-            np.array([UVC_data["gamma1"][index][0], UVC_data["gamma2"][index][0]]),
-            safety_factors=safety_factors)
+            np.array([UVC_data["gamma1"][index][0], UVC_data["gamma2"][index][0]]))
 
 
 #TODO: fill arguments with calibrated one and then change fy and Ey (and maybe more, ask Diego) accordingly to the section strength (how? ask Diego)
@@ -2223,122 +2186,3 @@ class UVCCalibrated(UVC):
 #         self.UpdateStoredData()
 
 #TODO: UVCCalibrated SteelIShape?
-
-# Structure for new material model
-# class NAME(MaterialModels):
-#     # Class that stores funcions and material properties of (...). For more information see (...)
-#     # Warning: the units should be m and N
-    
-#     def __init__(self, ID: int, ...):
-#         #TODO: security factor
-
-#         # Check
-#         if ID < 0: raise NegativeValue()
-
-#         # Arguments
-#         self.ID = ID
-
-#         # Initialized the parameters that are dependent from others
-#         self.section_name_tag = "None"
-#         if safety_factors:
-#             #TODO: insert the correct value
-#             self.Ry = 1.5
-#         else:
-#             self.Ry = 1.0
-#         self.ReInit()
-
-#     def ReInit(self):
-#         """Function that computes the value of the parameters that are computed with respect of the arguments.
-#         Use after changing the value of argument inside the class (to update the values accordingly). 
-#         This function can be very useful in combination with the function "deepcopy()" from the module "copy".
-#         """
-#         # Check applicability
-#         self.CheckApplicability()
-
-#         # Arguments
-
-#         # Members
-#         if self.section_name_tag != "None": self.section_name_tag = self.section_name_tag + " (modified)"
-
-
-#         # Data storage for loading/saving
-#         self.UpdateStoredData()
-
-
-#     # Methods
-#     def UpdateStoredData(self):
-#         self.data = [["INFO_TYPE", "NAME"], # Tag for differentiating different data
-#             ["ID", self.ID],
-#             ["section_name_tag", self.section_name_tag]
-#             ]
-
-
-#     def ShowInfo(self, plot = False, block = False):
-#         """Function that show the data stored in the class in the command window and plots the material model (optional).
-#         """
-#         print("")
-#         print("Requested info for NAME material model Parameters, ID = {}".format(self.ID))
-#         print("Section associated: {} ".format(self.section_name_tag))
-#         print("")
-
-#         if plot:
-#             # Data for plotting
-#             e_pl = 10.0 * self.ey # to show that if continues with this slope
-#             sigma_pl = self.b * self.Ey * e_pl
-
-#             x_axis = ([0.0, self.ey*100, (self.ey+e_pl)*100])
-#             y_axis = ([0.0, self.fy/MPa_unit, (self.fy+sigma_pl)/MPa_unit])
-
-#             fig, ax = plt.subplots()
-#             ax.plot(x_axis, y_axis, 'k-')
-
-#             ax.set(xlabel='Strain [%]', ylabel='Stress [MPa]', 
-#                 title='Uniaxial Bilinear model for material ID={}'.format(self.ID))
-#             ax.grid()
-            
-
-#             if block:
-#                 plt.show()
-
-
-#     def CheckApplicability(self):
-#         #TODO: 
-#         Check = True
-#         # if len(self.wy) == 0 or len(self.wx_top) == 0 or len(self.wx_bottom) == 0: 
-#         #     Check = False
-#         #     print("Hypothesis of one bar per corner not fullfilled.")
-#         if not Check:
-#             print("The validity of the equations is not fullfilled.")
-#             print("!!!!!!! WARNING !!!!!!! Check material model of NAME, ID=", self.ID)
-#             print("")
-
-
-#     def UNIAXIALMATFUNCT(self):
-#         # Generate the material model using the given parameters
-
-#         # Define Concrete04 Popovics Concrete material model for confined concrete
-#         # uniaxialMaterial("Concrete04", matTag, fcc, ecc, eccu, Ec, <fct et> <beta>)
-#         # matTag     integer tag identifying material
-#         # fcc    floating point values defining concrete compressive strength at 28 days (compression is negative)*
-#         # ecc    floating point values defining concrete strain at maximum strength*
-#         # eccu   floating point values defining concrete strain at crushing strength*
-#         # Ec     floating point values defining initial stiffness**
-#         # fct    floating point value defining the maximum tensile strength of concrete
-#         # et     floating point value defining ultimate tensile strain of concrete
-#         # beta   loating point value defining the exponential curve parameter to define the residual stress (as a factor of ft) at etu 
-
-#         uniaxialMaterial("Concrete04", self.ID, self.fcc, self.ecc, self.eccu, self.Ec, self.fct, self.et, self.beta)
-
-
-# class CHILD(NAME):
-#     def __init__(self, ID: int, ele: RCRectShape, ec=1, ecp=1, fct=-1, et=-1, esu=-1, beta=0.1, k1=4.1, safety_factors=False):
-#         ranges = ele.bars_ranges_position_y
-#         bars = ele.bars_position_x
-#         wy = self.__Compute_w(ranges, ele.D_bars)
-#         wx_top = self.__Compute_w(bars[0], ele.D_bars)
-#         wx_bottom = self.__Compute_w(bars[-1], ele.D_bars)
-
-#         super().__init__(ID, ele.bc, ele.dc, ele.Ac, ele.fc, ele.Ec, ele.nr_bars, ele.D_bars, wx_top, wx_bottom, wy, ele.s, ele.D_hoops, ele.rho_s_x, ele.rho_s_y, ele.fs,
-#             ec=ec, ecp=ecp, fct=fct, et=et, esu=esu, beta=beta, k1=k1, safety_factors=safety_factors)
-#         self.section_name_tag = ele.name_tag
-#         self.UpdateStoredData()
