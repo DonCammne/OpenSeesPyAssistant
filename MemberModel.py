@@ -14,6 +14,7 @@ from OpenSeesPyHelper.Section import *
 from OpenSeesPyHelper.DataManagement import *
 from OpenSeesPyHelper.ErrorHandling import *
 from OpenSeesPyHelper.Units import *
+from OpenSeesPyHelper.Constants import *
 from OpenSeesPyHelper.Fibers import *
 from OpenSeesPyHelper.Connections import *
 from OpenSeesPyHelper.FunctionalFeatures import *
@@ -141,34 +142,34 @@ class PanelZone(MemberModel):
 
 
 class PanelZoneSteelIShape(PanelZone):
-    def __init__(self, master_node_ID: int, col: SteelIShape, beam: SteelIShape, geo_transf_ID: int, mat_ID, RIGID = 100.0):
+    def __init__(self, master_node_ID: int, col: SteelIShape, beam: SteelIShape, geo_transf_ID: int, mat_ID, rigid = RIGID):
         self.col = col
         self.beam = beam
-        super().__init__(master_node_ID, col.d/2.0, beam.d/2.0, col.E, max(col.A, beam.A)*RIGID, max(col.Iy, beam.Iy)*RIGID, geo_transf_ID, mat_ID)
+        super().__init__(master_node_ID, col.d/2.0, beam.d/2.0, col.E, max(col.A, beam.A)*rigid, max(col.Iy, beam.Iy)*rigid, geo_transf_ID, mat_ID)
 
         self.col_section_name_tag = col.name_tag
         self.beam_section_name_tag = beam.name_tag
         self.UpdateStoredData()
 
 class PanelZoneSteelIShapeGupta1999(PanelZoneSteelIShape):
-    def __init__(self, master_node_ID: int, col: SteelIShape, beam: SteelIShape, geo_transf_ID: int, t_dp = 0, RIGID=100):
+    def __init__(self, master_node_ID: int, col: SteelIShape, beam: SteelIShape, geo_transf_ID: int, t_dp = 0, rigid=RIGID):
         self.col = col
         self.beam = beam
         mat_ID = master_node_ID
         pz_spring = Gupta1999SteelIShape(mat_ID, col, beam, t_dp)
         pz_spring.Hysteretic()
 
-        super().__init__(master_node_ID, col, beam, geo_transf_ID, mat_ID, RIGID=RIGID)
+        super().__init__(master_node_ID, col, beam, geo_transf_ID, mat_ID, rigid)
 
 class PanelZoneSteelIShapeSkiadopoulos2021(PanelZoneSteelIShape):
-    def __init__(self, master_node_ID: int, col: SteelIShape, beam: SteelIShape, geo_transf_ID: int, t_dp = 0, RIGID=100):
+    def __init__(self, master_node_ID: int, col: SteelIShape, beam: SteelIShape, geo_transf_ID: int, t_dp = 0, rigid=RIGID):
         self.col = col
         self.beam = beam
         mat_ID = master_node_ID
         pz_spring = Skiadopoulos2021SteelIShape(mat_ID, col, beam, t_dp)
         pz_spring.Hysteretic()
 
-        super().__init__(master_node_ID, col, beam, geo_transf_ID, mat_ID, RIGID=RIGID)
+        super().__init__(master_node_ID, col, beam, geo_transf_ID, mat_ID, rigid)
 
 
 
@@ -448,9 +449,9 @@ class SpringBasedElement(MemberModel):
         self.Initialized = True
         self.UpdateStoredData()
 
-class SpringBasedElementModifiedIMKSteelIShape(SpringBasedElement):
+class SpringBasedElementSteelIShape(SpringBasedElement):
     # L_b = assumed the same for top and bottom springs
-    def __init__(self, iNode_ID: int, jNode_ID: int, section: SteelIShape, geo_transf_ID: int, mat_ID_i=-1, mat_ID_j=-1, N_G = 0, L_b = -1):
+    def __init__(self, iNode_ID: int, jNode_ID: int, section: SteelIShape, geo_transf_ID: int, mat_ID_i=-1, mat_ID_j=-1):
         self.section = section
         if mat_ID_i != -1 and mat_ID_i < 0: raise NegativeValue()
         if mat_ID_j != -1 and mat_ID_j < 0: raise NegativeValue()
@@ -461,17 +462,34 @@ class SpringBasedElementModifiedIMKSteelIShape(SpringBasedElement):
         else:
             L_0 = section.L
 
-        if mat_ID_i != -1:
+        super().__init__(iNode_ID, jNode_ID, section.A, section.E, section.Iy_mod, geo_transf_ID, mat_ID_i=mat_ID_i, mat_ID_j=mat_ID_j)
+        self.section_name_tag = section.name_tag
+        self.UpdateStoredData()
+
+class SpringBasedElementModifiedIMKSteelIShape(SpringBasedElement):
+    # L_b = assumed the same for top and bottom springs
+    def __init__(self, iNode_ID: int, jNode_ID: int, section: SteelIShape, geo_transf_ID: int, new_mat_ID_i=-1, new_mat_ID_j=-1, N_G = 0, L_b = -1):
+        self.section = section
+        if new_mat_ID_i != -1 and new_mat_ID_i < 0: raise NegativeValue()
+        if new_mat_ID_j != -1 and new_mat_ID_j < 0: raise NegativeValue()
+        if new_mat_ID_i == -1 and new_mat_ID_j == -1: raise NameError("No springs defined for element ID = {}".format(IDConvention(iNode_ID, jNode_ID)))
+
+        if new_mat_ID_i != -1 and new_mat_ID_j != -1:
+            L_0 = section.L/2
+        else:
+            L_0 = section.L
+
+        if new_mat_ID_i != -1:
             # Create mat i
-            iSpring = ModifiedIMKSteelIShape(mat_ID_i, section, N_G, L_0 = L_0, L_b = L_b)
+            iSpring = ModifiedIMKSteelIShape(new_mat_ID_i, section, N_G, L_0 = L_0, L_b = L_b)
             iSpring.Bilin()
 
-        if mat_ID_j != -1:
+        if new_mat_ID_j != -1:
             # Create mat j
-            jSpring = ModifiedIMKSteelIShape(mat_ID_j, section, N_G, L_0 = L_0, L_b = L_b)
+            jSpring = ModifiedIMKSteelIShape(new_mat_ID_j, section, N_G, L_0 = L_0, L_b = L_b)
             jSpring.Bilin()
 
-        super().__init__(iNode_ID, jNode_ID, section.A, section.E, section.Iy_mod, geo_transf_ID, mat_ID_i=mat_ID_i, mat_ID_j=mat_ID_j)
+        super().__init__(iNode_ID, jNode_ID, section.A, section.E, section.Iy_mod, geo_transf_ID, mat_ID_i=new_mat_ID_i, mat_ID_j=new_mat_ID_j)
         self.section_name_tag = section.name_tag
         self.UpdateStoredData()
 
@@ -745,8 +763,8 @@ class GIFBElementFibersCircRCCircShape(GIFBElement):
 
 
 # class CHILD(NAME):
-#     def __init__(self, master_node_ID: int, col: SteelIShape, beam: SteelIShape, geo_transf_ID: int, mat_ID = -1, RIGID = 100.0):
-#         super().__init__(master_node_ID, col.d/2.0, beam.d/2.0, col.E, max(col.A, beam.A)*RIGID, max(col.Iy, beam.Iy)*RIGID, geo_transf_ID, mat_ID)
+#     def __init__(self, master_node_ID: int, col: SteelIShape, beam: SteelIShape, geo_transf_ID: int, mat_ID = -1, rigid = RIGID):
+#         super().__init__(master_node_ID, col.d/2.0, beam.d/2.0, col.E, max(col.A, beam.A)*rigid, max(col.Iy, beam.Iy)*rigid, geo_transf_ID, mat_ID)
 
 #         self.col_section_name_tag = col.name_tag
 #         self.beam_section_name_tag = beam.name_tag
