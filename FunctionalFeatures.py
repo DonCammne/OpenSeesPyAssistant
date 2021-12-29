@@ -138,7 +138,7 @@ def NodesOrientation(iNode_ID, jNode_ID):
 	else:
 		return "horizontal"
 
-def plot_member(element_array: np.ndarray, show_element_ID = True, show_node_ID = True):
+def plot_member(element_array: np.ndarray, member_name = "Not defined", show_element_ID = True, show_node_ID = True):
 	ele_style = {'color':'black', 'linewidth':1, 'linestyle':'-'}
 	node_style = {'color':'black', 'marker':'o', 'facecolor':'black','linewidth':0.}
 	node_style_animation = {'color':'black', 'marker':'o','markersize':2., 'linewidth':0.} 
@@ -180,6 +180,7 @@ def plot_member(element_array: np.ndarray, show_element_ID = True, show_node_ID 
 		
 	ax.set_xlabel('x [{}]'.format(length_unit))
 	ax.set_ylabel('y [{}]'.format(length_unit))
+	plt.title("Visualisation of the member: {}".format(member_name))
 	plt.axis('equal')
 
 
