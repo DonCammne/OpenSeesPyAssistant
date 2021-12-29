@@ -332,8 +332,8 @@ class RCRectShape(Section):
         # Precompute some members
         self.cl_hoops = self.e + self.D_hoops/2.0 # centerline distance from the border of the extreme confining hoops
         self.cl_bars = self.e + self.D_bars/2.0 + self.D_hoops # centerline distance from the border of the corner bars
-        self.bc = self.b - self.cl_hoops
-        self.dc = self.d - self.cl_hoops
+        self.bc = self.b - self.cl_hoops*2
+        self.dc = self.d - self.cl_hoops*2
         self.As = ComputeACircle(self.D_hoops)
 
         # Arguments
@@ -545,7 +545,7 @@ class RCCircShape(Section):
         # Precompute some members
         self.cl_hoops = self.e + self.D_hoops/2.0 # centerline distance from the border of the extreme confining hoops
         self.cl_bars = self.e + self.D_bars/2.0 + self.D_hoops # centerline distance from the border of the corner bars
-        self.bc = self.b - self.cl_hoops # diameter of spiral (hoops) between bar centerline
+        self.bc = self.b - self.cl_hoops*2 # diameter of spiral (hoops) between bar centerline
 
         # Arguments
         self.Ec = self.ComputeEc() if Ec == -1 else Ec
