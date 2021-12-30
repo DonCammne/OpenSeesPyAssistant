@@ -5,10 +5,10 @@ from openseespy.opensees import *
 import matplotlib.pyplot as plt
 import numpy as np
 import openseespy.postprocessing.Get_Rendering as opsplt
-from OpenSeesPyHelper.ErrorHandling import *
-from OpenSeesPyHelper.Units import *
-from OpenSeesPyHelper.Constants import *
-from OpenSeesPyHelper.FunctionalFeatures import *
+from OpenSeesPyAssistant.ErrorHandling import *
+from OpenSeesPyAssistant.Units import *
+from OpenSeesPyAssistant.Constants import *
+from OpenSeesPyAssistant.FunctionalFeatures import *
 
 """Module with pre-made analysis and postprocessing functions.
 """
