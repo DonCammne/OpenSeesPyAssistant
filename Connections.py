@@ -4,32 +4,38 @@
 from openseespy.opensees import *
 import numpy as np
 import matplotlib.pyplot as plt
+from OpenSeesPyAssistant.ErrorHandling import *
 
-def RigidSupport(NodeID):
+from ErrorHandling import NegativeValue, WrongArgument
+
+def RigidSupport(NodeID: int):
     """Function that fixes the x, y movements and the rotation of one node.
 
     Args:
         NodeID (int): ID of the node to be fixed
     """
+    if NodeID < 1: raise NegativeValue()
 
     fix(NodeRID, 1, 1, 1)
 
-def Pin(NodeRID, NodeCID):
+
+def Pin(NodeRID: int, NodeCID: int):
     """Function that constrains the translational DOF with a multi-point constraint.
 
     Args:
         NodeRID (int): Node ID which will be retained by the multi-point constraint
         NodeCID (int): Node ID which will be constrained by the multi-point constraint
     """
+    if NodeCID == NodeRID: raise WrongArgument()
+    if NodeRID < 1: raise NegativeValue()
+    if NodeCID < 1: raise NegativeValue()
 
-    #TODO: check that the two nodes are different
-    
 	# Constrain the translational DOF with a multi-point constraint
 	#   		retained constrained DOF_1 DOF_2
     equalDOF(NodeRID, NodeCID, 1, 2)
 
 
-def RotationalSpring(ElementID, NodeRID, NodeCID, MatID, Rigid = False):
+def RotationalSpring(ElementID: int, NodeRID: int, NodeCID: int, MatID: int, Rigid = False):
     """Function that defines a uniaxial material spring and constrains the translations DOFs of the spring.
 
     Args:
@@ -39,10 +45,14 @@ def RotationalSpring(ElementID, NodeRID, NodeCID, MatID, Rigid = False):
         MatID (int): ID of the material model chosen
         Rigid (bool, optional): Optional argument that transforms the joint in a completely rigid connection. Defaults to False.
     """
-    #TODO: check that the two nodes are different
+    if ElementID < 1: raise NegativeValue()
+    if NodeCID < 1: raise NegativeValue()
+    if NodeRID < 1: raise NegativeValue()
+    if NodeCID == NodeRID: raise WrongArgument()
+    if MatID < 1: raise NegativeValue()
 
     if not Rigid:
-    		# Zero length element (spring)
+    	# Zero length element (spring)
         element("zeroLength", ElementID, NodeRID, NodeCID, "-mat", MatID, "-dir", 6)
 	    
         # Constrain the translational DOF with a multi-point constraint	
