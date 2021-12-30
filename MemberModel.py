@@ -26,7 +26,6 @@ class MemberModel(DataManagement):
 class PanelZone(MemberModel):
     # Class that stores funcions and material properties of a panel zone.
     # Warning: the units should be m and N
-    
     def __init__(self, master_node_ID: int, mid_panel_zone_width, mid_panel_zone_height, E, A_rigid, I_rigid, geo_transf_ID: int, mat_ID):
 
         # Check
@@ -599,6 +598,149 @@ class SpringBasedElementModifiedIMKSteelIShape(SpringBasedElement):
         self.UpdateStoredData()
 
 
+class ForceBasedElement(MemberModel):
+    # Class that stores funcions and material properties of a force-based beam-column element.
+    # Warning: the units should be m and N
+    # Convention:																							
+    # 		NodeID: 		xy 			with x = pier, y = floor 											o xy7	|	
+    #		PlHingeID:		xya			with x = pier, y = floor, a:	 --o xy  xy2 o-----o xy3  xy o--	|		o xy
+    #																										|	
+    #																										|		o xy
+    #																										o xy6	|
+    #		ElementID:		xy(a)xy(a)	with xy(a) = NodeID i and j
+    #		TrussID:		xy(a)xy(a)	with xy(a) = NodeID i and j
+    #		PDeltaColID:	xy(a)xy(a)	with xy(a) = NodeID i and j
+    #		Spring:			xy(a)xy(a)	with xy(a) = NodeID i and j
+    
+    def __init__(self, iNode_ID: int, jNode_ID: int, fiber_ID: int, geo_transf_ID: int,
+        new_integration_ID = -1, Ip = 5, integration_type = "Lobatto", max_iter = MAX_ITER_INTEGRATION, tol = TOL_INTEGRATION):
+    
+        # Check
+        if iNode_ID < 1: raise NegativeValue()
+        if jNode_ID < 1: raise NegativeValue()
+        if fiber_ID < 1: raise NegativeValue()
+        if geo_transf_ID < 1: raise NegativeValue()
+        if new_integration_ID != -1 and new_integration_ID < 1: raise NegativeValue()
+        if Ip != -1 and Ip < 3: raise NegativeValue()
+        if max_iter < 0: raise NegativeValue()
+        if tol < 0: raise NegativeValue()
+
+        # Arguments
+        self.iNode_ID = iNode_ID
+        self.jNode_ID = jNode_ID
+        self.fiber_ID = fiber_ID 
+        self.geo_transf_ID = geo_transf_ID
+        self.Ip = Ip
+        self.integration_type = integration_type
+        self.max_iter = max_iter
+        self.tol = tol
+
+        # Initialized the parameters that are dependent from others
+        self.section_name_tag = "None"
+        self.Initialized = False
+        self.ReInit(new_integration_ID)
+
+
+    def ReInit(self, new_integration_ID):
+        """Function that computes the value of the parameters that are computed with respect of the arguments.
+        Use after changing the value of argument inside the class (to update the values accordingly). 
+        This function can be very useful in combination with the function "deepcopy()" from the module "copy".
+        """
+        # Precompute some members
+        self.element_ID = IDConvention(self.iNode_ID, self.jNode_ID)
+
+        # Arguments
+        self.new_integration_ID = self.element_ID if new_integration_ID == -1 else new_integration_ID
+
+        # Members
+        if self.section_name_tag != "None": self.section_name_tag = self.section_name_tag + " (modified)"
+        
+        # Data storage for loading/saving
+        self.UpdateStoredData()
+
+
+    # Methods
+    def UpdateStoredData(self):
+        self.data = [["INFO_TYPE", "ForceBasedElement"], # Tag for differentiating different data
+            ["element_ID", self.element_ID],
+            ["section_name_tag", self.section_name_tag],
+            ["Ip", self.Ip],
+            ["iNode_ID", self.iNode_ID],
+            ["jNode_ID", self.jNode_ID],
+            ["fiber_ID", self.fiber_ID],
+            ["new_integration_ID", self.new_integration_ID],
+            ["integration_type", self.integration_type],
+            ["tol", self.tol],
+            ["max_iter", self.max_iter],
+            ["tranf_ID", self.geo_transf_ID],
+            ["Initialized", self.Initialized]]
+
+
+    def ShowInfo(self, plot = False, block = False):
+        """Function that show the data stored in the class in the command window and plots the member model (optional).
+        """
+        print("")
+        print("Requested info for GIFBElement member model, ID = {}".format(self.element_ID))
+        print("Fiber associated, ID = {} ".format(self.fiber_ID))
+        print("Integration type '{}', ID = {}".format(self.integration_type, self.new_integration_ID))
+        print("Section associated {} ".format(self.section_name_tag))
+        print("Number of integration points along the element Ip = {}, max iter = {}, tol = {}".format(self.Ip, self.max_iter, self.tol))
+        print("Geometric transformation = {}".format(self.geo_transf_ID))
+        print("")
+
+        if plot:
+            if self.Initialized:
+                plot_member(np.array(self.element_array))
+                if block:
+                    plt.show()
+            else:
+                print("The ForceBasedElement is not initialized (element not created), ID = {}".format(self.element_ID))
+
+
+    def CreateMember(self):
+        self.element_array = [[self.element_ID, self.iNode_ID, self.jNode_ID]]
+
+        # Define integration type
+        beamIntegration(self.integration_type, self.new_integration_ID, self.fiber_ID, self.Ip)
+        
+        # Define element
+        element('forceBeamColumn', self.element_ID, self.iNode_ID, self.jNode_ID, self.geo_transf_ID, self.new_integration_ID, '-iter', self.max_iter, self.tol)
+        
+        # Update class
+        self.Initialized = True
+        self.UpdateStoredData()
+
+
+class ForceBasedElementFibersRectRCRectShape(ForceBasedElement):
+    def __init__(self, iNode_ID: int, jNode_ID: int, fiber: FibersRectRCRectShape, geo_transf_ID: int,
+        new_integration_ID=-1, Ip=5, integration_type="Lobatto", max_iter=MAX_ITER_INTEGRATION, tol=TOL_INTEGRATION):
+        self.section = fiber.section
+        super().__init__(iNode_ID, jNode_ID, fiber.ID, geo_transf_ID,
+            new_integration_ID=new_integration_ID, Ip=Ip, integration_type=integration_type, max_iter=max_iter, tol=tol)
+        self.section_name_tag = self.section.name_tag
+        self.UpdateStoredData()
+
+
+class ForceBasedElementFibersCircRCCircShape(ForceBasedElement):
+    def __init__(self, iNode_ID: int, jNode_ID: int, fiber: FibersCircRCCircShape, geo_transf_ID: int,
+        new_integration_ID=-1, Ip=5, integration_type="Lobatto", max_iter=MAX_ITER_INTEGRATION, tol=TOL_INTEGRATION):
+        self.section = fiber.section
+        super().__init__(iNode_ID, jNode_ID, fiber.ID, geo_transf_ID,
+            new_integration_ID=new_integration_ID, Ip=Ip, integration_type=integration_type, max_iter=max_iter, tol=tol)
+        self.section_name_tag = self.section.name_tag
+        self.UpdateStoredData()
+
+
+class ForceBasedElementFibersIShapeSteelIShape(ForceBasedElement):
+    def __init__(self, iNode_ID: int, jNode_ID: int, fiber: FibersIShapeSteelIShape, geo_transf_ID: int,
+        new_integration_ID=-1, Ip=5, integration_type="Lobatto", max_iter=MAX_ITER_INTEGRATION, tol=TOL_INTEGRATION):
+        self.section = fiber.section
+        super().__init__(iNode_ID, jNode_ID, fiber.ID, geo_transf_ID,
+            new_integration_ID=new_integration_ID, Ip=Ip, integration_type=integration_type, max_iter=max_iter, tol=tol)
+        self.section_name_tag = self.section.name_tag
+        self.UpdateStoredData()    
+
+
 class GIFBElement(MemberModel):
     # Class that stores funcions and material properties of a Gradient-Inelastic Flexibility-based element.
     # Warning: the units should be m and N
@@ -614,7 +756,8 @@ class GIFBElement(MemberModel):
     #		Spring:			xy(a)xy(a)	with xy(a) = NodeID i and j
     
     def __init__(self, iNode_ID: int, jNode_ID: int, fiber_ID: int, D_bars, fy, geo_transf_ID: int, 
-        lambda_i = -1, lambda_j = -1, Lp = -1, Ip = -1, integration_ID = -1):
+        lambda_i = -1, lambda_j = -1, Lp = -1, Ip = -1, new_integration_ID = -1,
+        min_tol = TOL_INTEGRATION, max_tol = TOL_INTEGRATION*1e4, max_iter = MAX_ITER_INTEGRATION):
     
         # Check
         if iNode_ID < 1: raise NegativeValue()
@@ -628,7 +771,10 @@ class GIFBElement(MemberModel):
         if lambda_i == 0 and lambda_j == 0: raise print("!!!!!!! WARNING !!!!!!! No plastic length defined for element ID = {}".format(IDConvention(iNode_ID, jNode_ID)))
         if Lp != -1 and Lp < 0: raise NegativeValue()
         if Ip != -1 and Ip < 3: raise NegativeValue()
-        if integration_ID != -1 and integration_ID < 1: raise NegativeValue()
+        if new_integration_ID != -1 and new_integration_ID < 1: raise NegativeValue()
+        if min_tol < 0: raise NegativeValue()
+        if max_tol < 0: raise NegativeValue()
+        if max_iter < 0: raise NegativeValue()
 
         # Arguments
         self.iNode_ID = iNode_ID
@@ -637,13 +783,16 @@ class GIFBElement(MemberModel):
         self.fy = fy
         self.geo_transf_ID = geo_transf_ID
         self.fiber_ID = fiber_ID 
+        self.min_tol = min_tol
+        self.max_tol = max_tol
+        self.max_iter = max_iter
 
         # Initialized the parameters that are dependent from others
         self.section_name_tag = "None"
         self.Initialized = False
-        self.ReInit(lambda_i, lambda_j, Lp, Ip, integration_ID)
+        self.ReInit(lambda_i, lambda_j, Lp, Ip, new_integration_ID)
 
-    def ReInit(self, lambda_i = -1, lambda_j = -1, Lp = -1, Ip = -1, integration_ID = -1):
+    def ReInit(self, lambda_i = -1, lambda_j = -1, Lp = -1, Ip = -1, new_integration_ID = -1):
         """Function that computes the value of the parameters that are computed with respect of the arguments.
         Use after changing the value of argument inside the class (to update the values accordingly). 
         This function can be very useful in combination with the function "deepcopy()" from the module "copy".
@@ -659,7 +808,7 @@ class GIFBElement(MemberModel):
         self.Ip = self.ComputeIp() if Ip == -1 else Ip
         self.lambda_i = self.L/self.Lp if lambda_i == -1 else lambda_i
         self.lambda_j = self.L/self.Lp if lambda_j == -1 else lambda_j
-        self.integration_ID = self.element_ID if integration_ID == -1 else integration_ID
+        self.new_integration_ID = self.element_ID if new_integration_ID == -1 else new_integration_ID
 
         # Members
         if self.section_name_tag != "None": self.section_name_tag = self.section_name_tag + " (modified)"
@@ -683,7 +832,10 @@ class GIFBElement(MemberModel):
             ["jNode_ID", self.jNode_ID],
             ["lambda_j", self.lambda_j],
             ["fiber_ID", self.fiber_ID],
-            ["integration_ID", self.integration_ID],
+            ["new_integration_ID", self.new_integration_ID],
+            ["min_tol", self.min_tol],
+            ["max_tol", self.max_tol],
+            ["max_iter", self.max_iter],
             ["tranf_ID", self.geo_transf_ID],
             ["Initialized", self.Initialized]]
 
@@ -694,13 +846,13 @@ class GIFBElement(MemberModel):
         print("")
         print("Requested info for GIFBElement member model, ID = {}".format(self.element_ID))
         print("Fiber associated, ID = {} ".format(self.fiber_ID))
-        print("Integration type, ID = {}".format(self.integration_ID))
+        print("Integration type 'Simpson', ID = {}".format(self.new_integration_ID))
         print("Section associated {} ".format(self.section_name_tag))
         print("Length L = {} m".format(self.L/m_unit))
         print("Diameter of the reinforcing bars D_bars = {} mm2".format(self.D_bars/mm2_unit))
         print("Reinforcing bar steel strength fy = {} MPa".format(self.fy/MPa_unit))
         print("Plastic length Lp = {} mm".format(self.Lp/mm_unit))
-        print("Number of integration points along the element Ip = {}".format(self.Ip))
+        print("Number of integration points along the element Ip = {}, max iter = {}, (min, max tol) = ({},{})".format(self.Ip, self.max_iter, self.min_tol, self.max_tol))
         print("Lambda_i = {} and lambda_j = {}".format(self.lambda_i, self.lambda_j))
         print("Geometric transformation = {}".format(self.geo_transf_ID))
         print("")
@@ -718,11 +870,12 @@ class GIFBElement(MemberModel):
         self.element_array = [[self.element_ID, self.iNode_ID, self.jNode_ID]]
 
         # Define integration type
-        beamIntegration('Simpson', self.integration_ID, self.fiber_ID, self.Ip)
+        beamIntegration('Simpson', self.new_integration_ID, self.fiber_ID, self.Ip)
         
         # Define element
-        element('gradientInelasticBeamColumn', self.element_ID, self.iNode_ID, self.jNode_ID, self.geo_transf_ID, self.integration_ID, self.lambda_i, self.lambda_j, self.Lp)
-
+        element('gradientInelasticBeamColumn', self.element_ID, self.iNode_ID, self.jNode_ID, self.geo_transf_ID,
+            self.new_integration_ID, self.lambda_i, self.lambda_j, self.Lp, '-iter', self.max_iter, self.min_tol, self.max_tol)
+        
         # Update class
         self.Initialized = True
         self.UpdateStoredData()
@@ -742,36 +895,56 @@ class GIFBElement(MemberModel):
         Returns:
             int: Number of integration points
         """
-        return math.ceil(1.5*self.L/self.Lp + 1)
+        tmp = math.ceil(1.5*self.L/self.Lp + 1)
+        if (tmp % 2) == 0:
+            return tmp + 1
+        else:
+            return tmp
 
 
 class GIFBElementRCRectShape(GIFBElement):
-    def __init__(self, iNode_ID: int, jNode_ID: int, fiber_ID: int, section: RCRectShape, geo_transf_ID: int, lambda_i=-1, lambda_j=-1, Lp=-1, Ip=-1, integration_ID=-1):
+    def __init__(self, iNode_ID: int, jNode_ID: int, fiber_ID: int, section: RCRectShape, geo_transf_ID: int,
+        lambda_i=-1, lambda_j=-1, Lp=-1, Ip=-1, new_integration_ID=-1,
+        min_tol = TOL_INTEGRATION, max_tol = TOL_INTEGRATION*1e4, max_iter = MAX_ITER_INTEGRATION):
         self.section = section
-        super().__init__(iNode_ID, jNode_ID, fiber_ID, section.D_bars, section.fy, geo_transf_ID, lambda_i=lambda_i, lambda_j=lambda_j, Lp=Lp, Ip=Ip, integration_ID=integration_ID)
+        super().__init__(iNode_ID, jNode_ID, fiber_ID, section.D_bars, section.fy, geo_transf_ID,
+            lambda_i=lambda_i, lambda_j=lambda_j, Lp=Lp, Ip=Ip, new_integration_ID=new_integration_ID,
+            min_tol=min_tol, max_tol=max_tol, max_iter=max_iter)
         self.section_name_tag = section.name_tag
         self.UpdateStoredData()
 
 
 class GIFBElementFibersRectRCRectShape(GIFBElement):
-    def __init__(self, iNode_ID: int, jNode_ID: int, fib: FibersRectRCRectShape, geo_transf_ID: int, lambda_i=-1, lambda_j=-1, Lp=-1, Ip=-1, integration_ID=-1):
+    def __init__(self, iNode_ID: int, jNode_ID: int, fib: FibersRectRCRectShape, geo_transf_ID: int,
+        lambda_i=-1, lambda_j=-1, Lp=-1, Ip=-1, new_integration_ID=-1,
+        min_tol = TOL_INTEGRATION, max_tol = TOL_INTEGRATION*1e4, max_iter = MAX_ITER_INTEGRATION):
         self.section = fib.section
-        super().__init__(iNode_ID, jNode_ID, fib.ID, self.section.D_bars, self.section.fy, geo_transf_ID, lambda_i=lambda_i, lambda_j=lambda_j, Lp=Lp, Ip=Ip, integration_ID=integration_ID)
+        super().__init__(iNode_ID, jNode_ID, fib.ID, self.section.D_bars, self.section.fy, geo_transf_ID,
+        lambda_i=lambda_i, lambda_j=lambda_j, Lp=Lp, Ip=Ip, new_integration_ID=new_integration_ID,
+        min_tol=min_tol, max_tol=max_tol, max_iter=max_iter)
         self.section_name_tag = self.section.name_tag
         self.UpdateStoredData()
 
 
 class GIFBElementRCCircShape(GIFBElement):
-    def __init__(self, iNode_ID: int, jNode_ID: int, fiber_ID: int, section: RCCircShape, geo_transf_ID: int, lambda_i=-1, lambda_j=-1, Lp=-1, Ip=-1, integration_ID=-1):
+    def __init__(self, iNode_ID: int, jNode_ID: int, fiber_ID: int, section: RCCircShape, geo_transf_ID: int,
+        lambda_i=-1, lambda_j=-1, Lp=-1, Ip=-1, new_integration_ID=-1,
+        min_tol = TOL_INTEGRATION, max_tol = TOL_INTEGRATION*1e4, max_iter = MAX_ITER_INTEGRATION):
         self.section = section
-        super().__init__(iNode_ID, jNode_ID, fiber_ID, section.D_bars, section.fy, geo_transf_ID, lambda_i=lambda_i, lambda_j=lambda_j, Lp=Lp, Ip=Ip, integration_ID=integration_ID)
+        super().__init__(iNode_ID, jNode_ID, fiber_ID, section.D_bars, section.fy, geo_transf_ID,
+        lambda_i=lambda_i, lambda_j=lambda_j, Lp=Lp, Ip=Ip, new_integration_ID=new_integration_ID,
+        min_tol=min_tol, max_tol=max_tol, max_iter=max_iter)
         self.section_name_tag = section.name_tag
         self.UpdateStoredData()
 
 
 class GIFBElementFibersCircRCCircShape(GIFBElement):
-    def __init__(self, iNode_ID: int, jNode_ID: int, fib: FibersCircRCCircShape, geo_transf_ID: int, lambda_i=-1, lambda_j=-1, Lp=-1, Ip=-1, integration_ID=-1):
+    def __init__(self, iNode_ID: int, jNode_ID: int, fib: FibersCircRCCircShape, geo_transf_ID: int,
+    lambda_i=-1, lambda_j=-1, Lp=-1, Ip=-1, new_integration_ID=-1,
+    min_tol = TOL_INTEGRATION, max_tol = TOL_INTEGRATION*1e4, max_iter = MAX_ITER_INTEGRATION):
         self.section = fib.section
-        super().__init__(iNode_ID, jNode_ID, fib.ID, self.section.D_bars, self.section.fy, geo_transf_ID, lambda_i=lambda_i, lambda_j=lambda_j, Lp=Lp, Ip=Ip, integration_ID=integration_ID)
+        super().__init__(iNode_ID, jNode_ID, fib.ID, self.section.D_bars, self.section.fy, geo_transf_ID,
+        lambda_i=lambda_i, lambda_j=lambda_j, Lp=Lp, Ip=Ip, new_integration_ID=new_integration_ID,
+        min_tol=min_tol, max_tol=max_tol, max_iter=max_iter)
         self.section_name_tag = self.section.name_tag
         self.UpdateStoredData()
