@@ -303,6 +303,110 @@ def DefinePanelZoneElements(MasterNodeID, E, RigidA, RigidI, TransfID):
     return element_array
 
 
+class ElasticElement(MemberModel):
+    # Class that stores funcions and material properties of a elastic element.
+    # Warning: the units should be m and N
+    # Convention:																							
+    # 		NodeID: 		xy 			with x = pier, y = floor 											o xy7	|	
+    #		PlHingeID:		xya			with x = pier, y = floor, a:	 --o xy  xy2 o-----o xy3  xy o--	|		o xy
+    #																										|	
+    #																										|		o xy
+    #																										o xy6	|
+    #		ElementID:		xy(a)xy(a)	with xy(a) = NodeID i and j
+    #		TrussID:		xy(a)xy(a)	with xy(a) = NodeID i and j
+    #		PDeltaColID:	xy(a)xy(a)	with xy(a) = NodeID i and j
+    #		Spring:			xy(a)xy(a)	with xy(a) = NodeID i and j
+    
+    def __init__(self, iNode_ID: int, jNode_ID: int, A, E, Iy, geo_transf_ID: int):
+
+        # Check
+        if iNode_ID < 1: raise NegativeValue()
+        if jNode_ID < 1: raise NegativeValue()
+        if A < 0: raise NegativeValue()
+        if E < 0: raise NegativeValue()
+        if Iy < 0: raise NegativeValue()
+        if geo_transf_ID < 1: raise NegativeValue()
+
+        # Arguments
+        self.iNode_ID = iNode_ID
+        self.jNode_ID = jNode_ID
+        self.A = A
+        self.E = E
+        self.Iy = Iy
+        self.geo_transf_ID = geo_transf_ID
+
+        # Initialized the parameters that are dependent from others
+        self.section_name_tag = "None"
+        self.Initialized = False
+        self.ReInit()
+
+    def ReInit(self):
+        """Function that computes the value of the parameters that are computed with respect of the arguments.
+        Use after changing the value of argument inside the class (to update the values accordingly). 
+        This function can be very useful in combination with the function "deepcopy()" from the module "copy".
+        """
+        # Members
+        if self.section_name_tag != "None": self.section_name_tag = self.section_name_tag + " (modified)"
+        
+        # element ID
+        self.element_ID = IDConvention(self.iNode_ID, self.jNode_ID)
+
+        # Data storage for loading/saving
+        self.UpdateStoredData()
+
+
+    # Methods
+    def UpdateStoredData(self):
+        self.data = [["INFO_TYPE", "ElasticElement"], # Tag for differentiating different data
+            ["element_ID", self.element_ID],
+            ["section_name_tag", self.section_name_tag],
+            ["A", self.A],
+            ["E", self.E],
+            ["Iy", self.Iy],
+            ["iNode_ID", self.iNode_ID],
+            ["jNode_ID", self.jNode_ID],
+            ["tranf_ID", self.geo_transf_ID],
+            ["Initialized", self.Initialized]]
+
+    def ShowInfo(self, plot = False, block = False):
+        """Function that show the data stored in the class in the command window and plots the member model (optional).
+        """
+        print("")
+        print("Requested info for ElasticElement member model, ID = {}".format(self.element_ID))
+        print("Section associated {} ".format(self.section_name_tag))
+        print("Area A = {} mm2".format(self.A/mm2_unit))
+        print("Young modulus E = {} GPa".format(self.E/GPa_unit))
+        print("Moment of inertia Iy = {} mm4".format(self.Iy/mm4_unit))
+        print("Geometric transformation = {}".format(self.geo_transf_ID))
+        print("")
+
+        if plot:
+            if self.Initialized:
+                plot_member(np.array(self.element_array))
+                if block:
+                    plt.show()
+            else:
+                print("The ElasticElement is not initialized (node and elements not created), ID = {}".format(self.element_ID))
+
+
+    def CreateMember(self):
+        self.element_array = [[self.element_ID, self.iNode_ID, self.jNode_ID]]
+        
+        # Define element
+        element("elasticBeamColumn", self.element_ID, self.iNode_ID, self.jNode_ID, self.A, self.E, self.Iy, self.geo_transf_ID)
+
+        # Update class
+        self.Initialized = True
+        self.UpdateStoredData()
+
+
+class ElasticElementSteelIShape(ElasticElement):
+    def __init__(self, iNode_ID: int, jNode_ID: int, section: SteelIShape, geo_transf_ID: int):
+        super().__init__(iNode_ID, jNode_ID, section.A, section.E, section.Iy, geo_transf_ID)
+        self.section_name_tag = section.name_tag
+        self.UpdateStoredData()
+
+
 class SpringBasedElement(MemberModel):
     # Class that stores funcions and material properties of a spring-based element. If vertical, iNode is bottom, if horizontal, iNode is left
     # Warning: the units should be m and N
@@ -448,6 +552,7 @@ class SpringBasedElement(MemberModel):
         # Update class
         self.Initialized = True
         self.UpdateStoredData()
+
 
 class SpringBasedElementSteelIShape(SpringBasedElement):
     # L_b = assumed the same for top and bottom springs
