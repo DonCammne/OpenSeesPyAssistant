@@ -7,7 +7,9 @@ from OpenSeesPyAssistant.Units import *
 """
 
 TOL = 1.0e-6
+TOL_INTEGRATION = 1.0e-12
 ZERO = 1.0e-9 # used when defining mass that is equal to 0 (avoid convergence problem)
 G_CONST = 9.810*m_unit/s_unit**2
 RIGID = 100.0 			# multiply with the biggest value to have an infinitely rigid element
 MAX_ITER = 100
+MAX_ITER_INTEGRATION = 50
