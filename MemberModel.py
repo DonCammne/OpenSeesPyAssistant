@@ -10,14 +10,14 @@ from abc import abstractmethod
 from copy import copy, deepcopy
 import openseespy.postprocessing.internal_plotting_functions as ipltf
 import openseespy.postprocessing.Get_Rendering as opsplt
-from OpenSeesPyHelper.Section import *
-from OpenSeesPyHelper.DataManagement import *
-from OpenSeesPyHelper.ErrorHandling import *
-from OpenSeesPyHelper.Units import *
-from OpenSeesPyHelper.Constants import *
-from OpenSeesPyHelper.Fibers import *
-from OpenSeesPyHelper.Connections import *
-from OpenSeesPyHelper.FunctionalFeatures import *
+from OpenSeesPyAssistant.Section import *
+from OpenSeesPyAssistant.DataManagement import *
+from OpenSeesPyAssistant.ErrorHandling import *
+from OpenSeesPyAssistant.Units import *
+from OpenSeesPyAssistant.Constants import *
+from OpenSeesPyAssistant.Fibers import *
+from OpenSeesPyAssistant.Connections import *
+from OpenSeesPyAssistant.FunctionalFeatures import *
 
 # Member model
 class MemberModel(DataManagement):

@@ -8,10 +8,10 @@ import os
 import math
 from abc import abstractmethod
 from copy import copy, deepcopy
-from OpenSeesPyHelper.Section import *
-from OpenSeesPyHelper.DataManagement import *
-from OpenSeesPyHelper.ErrorHandling import *
-from OpenSeesPyHelper.Units import *
+from OpenSeesPyAssistant.Section import *
+from OpenSeesPyAssistant.DataManagement import *
+from OpenSeesPyAssistant.ErrorHandling import *
+from OpenSeesPyAssistant.Units import *
 
 # Material models
 class MaterialModels(DataManagement):

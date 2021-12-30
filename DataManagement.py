@@ -2,7 +2,7 @@
 #         Carmine Schipani, 2021
 
 from abc import ABC, abstractmethod
-from OpenSeesPyHelper.ErrorHandling import WrongDimension
+from OpenSeesPyAssistant.ErrorHandling import WrongDimension
 import numpy as np
 
 class DataManagement(ABC):

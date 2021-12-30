@@ -10,11 +10,11 @@ import numpy as np
 import os
 import math
 from copy import copy, deepcopy
-from OpenSeesPyHelper.Section import *
-from OpenSeesPyHelper.DataManagement import *
-from OpenSeesPyHelper.ErrorHandling import *
-from OpenSeesPyHelper.Units import *
-from OpenSeesPyHelper.MaterialModels import *
+from OpenSeesPyAssistant.Section import *
+from OpenSeesPyAssistant.DataManagement import *
+from OpenSeesPyAssistant.ErrorHandling import *
+from OpenSeesPyAssistant.Units import *
+from OpenSeesPyAssistant.MaterialModels import *
 
 class Fibers(DataManagement):
     pass

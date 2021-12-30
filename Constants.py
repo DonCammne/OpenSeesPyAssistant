@@ -1,7 +1,7 @@
 # Module that set the value for a set of essential constants
 #   Carmine Schipani, 20
 
-from OpenSeesPyHelper.Units import *
+from OpenSeesPyAssistant.Units import *
 
 """Module with the values of a set of essential constants. 
 """

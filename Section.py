@@ -4,9 +4,9 @@
 import numpy as np
 import math
 from copy import copy, deepcopy
-from OpenSeesPyHelper.DataManagement import *
-from OpenSeesPyHelper.ErrorHandling import *
-from OpenSeesPyHelper.Units import *
+from OpenSeesPyAssistant.DataManagement import *
+from OpenSeesPyAssistant.ErrorHandling import *
+from OpenSeesPyAssistant.Units import *
 
 class Section(DataManagement):
     """Parent abstract class that groups every class in this module.
