@@ -4,6 +4,7 @@
 from openseespy.opensees import *
 import matplotlib.pyplot as plt
 import numpy as np
+import os
 import openseespy.postprocessing.Get_Rendering as opsplt
 from OpenSeesPyAssistant.ErrorHandling import *
 from OpenSeesPyAssistant.Units import *
@@ -17,6 +18,9 @@ class Analysis():
     def __init__(self, data_dir: str,  name_ODB: str, algo = "KrylovNewton", test_type = "NormDispIncr", test_opt = 0, max_iter = MAX_ITER, tol = TOL, allow_smaller_step = False):
         if max_iter < 0: raise NegativeValue()
         if tol < 0: raise NegativeValue()
+        if not os.path.exists(data_dir):
+            print("Folder {} not found in this directory; creating one".format(data_dir))
+            os.makedirs(data_dir)
 
         self.data_dir = data_dir
         self.name_ODB = name_ODB

@@ -21,7 +21,26 @@ from OpenSeesPyAssistant.FunctionalFeatures import *
 
 # Member model
 class MemberModel(DataManagement):
-    pass
+    @abstractmethod
+    def Record(self, ele, name_txt: str, data_dir: str, force_rec = True, def_rec = True, time_rec = True):
+        if self.Initialized:
+            if not os.path.exists(data_dir):
+                print("Folder {} not found in this directory; creating one".format(data_dir))
+                os.makedirs(data_dir)
+            
+            if time_rec:
+                if force_rec:
+                    recorder("Element", "-file", '{}/{}.txt'.format(data_dir, name_txt), "-time", "-ele", ele, "force")
+                if def_rec:
+                    recorder("Element", "-file", '{}/{}.txt'.format(data_dir, name_txt), "-time", "-ele", ele, "deformation")
+            else:
+                if force_rec:
+                    recorder("Element", "-file", '{}/{}.txt'.format(data_dir, name_txt), "-ele", ele, "force")
+                if def_rec:
+                    recorder("Element", "-file", '{}/{}.txt'.format(data_dir, name_txt), "-ele", ele, "deformation")
+        else:
+                print("The element is not initialized (node and/or elements not created), ID = {}".format(ele))
+
 
 class PanelZone(MemberModel):
     # Class that stores funcions and material properties of a panel zone.
@@ -55,12 +74,14 @@ class PanelZone(MemberModel):
         self.Initialized = False
         self.ReInit()
 
+
     def ReInit(self):
         """Function that computes the value of the parameters that are computed with respect of the arguments.
         Use after changing the value of argument inside the class (to update the values accordingly). 
         This function can be very useful in combination with the function "deepcopy()" from the module "copy".
         """
         # Arguments
+        self.spring_ID = -1
 
         # Members
         if self.col_section_name_tag != "None": self.col_section_name_tag = self.col_section_name_tag + " (modified)"
@@ -77,6 +98,7 @@ class PanelZone(MemberModel):
             ["col_section_name_tag", self.col_section_name_tag],
             ["beam_section_name_tag", self.beam_section_name_tag],
             ["mat_ID", self.mat_ID],
+            ["spring_ID", self.spring_ID],
             ["mid_panel_zone_width", self.mid_panel_zone_width],
             ["mid_panel_zone_height", self.mid_panel_zone_height],
             ["E", self.E],
@@ -84,6 +106,7 @@ class PanelZone(MemberModel):
             ["I_rigid", self.I_rigid],
             ["tranf_ID", self.geo_transf_ID],
             ["Initialized", self.Initialized]]
+
 
     def ShowInfo(self, plot = False, block = False):
         """Function that show the data stored in the class in the command window and plots the member model (optional).
@@ -93,6 +116,7 @@ class PanelZone(MemberModel):
         print("Section associated, column: {} ".format(self.col_section_name_tag))
         print("Section associated, beam: {} ".format(self.beam_section_name_tag))
         print("Material model of the panel zone ID = {}".format(self.mat_ID))
+        print("Spring ID = {} (if -1, not defined yet)".format(self.spring_ID))
         print("Mid panel zone width = {} mm".format(self.mid_panel_zone_width/mm_unit))
         print("Mid panel zone height = {} mm".format(self.mid_panel_zone_height/mm_unit))
         print("Young modulus E = {} GPa".format(self.E/GPa_unit))
@@ -126,9 +150,9 @@ class PanelZone(MemberModel):
         self.element_array = DefinePanelZoneElements(self.master_node_ID, self.E, self.A_rigid, self.I_rigid, self.geo_transf_ID)
         
         # Define zero length element
-        spring_ID = IDConvention(xy1, xy01)
-        RotationalSpring(spring_ID, xy1, xy01, self.mat_ID)
-        self.element_array.append([spring_ID, xy1, xy01])
+        self.spring_ID = IDConvention(xy1, xy01)
+        RotationalSpring(self.spring_ID, xy1, xy01, self.mat_ID)
+        self.element_array.append([self.spring_ID, xy1, xy01])
 
         # Pin connections
         Pin(xy03, xy04)
@@ -138,6 +162,10 @@ class PanelZone(MemberModel):
         # Update class
         self.Initialized = True
         self.UpdateStoredData()
+
+
+    def Record(self, name_txt: str, data_dir: str, force_rec=True, def_rec=True, time_rec=True):
+        return super().Record(self.spring_ID, name_txt, data_dir, force_rec=force_rec, def_rec=def_rec, time_rec=time_rec)
 
 
 class PanelZoneSteelIShape(PanelZone):
@@ -150,6 +178,7 @@ class PanelZoneSteelIShape(PanelZone):
         self.beam_section_name_tag = beam.name_tag
         self.UpdateStoredData()
 
+
 class PanelZoneSteelIShapeGupta1999(PanelZoneSteelIShape):
     def __init__(self, master_node_ID: int, col: SteelIShape, beam: SteelIShape, geo_transf_ID: int, t_dp = 0, rigid=RIGID):
         self.col = col
@@ -160,6 +189,7 @@ class PanelZoneSteelIShapeGupta1999(PanelZoneSteelIShape):
 
         super().__init__(master_node_ID, col, beam, geo_transf_ID, mat_ID, rigid)
 
+
 class PanelZoneSteelIShapeSkiadopoulos2021(PanelZoneSteelIShape):
     def __init__(self, master_node_ID: int, col: SteelIShape, beam: SteelIShape, geo_transf_ID: int, t_dp = 0, rigid=RIGID):
         self.col = col
@@ -169,9 +199,6 @@ class PanelZoneSteelIShapeSkiadopoulos2021(PanelZoneSteelIShape):
         pz_spring.Hysteretic()
 
         super().__init__(master_node_ID, col, beam, geo_transf_ID, mat_ID, rigid)
-
-
-
 
 
 def DefinePanelZoneNodes(MasterNodeID, MidPanelZoneWidth, MidPanelZoneHeight):
@@ -367,6 +394,7 @@ class ElasticElement(MemberModel):
             ["tranf_ID", self.geo_transf_ID],
             ["Initialized", self.Initialized]]
 
+
     def ShowInfo(self, plot = False, block = False):
         """Function that show the data stored in the class in the command window and plots the member model (optional).
         """
@@ -397,6 +425,10 @@ class ElasticElement(MemberModel):
         # Update class
         self.Initialized = True
         self.UpdateStoredData()
+
+
+    def Record(self, name_txt: str, data_dir: str, force_rec=True, def_rec=True, time_rec=True):
+        return super().Record(self.element_ID, name_txt, data_dir, force_rec=force_rec, def_rec=def_rec, time_rec=time_rec)
 
 
 class ElasticElementSteelIShape(ElasticElement):
@@ -447,6 +479,7 @@ class SpringBasedElement(MemberModel):
         self.section_name_tag = "None"
         self.Initialized = False
         self.ReInit()
+
 
     def ReInit(self):
         """Function that computes the value of the parameters that are computed with respect of the arguments.
@@ -506,6 +539,7 @@ class SpringBasedElement(MemberModel):
             ["tranf_ID", self.geo_transf_ID],
             ["Initialized", self.Initialized]]
 
+
     def ShowInfo(self, plot = False, block = False):
         """Function that show the data stored in the class in the command window and plots the member model (optional).
         """
@@ -535,15 +569,15 @@ class SpringBasedElement(MemberModel):
         if self.mat_ID_i != -1:
             # Define zero length element i
             node(self.iNode_ID_spring, *nodeCoord(self.iNode_ID))
-            iSpring_ID = IDConvention(self.iNode_ID, self.iNode_ID_spring)
-            RotationalSpring(iSpring_ID, self.iNode_ID, self.iNode_ID_spring, self.mat_ID_i)
-            self.element_array.append([iSpring_ID, self.iNode_ID, self.iNode_ID_spring])
+            self.iSpring_ID = IDConvention(self.iNode_ID, self.iNode_ID_spring)
+            RotationalSpring(self.iSpring_ID, self.iNode_ID, self.iNode_ID_spring, self.mat_ID_i)
+            self.element_array.append([self.iSpring_ID, self.iNode_ID, self.iNode_ID_spring])
         if self.mat_ID_j != -1:
             # Define zero length element j
             node(self.jNode_ID_spring, *nodeCoord(self.jNode_ID))
-            jSpring_ID = IDConvention(self.jNode_ID, self.jNode_ID_spring)
-            RotationalSpring(jSpring_ID, self.jNode_ID, self.jNode_ID_spring, self.mat_ID_j)
-            self.element_array.append([jSpring_ID, self.jNode_ID, self.jNode_ID_spring])
+            self.jSpring_ID = IDConvention(self.jNode_ID, self.jNode_ID_spring)
+            RotationalSpring(self.jSpring_ID, self.jNode_ID, self.jNode_ID_spring, self.mat_ID_j)
+            self.element_array.append([self.jSpring_ID, self.jNode_ID, self.jNode_ID_spring])
         
         # Define element
         element("elasticBeamColumn", self.element_ID, self.iNode_ID_spring, self.jNode_ID_spring, self.A, self.E, self.Iy_mod, self.geo_transf_ID)
@@ -551,6 +585,23 @@ class SpringBasedElement(MemberModel):
         # Update class
         self.Initialized = True
         self.UpdateStoredData()
+
+
+    def Record(self, spring_or_element: str, name_txt: str, data_dir: str, force_rec=True, def_rec=True, time_rec=True):
+        if spring_or_element == "element":
+            super().Record(self.element_ID, name_txt, data_dir, force_rec=force_rec, def_rec=def_rec, time_rec=time_rec)
+        elif spring_or_element == "spring_i":
+            if self.mat_ID_i == -1:
+                print("Spring i recorded not present in element ID = {}".format(self.element_ID))
+            else:
+                super().Record(self.iSpring_ID, name_txt, data_dir, force_rec=force_rec, def_rec=def_rec, time_rec=time_rec)
+        elif spring_or_element == "spring_j":
+            if self.mat_ID_j == -1:
+                print("Spring j recorded not present in element ID = {}".format(self.element_ID))
+            else:
+                super().Record(self.jSpring_ID, name_txt, data_dir, force_rec=force_rec, def_rec=def_rec, time_rec=time_rec)
+        else:
+            print("No recording option with: '{}' with element ID: {}".format(spring_or_element, self.element_ID))
 
 
 class SpringBasedElementSteelIShape(SpringBasedElement):
@@ -709,6 +760,10 @@ class ForceBasedElement(MemberModel):
         # Update class
         self.Initialized = True
         self.UpdateStoredData()
+
+
+    def Record(self, name_txt: str, data_dir: str, force_rec=True, def_rec=True, time_rec=True):
+        return super().Record(self.element_ID, name_txt, data_dir, force_rec=force_rec, def_rec=def_rec, time_rec=time_rec)
 
 
 class ForceBasedElementFibersRectRCRectShape(ForceBasedElement):
@@ -879,6 +934,11 @@ class GIFBElement(MemberModel):
         # Update class
         self.Initialized = True
         self.UpdateStoredData()
+
+
+    def Record(self, name_txt: str, data_dir: str, force_rec=True, def_rec=True, time_rec=True):
+        return super().Record(self.element_ID, name_txt, data_dir, force_rec=force_rec, def_rec=def_rec, time_rec=time_rec)
+
 
     def ComputeLp(self):
         """Compute the plastic length using Paulay 1992.
