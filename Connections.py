@@ -6,8 +6,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 from OpenSeesPyAssistant.ErrorHandling import *
 
-from ErrorHandling import NegativeValue, WrongArgument
-
 def RigidSupport(NodeID: int):
     """Function that fixes the x, y movements and the rotation of one node.
 
