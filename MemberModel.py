@@ -1,6 +1,7 @@
 # Module with the member model
 #   Carmine Schipani, 2021
 
+# Import libraries
 from openseespy.opensees import *
 import matplotlib.pyplot as plt
 import numpy as np
@@ -40,6 +41,15 @@ class MemberModel(DataManagement):
                     recorder("Element", "-file", '{}/{}.txt'.format(data_dir, name_txt), "-ele", ele, "deformation")
         else:
                 print("The element is not initialized (node and/or elements not created), ID = {}".format(ele))
+    
+    @abstractmethod
+    def _CheckL(self):
+        iNode = np.array(nodeCoord(self.iNode_ID))
+        jNode = np.array(nodeCoord(self.jNode_ID))
+        L = np.linalg.norm(iNode-jNode)
+        if abs(L-self.section.L) > 1*cm_unit:
+            print("!!!!!!! WARNING !!!!!!! The length declared in the section name '{}' (L={} m) is different from thelength of the element associated (ID={}, L ={}m)".format(
+                    self.section.name_tag, L/m_unit, self.element_ID, self.section.L/m_unit))
 
 
 class PanelZone(MemberModel):
@@ -49,7 +59,7 @@ class PanelZone(MemberModel):
 
         # Check
         if master_node_ID < 1: raise NegativeValue()
-        if master_node_ID > 99: raise WrongNodeIDConvention(master_node_ID)
+        # if master_node_ID > 99: raise WrongNodeIDConvention(master_node_ID)
         if mid_panel_zone_width < 0: raise NegativeValue()
         if mid_panel_zone_height < 0: raise NegativeValue()
         if E < 0: raise NegativeValue()
@@ -127,7 +137,7 @@ class PanelZone(MemberModel):
 
         if plot:
             if self.Initialized:
-                plot_member(np.array(self.element_array))
+                plot_member(self.element_array)
                 if block:
                     plt.show()
             else:
@@ -168,10 +178,14 @@ class PanelZone(MemberModel):
         return super().Record(self.spring_ID, name_txt, data_dir, force_rec=force_rec, def_rec=def_rec, time_rec=time_rec)
 
 
+    def _CheckL(self):
+        print("No length check for panel zone")
+
+
 class PanelZoneSteelIShape(PanelZone):
     def __init__(self, master_node_ID: int, col: SteelIShape, beam: SteelIShape, geo_transf_ID: int, mat_ID, rigid = RIGID):
-        self.col = col
-        self.beam = beam
+        self.col = deepcopy(col)
+        self.beam = deepcopy(beam)
         super().__init__(master_node_ID, col.d/2.0, beam.d/2.0, col.E, max(col.A, beam.A)*rigid, max(col.Iy, beam.Iy)*rigid, geo_transf_ID, mat_ID)
 
         self.col_section_name_tag = col.name_tag
@@ -181,8 +195,8 @@ class PanelZoneSteelIShape(PanelZone):
 
 class PanelZoneSteelIShapeGupta1999(PanelZoneSteelIShape):
     def __init__(self, master_node_ID: int, col: SteelIShape, beam: SteelIShape, geo_transf_ID: int, t_dp = 0, rigid=RIGID):
-        self.col = col
-        self.beam = beam
+        self.col = deepcopy(col)
+        self.beam = deepcopy(beam)
         mat_ID = master_node_ID
         pz_spring = Gupta1999SteelIShape(mat_ID, col, beam, t_dp)
         pz_spring.Hysteretic()
@@ -192,8 +206,8 @@ class PanelZoneSteelIShapeGupta1999(PanelZoneSteelIShape):
 
 class PanelZoneSteelIShapeSkiadopoulos2021(PanelZoneSteelIShape):
     def __init__(self, master_node_ID: int, col: SteelIShape, beam: SteelIShape, geo_transf_ID: int, t_dp = 0, rigid=RIGID):
-        self.col = col
-        self.beam = beam
+        self.col = deepcopy(col)
+        self.beam = deepcopy(beam)
         mat_ID = master_node_ID
         pz_spring = Skiadopoulos2021SteelIShape(mat_ID, col, beam, t_dp)
         pz_spring.Hysteretic()
@@ -209,26 +223,26 @@ def DefinePanelZoneNodes(MasterNodeID, MidPanelZoneWidth, MidPanelZoneHeight):
 	## Note that the top right node is defined differently because is where the spring is
 	##			Carmine Schipani, 2021
 	##
-	## 	MasterNodeID : 			The top center node. The conventional denomination is xy, x = Pier axis, y = Floor (ground = 1)
+	## 	MasterNodeID : 			The top center node. The conventional denomination is 1xy, x = Pier axis, y = Floor (ground = 1)
 	##	MidPanelZoneWidth :		Half the panel zone width (that should be equal to half the column depth)
 	##	MidPanelZoneHeight :	Half the panel zone height (that should be equal to half the beam depth)
 	##	AxisCL :				The x coordinate of the centerline of the column
 	##	FloorCL :				The y coordinate of the centerline of the beam
 	##	
 	#######################################################################################
-    # 		PZNodeID:		12 nodes: top right xy (master), xy1 top right,						xy09, xy10 	   xy 		xy1, xy01					
+    # 		PZNodeID:		12 nodes: top right 1xy (master), 1xy1 top right,					1xy09,1xy10     1xy        1xy1,1xy01					
     # 						clockwise 10 nodes xy01-xy10 (with double node at corners)				o-----------o-----------o			
-    #						Spring at node xy1														|						|
-    #		PZElemeneID:	8 elements: starting at node xy, clockwise								|						|
+    #						Spring at node 1xy1														|						|
+    #		PZElemeneID:	8 elements: starting at node 1xy, clockwise								|						|
     #						(see function DefinePanelZoneElements for more info)					|						|
     #																								|						|
-    #																						   xy08	o						o xy02
+    #																						  1xy08 o						o 1xy02
     #																								|						|
     #																								|						|
     #																								|						|
     #																								|						|
     #																								o-----------o-----------o
-    #																							xy06, xy07 	   xy05  	xy03, xy04
+    #																							1xy06,1xy07	   1xy05  	1xy03,1xy04
 
     # Get node coord and define useful variables
     m_node = np.array(nodeCoord(MasterNodeID))
@@ -257,24 +271,25 @@ def DefinePanelZoneElements(MasterNodeID, E, RigidA, RigidI, TransfID):
     ## Defines the 8 panel zone elements. Warning: the algorithm for the elements ID work only for MasterNodeID of 2 digit.
     ##			Carmine Schipani, 2021
     ##
-    ## 	MasterNodeID : 	The top center node. The conventional denomination is xy, x = Pier axis, y = Floor (ground = 1)
+    ## 	MasterNodeID : 	The top center node. The conventional denomination is 1xy, x = Pier axis, y = Floor (ground = 1)
     ##	E :				Young's modulus
     ##	RigidA :		Area two ordrs bigger that the members
     ##	RigidI:			Moment of inertia two ordrs bigger that the members
     ##	TransfID :		Geometric transformation ID
-    # 		PZNodeID:		12 nodes: top right xy (master), xy1 top right,						xy09, xy10 	   xy 		xy1, xy01					
+    #######################################################################################
+    # 		PZNodeID:		12 nodes: top right 1xy (master), 1xy1 top right,					1xy09,1xy10     1xy        1xy1,1xy01					
     # 						clockwise 10 nodes xy01-xy10 (with double node at corners)				o-----------o-----------o			
-    #						Spring at node xy1														|						|
-    #		PZElemeneID:	8 elements: starting at node xy, clockwise								|						|
+    #						Spring at node 1xy1														|						|
+    #		PZElemeneID:	8 elements: starting at node 1xy, clockwise								|						|
     #						(see function DefinePanelZoneElements for more info)					|						|
     #																								|						|
-    #																						   xy08	o						o xy02
+    #																						  1xy08 o						o 1xy02
     #																								|						|
     #																								|						|
     #																								|						|
     #																								|						|
     #																								o-----------o-----------o
-    #																							xy06, xy07 	   xy05  	xy03, xy04
+    #																							1xy06,1xy07	   1xy05  	1xy03,1xy04
 
 
     # Compute the ID of the nodes obeying to the convention used
@@ -333,15 +348,15 @@ class ElasticElement(MemberModel):
     # Class that stores funcions and material properties of a elastic element.
     # Warning: the units should be m and N
     # Convention:																							
-    # 		NodeID: 		xy 			with x = pier, y = floor 											o xy7	|	
-    #		PlHingeID:		xya			with x = pier, y = floor, a:	 --o xy  xy2 o-----o xy3  xy o--	|		o xy
-    #																										|	
-    #																										|		o xy
-    #																										o xy6	|
-    #		ElementID:		xy(a)xy(a)	with xy(a) = NodeID i and j
-    #		TrussID:		xy(a)xy(a)	with xy(a) = NodeID i and j
-    #		PDeltaColID:	xy(a)xy(a)	with xy(a) = NodeID i and j
-    #		Spring:			xy(a)xy(a)	with xy(a) = NodeID i and j
+    # 		NodeID: 		1xy 			with x = pier, y = floor 											o 1xy7	|	
+    #		PlHingeID:		1xya			with x = pier, y = floor, a:  --o 1xy  1xy2 o-----o 2xy3  2xy o--	|		o 1xy
+    #																									    	|	
+    #																									    	|		o 1xy
+    #																									    	o 1xy6	|
+    #		ElementID:		1xy(a)1xy(a)	with 1xy(a) = NodeID i and j
+    #		TrussID:		1xy(a)1xy(a)	with 1xy(a) = NodeID i and j
+    #		PDeltaColID:	1xy(a)1xy(a)	with 1xy(a) = NodeID i and j
+    #		Spring:			1xy(a)1xy(a)	with 1xy(a) = NodeID i and j
     
     def __init__(self, iNode_ID: int, jNode_ID: int, A, E, Iy, geo_transf_ID: int):
 
@@ -409,7 +424,7 @@ class ElasticElement(MemberModel):
 
         if plot:
             if self.Initialized:
-                plot_member(np.array(self.element_array))
+                plot_member(self.element_array)
                 if block:
                     plt.show()
             else:
@@ -430,27 +445,34 @@ class ElasticElement(MemberModel):
     def Record(self, name_txt: str, data_dir: str, force_rec=True, def_rec=True, time_rec=True):
         return super().Record(self.element_ID, name_txt, data_dir, force_rec=force_rec, def_rec=def_rec, time_rec=time_rec)
 
+    
+    def _CheckL(self):
+        super()._CheckL()
+
 
 class ElasticElementSteelIShape(ElasticElement):
     def __init__(self, iNode_ID: int, jNode_ID: int, section: SteelIShape, geo_transf_ID: int):
+        self.section = deepcopy(section)
         super().__init__(iNode_ID, jNode_ID, section.A, section.E, section.Iy, geo_transf_ID)
         self.section_name_tag = section.name_tag
         self.UpdateStoredData()
+        # Check length
+        self._CheckL()
 
 
 class SpringBasedElement(MemberModel):
     # Class that stores funcions and material properties of a spring-based element. If vertical, iNode is bottom, if horizontal, iNode is left
     # Warning: the units should be m and N
     # Convention:																							
-    # 		NodeID: 		xy 			with x = pier, y = floor 											o xy7	|	
-    #		PlHingeID:		xya			with x = pier, y = floor, a:	 --o xy  xy2 o-----o xy3  xy o--	|		o xy
-    #																										|	
-    #																										|		o xy
-    #																										o xy6	|
-    #		ElementID:		xy(a)xy(a)	with xy(a) = NodeID i and j
-    #		TrussID:		xy(a)xy(a)	with xy(a) = NodeID i and j
-    #		PDeltaColID:	xy(a)xy(a)	with xy(a) = NodeID i and j
-    #		Spring:			xy(a)xy(a)	with xy(a) = NodeID i and j
+    # 		NodeID: 		1xy 			with x = pier, y = floor 											o 1xy7	|	
+    #		PlHingeID:		1xya			with x = pier, y = floor, a:  --o 1xy  1xy2 o-----o 2xy3  2xy o--	|		o 1xy
+    #																									    	|	
+    #																									    	|		o 1xy
+    #																									    	o 1xy6	|
+    #		ElementID:		1xy(a)1xy(a)	with 1xy(a) = NodeID i and j
+    #		TrussID:		1xy(a)1xy(a)	with 1xy(a) = NodeID i and j
+    #		PDeltaColID:	1xy(a)1xy(a)	with 1xy(a) = NodeID i and j
+    #		Spring:			1xy(a)1xy(a)	with 1xy(a) = NodeID i and j
     
     def __init__(self, iNode_ID: int, jNode_ID: int, A, E, Iy_mod, geo_transf_ID: int, mat_ID_i = -1, mat_ID_j = -1):
 
@@ -494,26 +516,16 @@ class SpringBasedElement(MemberModel):
         self.ele_orientation = NodesOrientation(self.iNode_ID, self.jNode_ID)
         if self.ele_orientation == "zero_length": raise ZeroLength(IDConvention(self.iNode_ID, self.jNode_ID))
         
-        if self.ele_orientation == "vertical":
-            if self.mat_ID_i != -1:
-                self.iNode_ID_spring = IDConvention(self.iNode_ID, 6)
-            else:
-                self.iNode_ID_spring = self.iNode_ID
-            
-            if self.mat_ID_j != -1:
-                self.jNode_ID_spring = IDConvention(self.jNode_ID, 7)
-            else:
-                self.jNode_ID_spring = self.jNode_ID
+        if self.mat_ID_i != -1:
+            self.iNode_ID_spring = OffsetNodeIDConvention(self.iNode_ID, self.ele_orientation, "i")
         else:
-            if self.mat_ID_i != -1:
-                self.iNode_ID_spring = IDConvention(self.iNode_ID, 2)
-            else:
-                self.iNode_ID_spring = self.iNode_ID
-            
-            if self.mat_ID_j != -1:
-                self.jNode_ID_spring = IDConvention(self.jNode_ID, 3)
-            else:
-                self.jNode_ID_spring = self.jNode_ID
+            self.iNode_ID_spring = self.iNode_ID
+        
+        if self.mat_ID_j != -1:
+            self.jNode_ID_spring = OffsetNodeIDConvention(self.jNode_ID, self.ele_orientation, "j")
+        else:
+            self.jNode_ID_spring = self.jNode_ID
+                
         # element ID
         self.element_ID = IDConvention(self.iNode_ID_spring, self.jNode_ID_spring)
 
@@ -556,7 +568,7 @@ class SpringBasedElement(MemberModel):
 
         if plot:
             if self.Initialized:
-                plot_member(np.array(self.element_array))
+                plot_member(self.element_array)
                 if block:
                     plt.show()
             else:
@@ -565,7 +577,6 @@ class SpringBasedElement(MemberModel):
 
     def CreateMember(self):
         self.element_array = [[self.element_ID, self.iNode_ID_spring, self.jNode_ID_spring]]
-        
         if self.mat_ID_i != -1:
             # Define zero length element i
             node(self.iNode_ID_spring, *nodeCoord(self.iNode_ID))
@@ -602,15 +613,20 @@ class SpringBasedElement(MemberModel):
                 super().Record(self.jSpring_ID, name_txt, data_dir, force_rec=force_rec, def_rec=def_rec, time_rec=time_rec)
         else:
             print("No recording option with: '{}' with element ID: {}".format(spring_or_element, self.element_ID))
+    
+
+    def _CheckL(self):
+        super()._CheckL()
 
 
 class SpringBasedElementSteelIShape(SpringBasedElement):
     # L_b = assumed the same for top and bottom springs
     def __init__(self, iNode_ID: int, jNode_ID: int, section: SteelIShape, geo_transf_ID: int, mat_ID_i=-1, mat_ID_j=-1):
-        self.section = section
+        self.section = deepcopy(section)
         if mat_ID_i != -1 and mat_ID_i < 0: raise NegativeValue()
         if mat_ID_j != -1 and mat_ID_j < 0: raise NegativeValue()
         if mat_ID_i == -1 and mat_ID_j == -1: raise NameError("No springs defined for element ID = {}".format(IDConvention(iNode_ID, jNode_ID)))
+        if mat_ID_i == 0 or mat_ID_j == 0: raise NameError("Class for autogenerate spring material model is SpringBasedElementModifiedIMKSteelIShape. Error for element ID = {}".format(IDConvention(iNode_ID, jNode_ID)))
 
         if mat_ID_i != -1 and mat_ID_j != -1:
             L_0 = section.L/2
@@ -620,14 +636,16 @@ class SpringBasedElementSteelIShape(SpringBasedElement):
         super().__init__(iNode_ID, jNode_ID, section.A, section.E, section.Iy_mod, geo_transf_ID, mat_ID_i=mat_ID_i, mat_ID_j=mat_ID_j)
         self.section_name_tag = section.name_tag
         self.UpdateStoredData()
+        # Check length
+        self._CheckL()
 
 class SpringBasedElementModifiedIMKSteelIShape(SpringBasedElement):
     # L_b = assumed the same for top and bottom springs
     def __init__(self, iNode_ID: int, jNode_ID: int, section: SteelIShape, geo_transf_ID: int, new_mat_ID_i=-1, new_mat_ID_j=-1, N_G = 0, L_b = -1):
-        self.section = section
+        self.section = deepcopy(section)
         if new_mat_ID_i != -1 and new_mat_ID_i < 0: raise NegativeValue()
         if new_mat_ID_j != -1 and new_mat_ID_j < 0: raise NegativeValue()
-        if new_mat_ID_i == -1 and new_mat_ID_j == -1: raise NameError("No springs defined for element ID = {}".format(IDConvention(iNode_ID, jNode_ID)))
+        if new_mat_ID_i == -1 and new_mat_ID_j == -1: raise NameError("No springs imposed for element ID = {}. Use ElasticElement instead".format(IDConvention(iNode_ID, jNode_ID)))
 
         if new_mat_ID_i != -1 and new_mat_ID_j != -1:
             L_0 = section.L/2
@@ -647,21 +665,23 @@ class SpringBasedElementModifiedIMKSteelIShape(SpringBasedElement):
         super().__init__(iNode_ID, jNode_ID, section.A, section.E, section.Iy_mod, geo_transf_ID, mat_ID_i=new_mat_ID_i, mat_ID_j=new_mat_ID_j)
         self.section_name_tag = section.name_tag
         self.UpdateStoredData()
+        # Check length
+        self._CheckL()
 
 
 class ForceBasedElement(MemberModel):
     # Class that stores funcions and material properties of a force-based beam-column element.
     # Warning: the units should be m and N
     # Convention:																							
-    # 		NodeID: 		xy 			with x = pier, y = floor 											o xy7	|	
-    #		PlHingeID:		xya			with x = pier, y = floor, a:	 --o xy  xy2 o-----o xy3  xy o--	|		o xy
-    #																										|	
-    #																										|		o xy
-    #																										o xy6	|
-    #		ElementID:		xy(a)xy(a)	with xy(a) = NodeID i and j
-    #		TrussID:		xy(a)xy(a)	with xy(a) = NodeID i and j
-    #		PDeltaColID:	xy(a)xy(a)	with xy(a) = NodeID i and j
-    #		Spring:			xy(a)xy(a)	with xy(a) = NodeID i and j
+    # 		NodeID: 		1xy 			with x = pier, y = floor 											o 1xy7	|	
+    #		PlHingeID:		1xya			with x = pier, y = floor, a:  --o 1xy  1xy2 o-----o 2xy3  2xy o--	|		o 1xy
+    #																									    	|	
+    #																									    	|		o 1xy
+    #																									    	o 1xy6	|
+    #		ElementID:		1xy(a)1xy(a)	with 1xy(a) = NodeID i and j
+    #		TrussID:		1xy(a)1xy(a)	with 1xy(a) = NodeID i and j
+    #		PDeltaColID:	1xy(a)1xy(a)	with 1xy(a) = NodeID i and j
+    #		Spring:			1xy(a)1xy(a)	with 1xy(a) = NodeID i and j
     
     def __init__(self, iNode_ID: int, jNode_ID: int, fiber_ID: int, geo_transf_ID: int,
         new_integration_ID = -1, Ip = 5, integration_type = "Lobatto", max_iter = MAX_ITER_INTEGRATION, tol = TOL_INTEGRATION):
@@ -741,7 +761,7 @@ class ForceBasedElement(MemberModel):
 
         if plot:
             if self.Initialized:
-                plot_member(np.array(self.element_array))
+                plot_member(self.element_array)
                 if block:
                     plt.show()
             else:
@@ -766,49 +786,59 @@ class ForceBasedElement(MemberModel):
         return super().Record(self.element_ID, name_txt, data_dir, force_rec=force_rec, def_rec=def_rec, time_rec=time_rec)
 
 
+    def _CheckL(self):
+        super()._CheckL()
+
+
 class ForceBasedElementFibersRectRCRectShape(ForceBasedElement):
     def __init__(self, iNode_ID: int, jNode_ID: int, fiber: FibersRectRCRectShape, geo_transf_ID: int,
         new_integration_ID=-1, Ip=5, integration_type="Lobatto", max_iter=MAX_ITER_INTEGRATION, tol=TOL_INTEGRATION):
-        self.section = fiber.section
+        self.section = deepcopy(fiber.section)
         super().__init__(iNode_ID, jNode_ID, fiber.ID, geo_transf_ID,
             new_integration_ID=new_integration_ID, Ip=Ip, integration_type=integration_type, max_iter=max_iter, tol=tol)
         self.section_name_tag = self.section.name_tag
         self.UpdateStoredData()
+        # Check length
+        self._CheckL()
 
 
 class ForceBasedElementFibersCircRCCircShape(ForceBasedElement):
     def __init__(self, iNode_ID: int, jNode_ID: int, fiber: FibersCircRCCircShape, geo_transf_ID: int,
         new_integration_ID=-1, Ip=5, integration_type="Lobatto", max_iter=MAX_ITER_INTEGRATION, tol=TOL_INTEGRATION):
-        self.section = fiber.section
+        self.section = deepcopy(fiber.section)
         super().__init__(iNode_ID, jNode_ID, fiber.ID, geo_transf_ID,
             new_integration_ID=new_integration_ID, Ip=Ip, integration_type=integration_type, max_iter=max_iter, tol=tol)
         self.section_name_tag = self.section.name_tag
         self.UpdateStoredData()
+        # Check length
+        self._CheckL()
 
 
 class ForceBasedElementFibersIShapeSteelIShape(ForceBasedElement):
     def __init__(self, iNode_ID: int, jNode_ID: int, fiber: FibersIShapeSteelIShape, geo_transf_ID: int,
         new_integration_ID=-1, Ip=5, integration_type="Lobatto", max_iter=MAX_ITER_INTEGRATION, tol=TOL_INTEGRATION):
-        self.section = fiber.section
+        self.section = deepcopy(fiber.section)
         super().__init__(iNode_ID, jNode_ID, fiber.ID, geo_transf_ID,
             new_integration_ID=new_integration_ID, Ip=Ip, integration_type=integration_type, max_iter=max_iter, tol=tol)
         self.section_name_tag = self.section.name_tag
-        self.UpdateStoredData()    
+        self.UpdateStoredData()   
+        # Check length
+        self._CheckL() 
 
 
 class GIFBElement(MemberModel):
     # Class that stores funcions and material properties of a Gradient-Inelastic Flexibility-based element.
     # Warning: the units should be m and N
     # Convention:																							
-    # 		NodeID: 		xy 			with x = pier, y = floor 											o xy7	|	
-    #		PlHingeID:		xya			with x = pier, y = floor, a:	 --o xy  xy2 o-----o xy3  xy o--	|		o xy
-    #																										|	
-    #																										|		o xy
-    #																										o xy6	|
-    #		ElementID:		xy(a)xy(a)	with xy(a) = NodeID i and j
-    #		TrussID:		xy(a)xy(a)	with xy(a) = NodeID i and j
-    #		PDeltaColID:	xy(a)xy(a)	with xy(a) = NodeID i and j
-    #		Spring:			xy(a)xy(a)	with xy(a) = NodeID i and j
+    # 		NodeID: 		1xy 			with x = pier, y = floor 											o 1xy7	|	
+    #		PlHingeID:		1xya			with x = pier, y = floor, a:  --o 1xy  1xy2 o-----o 2xy3  2xy o--	|		o 1xy
+    #																									    	|	
+    #																									    	|		o 1xy
+    #																									    	o 1xy6	|
+    #		ElementID:		1xy(a)1xy(a)	with 1xy(a) = NodeID i and j
+    #		TrussID:		1xy(a)1xy(a)	with 1xy(a) = NodeID i and j
+    #		PDeltaColID:	1xy(a)1xy(a)	with 1xy(a) = NodeID i and j
+    #		Spring:			1xy(a)1xy(a)	with 1xy(a) = NodeID i and j
     
     def __init__(self, iNode_ID: int, jNode_ID: int, fiber_ID: int, D_bars, fy, geo_transf_ID: int, 
         lambda_i = -1, lambda_j = -1, Lp = -1, Ip = -1, new_integration_ID = -1,
@@ -914,7 +944,7 @@ class GIFBElement(MemberModel):
 
         if plot:
             if self.Initialized:
-                plot_member(np.array(self.element_array))
+                plot_member(self.element_array)
                 if block:
                     plt.show()
             else:
@@ -938,6 +968,10 @@ class GIFBElement(MemberModel):
 
     def Record(self, name_txt: str, data_dir: str, force_rec=True, def_rec=True, time_rec=True):
         return super().Record(self.element_ID, name_txt, data_dir, force_rec=force_rec, def_rec=def_rec, time_rec=time_rec)
+
+
+    def _CheckL(self):
+        super()._CheckL()
 
 
     def ComputeLp(self):
@@ -966,45 +1000,57 @@ class GIFBElementRCRectShape(GIFBElement):
     def __init__(self, iNode_ID: int, jNode_ID: int, fiber_ID: int, section: RCRectShape, geo_transf_ID: int,
         lambda_i=-1, lambda_j=-1, Lp=-1, Ip=-1, new_integration_ID=-1,
         min_tol = TOL_INTEGRATION, max_tol = TOL_INTEGRATION*1e4, max_iter = MAX_ITER_INTEGRATION):
-        self.section = section
+        self.section = deepcopy(section)
         super().__init__(iNode_ID, jNode_ID, fiber_ID, section.D_bars, section.fy, geo_transf_ID,
             lambda_i=lambda_i, lambda_j=lambda_j, Lp=Lp, Ip=Ip, new_integration_ID=new_integration_ID,
             min_tol=min_tol, max_tol=max_tol, max_iter=max_iter)
         self.section_name_tag = section.name_tag
         self.UpdateStoredData()
+        # Check length
+        self._CheckL()
 
 
 class GIFBElementFibersRectRCRectShape(GIFBElement):
     def __init__(self, iNode_ID: int, jNode_ID: int, fib: FibersRectRCRectShape, geo_transf_ID: int,
         lambda_i=-1, lambda_j=-1, Lp=-1, Ip=-1, new_integration_ID=-1,
         min_tol = TOL_INTEGRATION, max_tol = TOL_INTEGRATION*1e4, max_iter = MAX_ITER_INTEGRATION):
-        self.section = fib.section
+        self.section = deepcopy(fib.section)
         super().__init__(iNode_ID, jNode_ID, fib.ID, self.section.D_bars, self.section.fy, geo_transf_ID,
-        lambda_i=lambda_i, lambda_j=lambda_j, Lp=Lp, Ip=Ip, new_integration_ID=new_integration_ID,
-        min_tol=min_tol, max_tol=max_tol, max_iter=max_iter)
+            lambda_i=lambda_i, lambda_j=lambda_j, Lp=Lp, Ip=Ip, new_integration_ID=new_integration_ID,
+            min_tol=min_tol, max_tol=max_tol, max_iter=max_iter)
         self.section_name_tag = self.section.name_tag
         self.UpdateStoredData()
+        # Check length
+        self._CheckL()
 
 
 class GIFBElementRCCircShape(GIFBElement):
     def __init__(self, iNode_ID: int, jNode_ID: int, fiber_ID: int, section: RCCircShape, geo_transf_ID: int,
         lambda_i=-1, lambda_j=-1, Lp=-1, Ip=-1, new_integration_ID=-1,
         min_tol = TOL_INTEGRATION, max_tol = TOL_INTEGRATION*1e4, max_iter = MAX_ITER_INTEGRATION):
-        self.section = section
+        self.section = deepcopy(section)
         super().__init__(iNode_ID, jNode_ID, fiber_ID, section.D_bars, section.fy, geo_transf_ID,
-        lambda_i=lambda_i, lambda_j=lambda_j, Lp=Lp, Ip=Ip, new_integration_ID=new_integration_ID,
-        min_tol=min_tol, max_tol=max_tol, max_iter=max_iter)
+            lambda_i=lambda_i, lambda_j=lambda_j, Lp=Lp, Ip=Ip, new_integration_ID=new_integration_ID,
+            min_tol=min_tol, max_tol=max_tol, max_iter=max_iter)
         self.section_name_tag = section.name_tag
         self.UpdateStoredData()
+        # Check length
+        self._CheckL()
 
 
 class GIFBElementFibersCircRCCircShape(GIFBElement):
     def __init__(self, iNode_ID: int, jNode_ID: int, fib: FibersCircRCCircShape, geo_transf_ID: int,
-    lambda_i=-1, lambda_j=-1, Lp=-1, Ip=-1, new_integration_ID=-1,
-    min_tol = TOL_INTEGRATION, max_tol = TOL_INTEGRATION*1e4, max_iter = MAX_ITER_INTEGRATION):
-        self.section = fib.section
+        lambda_i=-1, lambda_j=-1, Lp=-1, Ip=-1, new_integration_ID=-1,
+        min_tol = TOL_INTEGRATION, max_tol = TOL_INTEGRATION*1e4, max_iter = MAX_ITER_INTEGRATION):
+        self.section = deepcopy(fib.section)
         super().__init__(iNode_ID, jNode_ID, fib.ID, self.section.D_bars, self.section.fy, geo_transf_ID,
-        lambda_i=lambda_i, lambda_j=lambda_j, Lp=Lp, Ip=Ip, new_integration_ID=new_integration_ID,
-        min_tol=min_tol, max_tol=max_tol, max_iter=max_iter)
+            lambda_i=lambda_i, lambda_j=lambda_j, Lp=Lp, Ip=Ip, new_integration_ID=new_integration_ID,
+            min_tol=min_tol, max_tol=max_tol, max_iter=max_iter)
         self.section_name_tag = self.section.name_tag
         self.UpdateStoredData()
+        # Check length
+        self._CheckL()
+
+
+
+
