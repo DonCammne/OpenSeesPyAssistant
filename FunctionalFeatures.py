@@ -29,6 +29,7 @@ def ProgressingPercentage(max_iter, i, next_step, step = 10):
 
 	return next_step
 
+
 def DiscretizeLoadProtocol(SDR_LP: np.ndarray, nr_cycles_LP: np.ndarray, discr_first_cycle: int, plot = False, block = False):
 	"""Discretized a load protocol maintening a similar discretisation throughout the different cycles and keeping in the output the extremes (peaks).
 
@@ -71,6 +72,7 @@ def DiscretizeLoadProtocol(SDR_LP: np.ndarray, nr_cycles_LP: np.ndarray, discr_f
 			plt.show()
 
 	return discretized_LP
+
 
 def DiscretizeLinearly(LP: np.ndarray, discr: int, plot = False, block = False):
 	"""
@@ -123,10 +125,55 @@ def DiscretizeLinearly(LP: np.ndarray, discr: int, plot = False, block = False):
 
 	return discr_LP
 
+
 def IDConvention(iNodeID: int, jNodeID: int, n_zeros_between: int = 0):
+    # Convention:																							
+    # 		GridNodeID: 	1xy 			with x = pier, y = floor 											o 1xy7	|	
+    #	AdditionalNodeID:   1xya			with x = pier, y = floor, a:  --o 1xy  1xy2 o-----o 2xy3  2xy o--	|		o 1xy
+    #																									    	|	
+    #																									    	|		o 1xy
+    #																									    	o 1xy6	|
+    #		ElementID:		1xy(a)1xy(a)	with 1xy(a) = NodeID i and j
+    #		TrussID:		1xy(a)1xy(a)	with 1xy(a) = NodeID i and j
+    #		PDeltaColID:	1xy(a)1xy(a)	with 1xy(a) = NodeID i and j
+    #		Spring:			1xy(a)1xy(a)	with 1xy(a) = NodeID i and j
 	if n_zeros_between < 0: raise NegativeValue()
 	
 	return int(str(iNodeID*10**n_zeros_between) + str(jNodeID))
+
+
+def OffsetNodeIDConvention(node_ID: int, orientation: str, position_i_or_j: str):
+	if position_i_or_j != "i" and position_i_or_j != "j": raise WrongArgument()
+	if orientation == "vertical":
+		if position_i_or_j == "i":
+			return IDConvention(node_ID, 6)
+		else:
+			return IDConvention(node_ID, 7)
+	elif orientation == "horizontal":
+		if position_i_or_j == "i":
+			return IDConvention(node_ID, 2)
+		else:
+			return IDConvention(node_ID, 3)
+	else: raise WrongArgument()
+
+
+def GridIDConvention(n_x_axis: int, n_y_axis: int, max_n_x = -1, max_n_y = -1):
+    # Convention:																							
+    # 		NodeID: 		1xy 			with x = pier, y = floor
+
+    if max_n_x != -1 and max_n_x < 0: raise NegativeValue()
+    if max_n_y != -1 and max_n_y < 0: raise NegativeValue()
+
+    max_n_x = n_x_axis if max_n_x == -1 else max_n_x
+    max_n_y = n_y_axis if max_n_y == -1 else max_n_y
+    if max_n_x < n_x_axis: raise WrongArgument()
+    if max_n_y < n_y_axis: raise WrongArgument()
+
+    max_x_digits = int(math.log10(max_n_x))+1
+    max_y_digits = int(math.log10(max_n_y))+1
+    
+    return 10**(max_x_digits+max_y_digits) + n_x_axis*10**max_y_digits + n_y_axis
+
 
 def NodesOrientation(iNode_ID, jNode_ID):
 	iNode = np.array(nodeCoord(iNode_ID))
@@ -138,50 +185,69 @@ def NodesOrientation(iNode_ID, jNode_ID):
 	else:
 		return "horizontal"
 
-def plot_member(element_array: np.ndarray, member_name = "Not defined", show_element_ID = True, show_node_ID = True):
-	ele_style = {'color':'black', 'linewidth':1, 'linestyle':'-'}
-	node_style = {'color':'black', 'marker':'o', 'facecolor':'black','linewidth':0.}
-	node_style_animation = {'color':'black', 'marker':'o','markersize':2., 'linewidth':0.} 
 
-	node_text_style = {'fontsize':8, 'fontweight':'regular', 'color':'green'} 
-	ele_text_style = {'fontsize':8, 'fontweight':'bold', 'color':'darkred'} 
-	track_node = {}
+def plot_member(element_array: list, member_name = "Member name not defined", show_element_ID = True, show_node_ID = True):
+    node_style = {'color':'black', 'marker':'o', 'facecolor':'black','linewidth':0.}
+    node_text_style = {'fontsize':8, 'fontweight':'regular', 'color':'green'} 
+    track_node = {}
 
-	if show_element_ID:
-		show_e_ID = 'yes'
-	else:
-		show_e_ID = 'no'
+    if show_element_ID:
+        show_e_ID = 'yes'
+    else:
+        show_e_ID = 'no'
 
-	fig = plt.figure()
-	ax = fig.add_subplot(1,1,1)
+    fig = plt.figure()
+    ax = fig.add_subplot(1,1,1)
 
-	for ele in element_array:
-		eleTag = int(ele[0])
-		Nodes =ele[1:]
+    for ele in element_array:
+        eleTag = int(ele[0])
+        Nodes =ele[1:]
 
-		if len(Nodes) == 2:
-			# 2D element
-			iNode = np.array(nodeCoord(Nodes[0].item()))
-			jNode = np.array(nodeCoord(Nodes[1].item()))
-			ipltf._plotBeam2D(iNode, jNode, ax, show_e_ID, eleTag, "solid")
-			ax.scatter(*iNode, **node_style)
-			ax.scatter(*jNode, **node_style)
-			if show_node_ID:
-				if abs(sum(iNode - jNode)) > 1e-6:
-					# beam-col
-					__plt_node(Nodes[0], track_node, iNode, ax, node_text_style)
-					__plt_node(Nodes[1], track_node, jNode, ax, node_text_style, h_align='right', v_align='bottom')
-				else:
-					# zerolength
-					__plt_node(Nodes[0], track_node, iNode, ax, node_text_style, h_align='right')
-					__plt_node(Nodes[1], track_node, jNode, ax, node_text_style, v_align='bottom')
-		else:
-			print("Too many nodes in this elemnet (see shell elements)")
-		
-	ax.set_xlabel('x [{}]'.format(length_unit))
-	ax.set_ylabel('y [{}]'.format(length_unit))
-	plt.title("Visualisation of the member: {}".format(member_name))
-	plt.axis('equal')
+        if len(Nodes) == 2:
+            # 2D element
+            iNode = np.array(nodeCoord(Nodes[0]))
+            jNode = np.array(nodeCoord(Nodes[1]))
+            ipltf._plotBeam2D(iNode, jNode, ax, show_e_ID, eleTag, "solid")
+            ax.scatter(*iNode, **node_style)
+            ax.scatter(*jNode, **node_style)
+            if show_node_ID:
+                if abs(sum(iNode - jNode)) > 1e-6:
+                    # beam-col
+                    __plt_node(Nodes[0], track_node, iNode, ax, node_text_style)
+                    __plt_node(Nodes[1], track_node, jNode, ax, node_text_style, h_align='right', v_align='bottom')
+                else:
+                    # zerolength
+                    __plt_node(Nodes[0], track_node, iNode, ax, node_text_style, h_align='right')
+                    __plt_node(Nodes[1], track_node, jNode, ax, node_text_style, v_align='bottom')
+        else:
+            print("Too many nodes in this elemnet (see shell elements)")
+        
+    ax.set_xlabel('x [{}]'.format(length_unit))
+    ax.set_ylabel('y [{}]'.format(length_unit))
+    plt.title("Visualisation of: {}".format(member_name))
+    plt.axis('equal')
+    return ax
+
+
+def plot_nodes(nodes_array: list, name = "Not defined", show_node_ID = True):
+    node_style = {'color':'black', 'marker':'o', 'facecolor':'black','linewidth':0.}
+    node_text_style = {'fontsize':8, 'fontweight':'regular', 'color':'green'} 
+    track_node = {}
+
+    fig = plt.figure()
+    ax = fig.add_subplot(1,1,1)
+
+    for node_ID in nodes_array:
+        node_xy = np.array(nodeCoord(node_ID))
+        ax.scatter(*node_xy, **node_style)
+        if show_node_ID:
+            __plt_node(node_ID, track_node, node_xy, ax, node_text_style)
+
+    ax.set_xlabel('x [{}]'.format(length_unit))
+    ax.set_ylabel('y [{}]'.format(length_unit))
+    plt.title("Visualisation of: {}".format(name))
+    plt.axis('equal')
+    return ax
 
 
 def __plt_node(nodeID: int, track_node: dict, NodeXY, ax, node_text_style, x_off = 0, y_off = 0, h_align = 'left', v_align='top'):
