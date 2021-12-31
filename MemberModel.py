@@ -308,8 +308,8 @@ def DefinePanelZoneElements(MasterNodeID, E, RigidA, RigidI, TransfID):
 
     # Create element IDs using the convention: xy(a)xy(a)	with xy(a) = NodeID i and j
     #	Starting at MasterNodeID, clockwise
-    if MasterNodeID > 99:
-        print("Warning, convention: MasterNodeID's digits should be 2")
+    # if MasterNodeID > 99:
+    #     print("Warning, convention: MasterNodeID's digits should be 2")
 
     ele1 = IDConvention(xy, xy1)
     ele2 = IDConvention(xy01, xy02)
