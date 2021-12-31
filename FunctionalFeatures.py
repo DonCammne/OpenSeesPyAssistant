@@ -255,4 +255,27 @@ def __plt_node(nodeID: int, track_node: dict, NodeXY, ax, node_text_style, x_off
 		track_node[nodeID] = True
 		ax.text(NodeXY[0]+x_off, NodeXY[1]+y_off, nodeID,**node_text_style, horizontalalignment=h_align, verticalalignment=v_align)
 
+class IDGenerator():
+	def __init__(self):
+		self.current_node_ID = 0
+		self.current_element_ID = 0
+		self.current_mat_ID = 0
+		self.current_fiber_ID = 0
+	
+	def GenerateIDNode(self):
+		self.current_node_ID = self.current_node_ID + 1
+		return self.current_node_ID
+
+	def GenerateIDElement(self):
+		self.current_element_ID = self.current_element_ID + 1
+		return self.current_element_ID
+
+	def GenerateIDMat(self):
+		self.current_mat_ID = self.current_mat_ID + 1
+		return self.current_mat_ID
+
+	def GenerateIDFiber(self):
+		self.current_fiber_ID = self.current_fiber_ID + 1
+		return self.current_fiber_ID
+
 
