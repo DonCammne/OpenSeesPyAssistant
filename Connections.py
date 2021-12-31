@@ -14,7 +14,7 @@ def RigidSupport(NodeID: int):
     """
     if NodeID < 1: raise NegativeValue()
 
-    fix(NodeRID, 1, 1, 1)
+    fix(NodeID, 1, 1, 1)
 
 
 def Pin(NodeRID: int, NodeCID: int):
