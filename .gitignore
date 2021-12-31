@@ -1,6 +1,7 @@
 /pytest/
 /scratch/
 UnitsClass.py
+doxygen.mustache
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
