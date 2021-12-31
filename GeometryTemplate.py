@@ -67,7 +67,10 @@ def DefineFrameNodes(n_hor_axis: int, n_vert_axis: int, storey_width, storey_hei
 
 
 def DefineFrameNodesAndElementsSteelIShape(n_hor_axis: int, n_vert_axis: int, storey_width, storey_height,
-    list_col: list, list_beam: list, geo_trans_ID: int, N_G = np.array([]), t_dp = np.array([]), panel_zone = True, show_plot = True):
+    list_col: list, list_beam: list, geo_trans_ID: int, N_G = np.array([]), t_dp = np.array([]), fix_support = True, show_plot = True):
+    # WIP
+    panel_zone = False # should be an argument but if True, maximal ID of an element is exceeded (~2.2e9),thus automatization for large building need implementations
+    #                   For this reason, if the x_axis < 9 but y_axis > 999, issues, if x_axis < 99 but y_axis > 99, issues
     if np.size(N_G) == 0: N_G = np.zeros(n_vert_axis-1)
     if np.size(t_dp) == 0: t_dp = np.zeros(n_vert_axis-1)
 
@@ -76,8 +79,6 @@ def DefineFrameNodesAndElementsSteelIShape(n_hor_axis: int, n_vert_axis: int, st
     if np.size(N_G) != n_vert_axis-1: raise WrongDimension()
     if np.size(t_dp) != n_vert_axis-1: raise WrongDimension()
     if geo_trans_ID < 1: raise NegativeValue()
-
-
     
     half_pz_height = np.zeros(n_vert_axis)
     if panel_zone:
@@ -89,9 +90,9 @@ def DefineFrameNodesAndElementsSteelIShape(n_hor_axis: int, n_vert_axis: int, st
     beam_column_pzspring = [[], [], []]
     for xx in range(n_hor_axis):
         for yy in range(n_vert_axis):
+            node_ID = node_array[xx*n_vert_axis + yy]
             if yy != 0:
-                node_ID = node_array[xx*n_vert_axis + yy]
-
+    
                 # Panel Zone
                 if half_pz_height[yy] == 0:
                     col_j_node_ID = node_ID
@@ -120,11 +121,12 @@ def DefineFrameNodesAndElementsSteelIShape(n_hor_axis: int, n_vert_axis: int, st
                         beam_i_node_ID = IDConvention(node_array[(xx-1)*n_vert_axis + yy], 2, 1)
                     beam_mat_i = OffsetNodeIDConvention(beam_i_node_ID, "horizontal", "i")
                     beam_mat_j = OffsetNodeIDConvention(beam_j_node_ID, "horizontal", "j")
-                    print(beam_i_node_ID)
                     tmp_beam = SpringBasedElementModifiedIMKSteelIShape(beam_i_node_ID, beam_j_node_ID, list_beam[yy-1], geo_trans_ID,
                         beam_mat_i, beam_mat_j, N_G[yy-1])
                     tmp_beam.CreateMember()
                     beam_column_pzspring[0].append(deepcopy(tmp_beam))
+            else:
+                if fix_support: RigidSupport(node_ID)
 
     
     if show_plot:
@@ -133,10 +135,36 @@ def DefineFrameNodesAndElementsSteelIShape(n_hor_axis: int, n_vert_axis: int, st
     return beam_column_pzspring
 
 
-def SubassemblageNodes():
-    pass
+def DefineSubassemblageNodes(beam_left_L_cl, beam_right_L_cl, col_top_L_cl, col_bottom_L_cl, depth_col, depth_beam,
+    boundary_condition = True, show_plot = True):
 
-def RCSSubassemblage():
-    # WIP
-    pass
+    # origin is the bottom left corner
+    if beam_left_L_cl < 0: raise NegativeValue()
+    if beam_right_L_cl < 0: raise NegativeValue()
+    if col_top_L_cl < 0: raise NegativeValue()
+    if col_bottom_L_cl < 0: raise NegativeValue()
+    if depth_col < 0: raise NegativeValue()
+    if depth_beam < 0: raise NegativeValue()
+
+    node(12, 0.0, col_bottom_L_cl)
+    node(21, beam_left_L_cl, 0.0)
+    node(22, beam_left_L_cl, col_bottom_L_cl+depth_beam/2)
+    node(23, beam_left_L_cl, col_bottom_L_cl + col_top_L_cl)
+    node(32, beam_left_L_cl + beam_right_L_cl, col_bottom_L_cl)
+    node_array = [12, 21, 22, 23, 32]
+    
+    if boundary_condition:
+        fix(12, 0, 1, 0)
+        fix(32, 0, 1, 0)
+        fix(21, 1, 1, 0)
+
+    if show_plot:
+        plot_nodes(node_array, "Subassemblage geometry template with only nodes", True)
+        plt.grid()
+
+    return node_array
+
+# def DefineRCSSubassemblage():
+#     # WIP and experimental
+    
 
