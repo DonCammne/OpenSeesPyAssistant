@@ -42,7 +42,6 @@ class MemberModel(DataManagement):
         else:
                 print("The element is not initialized (node and/or elements not created), ID = {}".format(ele))
     
-    @abstractmethod
     def _CheckL(self):
         iNode = np.array(nodeCoord(self.iNode_ID))
         jNode = np.array(nodeCoord(self.jNode_ID))
@@ -445,10 +444,6 @@ class ElasticElement(MemberModel):
     def Record(self, name_txt: str, data_dir: str, force_rec=True, def_rec=True, time_rec=True):
         return super().Record(self.element_ID, name_txt, data_dir, force_rec=force_rec, def_rec=def_rec, time_rec=time_rec)
 
-    
-    def _CheckL(self):
-        super()._CheckL()
-
 
 class ElasticElementSteelIShape(ElasticElement):
     def __init__(self, iNode_ID: int, jNode_ID: int, section: SteelIShape, geo_transf_ID: int):
@@ -615,10 +610,6 @@ class SpringBasedElement(MemberModel):
             print("No recording option with: '{}' with element ID: {}".format(spring_or_element, self.element_ID))
     
 
-    def _CheckL(self):
-        super()._CheckL()
-
-
 class SpringBasedElementSteelIShape(SpringBasedElement):
     # L_b = assumed the same for top and bottom springs
     def __init__(self, iNode_ID: int, jNode_ID: int, section: SteelIShape, geo_transf_ID: int, mat_ID_i=-1, mat_ID_j=-1):
@@ -784,10 +775,6 @@ class ForceBasedElement(MemberModel):
 
     def Record(self, name_txt: str, data_dir: str, force_rec=True, def_rec=True, time_rec=True):
         return super().Record(self.element_ID, name_txt, data_dir, force_rec=force_rec, def_rec=def_rec, time_rec=time_rec)
-
-
-    def _CheckL(self):
-        super()._CheckL()
 
 
 class ForceBasedElementFibersRectRCRectShape(ForceBasedElement):
@@ -968,10 +955,6 @@ class GIFBElement(MemberModel):
 
     def Record(self, name_txt: str, data_dir: str, force_rec=True, def_rec=True, time_rec=True):
         return super().Record(self.element_ID, name_txt, data_dir, force_rec=force_rec, def_rec=def_rec, time_rec=time_rec)
-
-
-    def _CheckL(self):
-        super()._CheckL()
 
 
     def ComputeLp(self):
