@@ -1,5 +1,6 @@
-# Module with useful functions
-#	Carmine Schipani, 2021
+"""Module with useful functions (discretise curves, ID conventions, etc) \n
+Carmine Schipani, 2021
+"""
 
 import math
 import numpy as np
@@ -10,19 +11,17 @@ from OpenSeesPyAssistant.ErrorHandling import *
 from OpenSeesPyAssistant.Units import *
 
 
-def ProgressingPercentage(max_iter, i, next_step, step = 10):
-	"""Function that shows the progressing percentage of an iterative process.
-
-	Args:
-		max_iter (int): Maximal number of interations
-		i (int): Current iteration
-		next_step (int): Next step of the percentage (set to 0 for the first iteration and then use the return parameter)
-		step (int, optional): Size of the step (should be a fraction of 100). Defaults to 10.
-
-	Returns:
-		int: The updated next step
+def ProgressingPercentage(max_iter, i: int, next_step: int, step = 10):
 	"""
+	Function that shows the progressing percentage of an iterative process.
 
+	@param max_iter (int): Maximal number of interations
+	@param i (int): Current iteration
+	@param next_step (int): Next step of the percentage (set to 0 for the first iteration and then use the return parameter)
+	@param step (int, optional): Size of the step (should be a fraction of 100). Defaults to 10.
+
+	@returns int: The updated next step
+	"""
 	if i*100.0/(max_iter-1) >= next_step:
 		print("The progression is {}%".format(next_step))
 		return next_step + step
@@ -30,23 +29,36 @@ def ProgressingPercentage(max_iter, i, next_step, step = 10):
 	return next_step
 
 
-def DiscretizeLoadProtocol(SDR_LP: np.ndarray, nr_cycles_LP: np.ndarray, discr_first_cycle: int, plot = False, block = False):
-	"""Discretized a load protocol maintening a similar discretisation throughout the different cycles and keeping in the output the extremes (peaks).
-
-	Args:
-		SDR_LP (np.ndarray): Array (1 dimension) that stores the peaks of the cycles (positive)
-		nr_cycles_LP (np.ndarray): Array (1 dimension) that stores the number of cycles for every extreme declared before the
-		discr_first_cycle (int): The number of points from peak to peak (counting the two peaks). It should be odd
-
-	Returns:
-		np.array: Array (1 dimension) that stores the new discretized load protocol
+def DiscretizeLoadProtocol(SDR_LP: np.ndarray, nr_cycles_LP: np.ndarray, discr_first_cycle: int, plot = False, block = False, show_original_peaks = True):
 	"""
-	#TODO: check that SDR_LP and nr_cycles_LP are nonnegative, that nr_cycles_LP should have only int, they are 1 dimensions and size(SDR_LP)==size(nr_cycles_LP)
+	Discretized a cyclic load protocol keeping a similar discretisation step throughout the different cycles and keeping in the output the extremes (peaks).
 
+	@param SDR_LP (np.ndarray): Array (1 dimension) that stores the peaks of the cycles.
+		They needs to be only the positive peaks, beacuse this function will use them as the extreme for each cycle.
+	@param nr_cycles_LP (np.ndarray): Array (1 dimension) that stores the number of cycles for every extreme declared in 'SDR_LP'. They need to be positive integers.
+	@param discr_first_cycle (int): The number of points from peak to peak (counting the two peaks). It should be odd.
+	@param plot (bool, optional): [description]. Defaults to False.
+	@param block (bool, optional): [description]. Defaults to False.
+	@param show_original_peaks (bool, optional): Show the original peak to check if the discretized curve is correct. Defaults to True.
+
+	@exception WrongDimension: SDR_LP and nr_cycles_LP need to be of same length.
+	@exception NegativeValue: SDR_LP needs to have only positive integers.
+	@exception NegativeValue: nr_cycles_LP needs to have only positive integers.
+    @exception NegativeValue: discr_first_cycle needs to be a positive integer.
+
+	@returns np.array: Array (1 dimension) that stores the new discretized load protocol curve.
+	"""
+	if np.size(SDR_LP) != np.size(nr_cycles_LP): raise WrongDimension()
+	if any(col < 0 for col in SDR_LP): raise NegativeValue()
+	if any(col < 0 for col in nr_cycles_LP): raise NegativeValue()
+	if discr_first_cycle < 0: raise NegativeValue()
+	
 	if discr_first_cycle % 2 == 0:
 			discr_first_cycle = discr_first_cycle + 1
 	discr_factor = discr_first_cycle / (SDR_LP[0]*2)
 	discretized_LP = [0.0]
+	x_val = []
+	skip_x = 0
 	for i in range(np.size(SDR_LP)):
 		discr_i = math.ceil(discr_factor*SDR_LP[i]*2)-1;
 		if discr_i % 2 == 0:
@@ -54,19 +66,27 @@ def DiscretizeLoadProtocol(SDR_LP: np.ndarray, nr_cycles_LP: np.ndarray, discr_f
 		length_tmp = int((discr_i+1)/2)
 		tmp_up = np.linspace(0.0, SDR_LP[i], length_tmp)
 		tmp_down = np.linspace(SDR_LP[i], 0.0, length_tmp)
-		for j in range(nr_cycles_LP[i]):
+		for j in range(int(nr_cycles_LP[i])):
 			discretized_LP = np.append(discretized_LP, tmp_up[1:length_tmp])
 			discretized_LP = np.append(discretized_LP, tmp_down[1:length_tmp])
 			discretized_LP = np.append(discretized_LP, -tmp_up[1:length_tmp])
 			discretized_LP = np.append(discretized_LP, -tmp_down[1:length_tmp])
-	
+		# for check of original peaks
+		x_val.append(length_tmp-1+skip_x)
+		skip_x = (length_tmp-1)*(4*(nr_cycles_LP[i]-1)+3)+x_val[-1]
+
+
 	if plot:
 		fig, ax = plt.subplots()
-		ax.plot(discretized_LP)
+		ax.plot(discretized_LP, '-r', label='Discretised LP')
 
 		ax.set(xlabel='Step number [-]', ylabel='Unit of the loading protocol', 
 			title='Discretized loading protocol')
 		ax.grid()
+
+		if show_original_peaks:
+			ax.plot(x_val, SDR_LP, 'ob', label='Original LP')
+			ax.legend()
 
 		if block:
 			plt.show()
@@ -74,14 +94,17 @@ def DiscretizeLoadProtocol(SDR_LP: np.ndarray, nr_cycles_LP: np.ndarray, discr_f
 	return discretized_LP
 
 
-def DiscretizeLinearly(LP: np.ndarray, discr: int, plot = False, block = False):
+def DiscretizeLinearly(LP: np.ndarray, discr: int, plot = False, block = False, show_original_LP = True):
 	"""
-	This function creates a discretized LP with the number of point given by discr between every point from LP (linearly).
-	
-	LP : np.array
-		Array (1 dimension) that stores the curve that needs to be discretized
-	discr : int
-		The number of points to add between every two points of LP (linearly)
+	This function discretize the curve 'LP' given adding the number of point given by 'discr' between every point (linearly).
+
+	@param LP (np.ndarray): Array (1 dimension) that stores the curve that needs to be discretized
+	@param discr (int): The number of points to add between every two points of 'LP' (linearly)
+	@param plot (bool, optional): Show the curve . Defaults to False.
+	@param block (bool, optional): [description]. Defaults to False.
+	@param show_original_LP (bool, optional): Show the original LP to check if the discretized curve is correct. Defaults to True.
+
+	@returns np.ndarray: Array (1 dimension) that stores the new discretized load protocol.
 	"""
 
 	#TODO: check discr nonnegative int and LP 1 dimension
@@ -114,11 +137,16 @@ def DiscretizeLinearly(LP: np.ndarray, discr: int, plot = False, block = False):
 
 	if plot:
 		fig, ax = plt.subplots()
-		ax.plot(discr_LP)
+		ax.plot(discr_LP, '-r', label='Discretised LP')
 
 		ax.set(xlabel='Step number [-]', ylabel='Unit of the loading protocol', 
 			title='Discretized loading protocol')
 		ax.grid()
+
+		if show_original_LP:
+			x_val = np.arange(0, np.size(discr_LP), discr+1)
+			ax.plot(x_val, LP, 'ob', label='Original LP')
+			ax.legend()
 
 		if block:
 			plt.show()
