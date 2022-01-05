@@ -3,6 +3,7 @@
 UnitsClass.py
 doxygen.mustache
 TODO.txt
+.vscode
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
