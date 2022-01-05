@@ -74,6 +74,5 @@ class Units():
         self.min = self.s*60;
         self.hours = self.min*60;
 
-#TODO: check with Andy
 
 

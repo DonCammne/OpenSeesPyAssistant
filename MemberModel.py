@@ -1,7 +1,8 @@
-# Module with the member model
-#   Carmine Schipani, 2021
+"""
+Module for the member model.
+Carmine Schipani, 2021
+"""
 
-# Import libraries
 from openseespy.opensees import *
 import matplotlib.pyplot as plt
 import numpy as np
@@ -9,8 +10,6 @@ import os
 import math
 from abc import abstractmethod
 from copy import copy, deepcopy
-import openseespy.postprocessing.internal_plotting_functions as ipltf
-import openseespy.postprocessing.Get_Rendering as opsplt
 from OpenSeesPyAssistant.Section import *
 from OpenSeesPyAssistant.DataManagement import *
 from OpenSeesPyAssistant.ErrorHandling import *
@@ -20,10 +19,24 @@ from OpenSeesPyAssistant.Fibers import *
 from OpenSeesPyAssistant.Connections import *
 from OpenSeesPyAssistant.FunctionalFeatures import *
 
-# Member model
 class MemberModel(DataManagement):
+    """
+    Parent abstract class for the storage and manipulation of a member's information (mechanical and geometrical parameters, etc) and the initialisation in the model.
+
+    @param DataManagement: Parent abstract class.
+    """
     @abstractmethod
     def Record(self, ele, name_txt: str, data_dir: str, force_rec = True, def_rec = True, time_rec = True):
+        """
+        Abstract method that records the forces, deformation and time of the member associated with the class.
+
+        @param ele (class): The object that represent the section.
+        @param name_txt (str): Name of the recorded data.
+        @param data_dir (str): Directory for the storage of data.
+        @param force_rec (bool, optional): Option to record the forces (Fx, Fy, Mz). Defaults to True.
+        @param def_rec (bool, optional): Option to record the deformation (Ux, Uy, theta). Defaults to True.
+        @param time_rec (bool, optional): Option to record time. Defaults to True.
+        """
         if self.Initialized:
             if not os.path.exists(data_dir):
                 print("Folder {} not found in this directory; creating one".format(data_dir))
@@ -43,6 +56,9 @@ class MemberModel(DataManagement):
                 print("The element is not initialized (node and/or elements not created), ID = {}".format(ele))
     
     def _CheckL(self):
+        """
+        Private abstract method to check if the length of the line member is the same (with 1 cm of tolerance) with the length defined in the section used.
+        """
         iNode = np.array(nodeCoord(self.iNode_ID))
         jNode = np.array(nodeCoord(self.jNode_ID))
         L = np.linalg.norm(iNode-jNode)
@@ -52,10 +68,33 @@ class MemberModel(DataManagement):
 
 
 class PanelZone(MemberModel):
-    # Class that stores funcions and material properties of a panel zone.
-    # Warning: the units should be m and N
-    def __init__(self, master_node_ID: int, mid_panel_zone_width, mid_panel_zone_height, E, A_rigid, I_rigid, geo_transf_ID: int, mat_ID):
+    """
+	Class that handles the storage and manipulation of a panel zone's information (mechanical and geometrical parameters, etc) and the initialisation in the model.
 
+    @param MemberModel: Parent abstract class.
+    """
+    def __init__(self, master_node_ID: int, mid_panel_zone_width, mid_panel_zone_height, E, A_rigid, I_rigid, geo_transf_ID: int, mat_ID: int):
+        """
+        Constructor of the class.
+
+        @param master_node_ID (int): ID of the master node (central top node that should be a grid node).
+        @param mid_panel_zone_width (float): Mid panel zone width.
+        @param mid_panel_zone_height (float): Mid panel zone height.
+        @param E (float): Young modulus.
+        @param A_rigid (float): A very rigid area.
+        @param I_rigid (float): A very rigid moment of inertia.
+        @param geo_transf_ID (int): A geometric transformation (for more information, see OpenSeesPy documentation).
+        @param mat_ID (int): ID of the material model for the panel zone spring.
+
+        @exception NegativeValue: ID needs to be a positive integer.
+        @exception NegativeValue: mid_panel_zone_width needs to be positive.
+        @exception NegativeValue: mid_panel_zone_height needs to be positive.
+        @exception NegativeValue: E needs to be positive.
+        @exception NegativeValue: A_rigid needs to be positive.
+        @exception NegativeValue: I_rigid needs to be positive.
+        @exception NegativeValue: geo_tranf_ID needs to be a positive integer.
+        @exception NegativeValue: mat_ID needs to be a positive integer.
+        """
         # Check
         if master_node_ID < 1: raise NegativeValue()
         # if master_node_ID > 99: raise WrongNodeIDConvention(master_node_ID)
@@ -85,9 +124,9 @@ class PanelZone(MemberModel):
 
 
     def ReInit(self):
-        """Function that computes the value of the parameters that are computed with respect of the arguments.
-        Use after changing the value of argument inside the class (to update the values accordingly). 
-        This function can be very useful in combination with the function "deepcopy()" from the module "copy".
+        """
+        Implementation of the homonym abstract method.
+        See parent class DataManagement for detailed information.
         """
         # Arguments
         self.spring_ID = -1
@@ -102,6 +141,10 @@ class PanelZone(MemberModel):
 
     # Methods
     def UpdateStoredData(self):
+        """
+        Implementation of the homonym abstract method.
+        See parent class DataManagement for detailed information.
+        """
         self.data = [["INFO_TYPE", "PanelZone"], # Tag for differentiating different data
             ["master_node_ID", self.master_node_ID],
             ["col_section_name_tag", self.col_section_name_tag],
@@ -118,7 +161,12 @@ class PanelZone(MemberModel):
 
 
     def ShowInfo(self, plot = False, block = False):
-        """Function that show the data stored in the class in the command window and plots the member model (optional).
+        """
+        Implementation of the homonym abstract method.
+        See parent class DataManagement for detailed information.
+        
+        @param plot (bool, optional): Option to show the plot of the material model. Defaults to False.
+	    @param block (bool, optional): Option to wait the user command 'plt.show()' (avoiding the stop of the program everytime that a plot should pop up). Defaults to False.
         """
         print("")
         print("Requested info for Panel Zone member model, master node ID = {}".format(self.master_node_ID))
@@ -144,6 +192,9 @@ class PanelZone(MemberModel):
 
 
     def CreateMember(self):
+        """
+        Method that initialises the member by calling the OpenSeesPy commands through various functions.
+        """
         # Define nodes
         DefinePanelZoneNodes(self.master_node_ID, self.mid_panel_zone_width, self.mid_panel_zone_height)
         xy1 = IDConvention(self.master_node_ID, 1)
@@ -174,15 +225,38 @@ class PanelZone(MemberModel):
 
 
     def Record(self, name_txt: str, data_dir: str, force_rec=True, def_rec=True, time_rec=True):
-        return super().Record(self.spring_ID, name_txt, data_dir, force_rec=force_rec, def_rec=def_rec, time_rec=time_rec)
+        """
+        Implementation of the homonym abstract method.
+        See parent class MemberModel for detailed information.
+        """
+        super().Record(self.spring_ID, name_txt, data_dir, force_rec=force_rec, def_rec=def_rec, time_rec=time_rec)
 
 
     def _CheckL(self):
+        """
+        (placeholder). No applicable for the panel zone. 
+        """
         print("No length check for panel zone")
 
 
 class PanelZoneSteelIShape(PanelZone):
-    def __init__(self, master_node_ID: int, col: SteelIShape, beam: SteelIShape, geo_transf_ID: int, mat_ID, rigid = RIGID):
+    """
+    Class that is the children of PanelZone and combine the class SteelIShape (section) to retrieve the information needed.  
+
+    @param PanelZone: Parent class.
+    """
+    def __init__(self, master_node_ID: int, col: SteelIShape, beam: SteelIShape, geo_transf_ID: int, mat_ID: int, rigid = RIGID):
+        """
+        Constructor of the class.
+
+        @param master_node_ID (int): ID of the master node (central top node that should be a grid node).
+        @param col (SteelIShape): SteelIShape column section object.
+        @param beam (SteelIShape): SteelIShape beam section object.
+        @param geo_transf_ID (int): A geometric transformation (for more information, see OpenSeesPy documentation).
+        @param mat_ID (int): ID of the material model for the panel zone spring.
+        @param rigid (float, optional): Parameter with a value enough big to assure rigidity of one element
+            but enough small to avoid convergence problem. Defaults to RIGID.
+        """
         self.col = deepcopy(col)
         self.beam = deepcopy(beam)
         super().__init__(master_node_ID, col.d/2.0, beam.d/2.0, col.E, max(col.A, beam.A)*rigid, max(col.Iy, beam.Iy)*rigid, geo_transf_ID, mat_ID)
@@ -193,7 +267,23 @@ class PanelZoneSteelIShape(PanelZone):
 
 
 class PanelZoneSteelIShapeGupta1999(PanelZoneSteelIShape):
+    """
+    Class that is the children of PanelZoneSteelIShape and automatically create the spring material model Gupta 1999 (ID = master_node_ID).
+
+    @param PanelZoneSteelIShape: Parent class.
+    """
     def __init__(self, master_node_ID: int, col: SteelIShape, beam: SteelIShape, geo_transf_ID: int, t_dp = 0, rigid=RIGID):
+        """
+        Constructor of the class.
+
+        @param master_node_ID (int): ID of the master node (central top node that should be a grid node).
+        @param col (SteelIShape): SteelIShape column section object.
+        @param beam (SteelIShape): SteelIShape beam section object.
+        @param geo_transf_ID (int): A geometric transformation (for more information, see OpenSeesPy documentation).
+        @param t_dp (float, optional): Doubler plate thickness. Defaults to 0.
+        @param rigid (float, optional): Parameter with a value enough big to assure rigidity of one element
+            but enough small to avoid convergence problem. Defaults to RIGID.
+        """
         self.col = deepcopy(col)
         self.beam = deepcopy(beam)
         mat_ID = master_node_ID
@@ -204,7 +294,23 @@ class PanelZoneSteelIShapeGupta1999(PanelZoneSteelIShape):
 
 
 class PanelZoneSteelIShapeSkiadopoulos2021(PanelZoneSteelIShape):
+    """
+    Class that is the children of PanelZoneSteelIShape and automatically create the spring material model Skiadopoulos 2021 (ID = master_node_ID).
+
+    @param PanelZoneSteelIShape: Parent class.
+    """
     def __init__(self, master_node_ID: int, col: SteelIShape, beam: SteelIShape, geo_transf_ID: int, t_dp = 0, rigid=RIGID):
+        """
+        Constructor of the class.
+
+        @param master_node_ID (int): ID of the master node (central top node that should be a grid node).
+        @param col (SteelIShape): SteelIShape column section object.
+        @param beam (SteelIShape): SteelIShape beam section object.
+        @param geo_transf_ID (int): A geometric transformation (for more information, see OpenSeesPy documentation).
+        @param t_dp (float, optional): Doubler plate thickness. Defaults to 0.
+        @param rigid (float, optional): Parameter with a value enough big to assure rigidity of one element
+            but enough small to avoid convergence problem. Defaults to RIGID.
+        """
         self.col = deepcopy(col)
         self.beam = deepcopy(beam)
         mat_ID = master_node_ID
@@ -214,35 +320,30 @@ class PanelZoneSteelIShapeSkiadopoulos2021(PanelZoneSteelIShape):
         super().__init__(master_node_ID, col, beam, geo_transf_ID, mat_ID, rigid)
 
 
-def DefinePanelZoneNodes(MasterNodeID, MidPanelZoneWidth, MidPanelZoneHeight):
-	######################################################################################
-	## DefinePanelZoneNodes
-	######################################################################################
-	## Define the remaining 10 nodes of a panel zone given the dimensions and the master node (top center one).
-	## Note that the top right node is defined differently because is where the spring is
-	##			Carmine Schipani, 2021
-	##
-	## 	MasterNodeID : 			The top center node. The conventional denomination is 1xy, x = Pier axis, y = Floor (ground = 1)
-	##	MidPanelZoneWidth :		Half the panel zone width (that should be equal to half the column depth)
-	##	MidPanelZoneHeight :	Half the panel zone height (that should be equal to half the beam depth)
-	##	AxisCL :				The x coordinate of the centerline of the column
-	##	FloorCL :				The y coordinate of the centerline of the beam
-	##	
-	#######################################################################################
-    # 		PZNodeID:		12 nodes: top right 1xy (master), 1xy1 top right,					1xy09,1xy10     1xy        1xy1,1xy01					
-    # 						clockwise 10 nodes xy01-xy10 (with double node at corners)				o-----------o-----------o			
-    #						Spring at node 1xy1														|						|
-    #		PZElemeneID:	8 elements: starting at node 1xy, clockwise								|						|
-    #						(see function DefinePanelZoneElements for more info)					|						|
-    #																								|						|
-    #																						  1xy08 o						o 1xy02
-    #																								|						|
-    #																								|						|
-    #																								|						|
-    #																								|						|
-    #																								o-----------o-----------o
-    #																							1xy06,1xy07	   1xy05  	1xy03,1xy04
+def DefinePanelZoneNodes(MasterNodeID: int, MidPanelZoneWidth, MidPanelZoneHeight):
+    """
+    Function that defines the remaining 10 nodes of a panel zone given the dimensions and the master node (top center one).
+    ID convention for the panel zone: \n
+    		PZNodeID:		12 nodes: top right 1xy (master), 1xy1 top right,					1xy09,1xy10     1xy      1xy1,1xy01 \n					
+    						clockwise 10 nodes xy01-xy10 (with double node at corners)				o-----------o-----------o		\n
+    						Spring at node 1xy1														|						|       \n
+    		PZElemeneID:	8 elements: starting at node 1xy, clockwise								|						|       \n
+    						(see function DefinePanelZoneElements for more info)					|						|       \n
+    																								|						|       \n
+    																						  1xy08 o						o 1xy02 \n
+    																								|						|       \n
+    																								|						|       \n
+    																								|						|       \n
+    																								|						|       \n
+    																								o-----------o-----------o       \n
+    																							1xy06,1xy07	   1xy05  	1xy03,1xy04 \n
+	    Note that the top right node is defined differently because is where the spring is.
 
+    @param MasterNodeID (int): ID of the master node (central top node that should be a grid node).
+    @param MidPanelZoneWidth (float): Mid panel zone width.
+    @param MidPanelZoneHeight (float): Mid panel zone height.
+
+    """
     # Get node coord and define useful variables
     m_node = np.array(nodeCoord(MasterNodeID))
     AxisCL = m_node[0]
@@ -264,33 +365,17 @@ def DefinePanelZoneNodes(MasterNodeID, MidPanelZoneWidth, MidPanelZoneHeight):
 
 
 def DefinePanelZoneElements(MasterNodeID, E, RigidA, RigidI, TransfID):
-    ######################################################################################
-    ## DefinePanelZoneElements
-    ######################################################################################
-    ## Defines the 8 panel zone elements. Warning: the algorithm for the elements ID work only for MasterNodeID of 2 digit.
-    ##			Carmine Schipani, 2021
-    ##
-    ## 	MasterNodeID : 	The top center node. The conventional denomination is 1xy, x = Pier axis, y = Floor (ground = 1)
-    ##	E :				Young's modulus
-    ##	RigidA :		Area two ordrs bigger that the members
-    ##	RigidI:			Moment of inertia two ordrs bigger that the members
-    ##	TransfID :		Geometric transformation ID
-    #######################################################################################
-    # 		PZNodeID:		12 nodes: top right 1xy (master), 1xy1 top right,					1xy09,1xy10     1xy        1xy1,1xy01					
-    # 						clockwise 10 nodes xy01-xy10 (with double node at corners)				o-----------o-----------o			
-    #						Spring at node 1xy1														|						|
-    #		PZElemeneID:	8 elements: starting at node 1xy, clockwise								|						|
-    #						(see function DefinePanelZoneElements for more info)					|						|
-    #																								|						|
-    #																						  1xy08 o						o 1xy02
-    #																								|						|
-    #																								|						|
-    #																								|						|
-    #																								|						|
-    #																								o-----------o-----------o
-    #																							1xy06,1xy07	   1xy05  	1xy03,1xy04
+    """
+    Function that defines the 8 panel zone elements. For the ID convention, see DefinePanelZoneNodes.
 
+    @param MasterNodeID (int): ID of the master node (central top node that should be a grid node).
+    @param E (float): Young modulus.
+    @param RigidA (float): A very rigid area.
+    @param RigidI (float): A very rigid moment of inertia.
+    @param TransfID (int): The geometric transformation (for more information, see OpenSeesPy documentation).
 
+    @returns list: List of lists, wth each list containing the ID of the element, of node i and node j.
+    """
     # Compute the ID of the nodes obeying to the convention used
     xy = MasterNodeID
     xy1 = IDConvention(xy, 1)
@@ -344,21 +429,29 @@ def DefinePanelZoneElements(MasterNodeID, E, RigidA, RigidI, TransfID):
 
 
 class ElasticElement(MemberModel):
-    # Class that stores funcions and material properties of a elastic element.
-    # Warning: the units should be m and N
-    # Convention:																							
-    # 		NodeID: 		1xy 			with x = pier, y = floor 											o 1xy7	|	
-    #		PlHingeID:		1xya			with x = pier, y = floor, a:  --o 1xy  1xy2 o-----o 2xy3  2xy o--	|		o 1xy
-    #																									    	|	
-    #																									    	|		o 1xy
-    #																									    	o 1xy6	|
-    #		ElementID:		1xy(a)1xy(a)	with 1xy(a) = NodeID i and j
-    #		TrussID:		1xy(a)1xy(a)	with 1xy(a) = NodeID i and j
-    #		PDeltaColID:	1xy(a)1xy(a)	with 1xy(a) = NodeID i and j
-    #		Spring:			1xy(a)1xy(a)	with 1xy(a) = NodeID i and j
-    
-    def __init__(self, iNode_ID: int, jNode_ID: int, A, E, Iy, geo_transf_ID: int):
+    """
+	Class that handles the storage and manipulation of a elastic element's information (mechanical and geometrical parameters, etc) and the initialisation in the model.
 
+    @param MemberModel: Parent abstract class.
+    """
+    def __init__(self, iNode_ID: int, jNode_ID: int, A, E, Iy, geo_transf_ID: int):
+        """
+        Constructor of the class.
+
+        @param iNode_ID (int): ID of the first end node.
+        @param jNode_ID (int): ID of the second end node.
+        @param A (float): Area of the member.
+        @param E (float): Young modulus.
+        @param Iy (float): Second moment of inertia (strong axis).
+        @param geo_transf_ID (int): A geometric transformation (for more information, see OpenSeesPy documentation).
+
+        @exception NegativeValue: ID needs to be a positive integer.
+        @exception NegativeValue: ID needs to be a positive integer.
+        @exception NegativeValue: A needs to be positive.
+        @exception NegativeValue: E needs to be positive.
+        @exception NegativeValue: Iy needs to be positive.
+        @exception NegativeValue: ID needs to be a positive integer.
+        """
         # Check
         if iNode_ID < 1: raise NegativeValue()
         if jNode_ID < 1: raise NegativeValue()
@@ -381,9 +474,9 @@ class ElasticElement(MemberModel):
         self.ReInit()
 
     def ReInit(self):
-        """Function that computes the value of the parameters that are computed with respect of the arguments.
-        Use after changing the value of argument inside the class (to update the values accordingly). 
-        This function can be very useful in combination with the function "deepcopy()" from the module "copy".
+        """
+        Implementation of the homonym abstract method.
+        See parent class DataManagement for detailed information.
         """
         # Members
         if self.section_name_tag != "None": self.section_name_tag = self.section_name_tag + " (modified)"
@@ -397,6 +490,10 @@ class ElasticElement(MemberModel):
 
     # Methods
     def UpdateStoredData(self):
+        """
+        Implementation of the homonym abstract method.
+        See parent class DataManagement for detailed information.
+        """
         self.data = [["INFO_TYPE", "ElasticElement"], # Tag for differentiating different data
             ["element_ID", self.element_ID],
             ["section_name_tag", self.section_name_tag],
@@ -410,7 +507,12 @@ class ElasticElement(MemberModel):
 
 
     def ShowInfo(self, plot = False, block = False):
-        """Function that show the data stored in the class in the command window and plots the member model (optional).
+        """
+        Implementation of the homonym abstract method.
+        See parent class DataManagement for detailed information.
+        
+        @param plot (bool, optional): Option to show the plot of the material model. Defaults to False.
+	    @param block (bool, optional): Option to wait the user command 'plt.show()' (avoiding the stop of the program everytime that a plot should pop up). Defaults to False.
         """
         print("")
         print("Requested info for ElasticElement member model, ID = {}".format(self.element_ID))
@@ -431,6 +533,9 @@ class ElasticElement(MemberModel):
 
 
     def CreateMember(self):
+        """
+        Method that initialises the member by calling the OpenSeesPy commands through various functions.
+        """
         self.element_array = [[self.element_ID, self.iNode_ID, self.jNode_ID]]
         
         # Define element
@@ -442,11 +547,28 @@ class ElasticElement(MemberModel):
 
 
     def Record(self, name_txt: str, data_dir: str, force_rec=True, def_rec=True, time_rec=True):
-        return super().Record(self.element_ID, name_txt, data_dir, force_rec=force_rec, def_rec=def_rec, time_rec=time_rec)
+        """
+        Implementation of the homonym abstract method.
+        See parent class MemberModel for detailed information.
+        """
+        super().Record(self.element_ID, name_txt, data_dir, force_rec=force_rec, def_rec=def_rec, time_rec=time_rec)
 
 
 class ElasticElementSteelIShape(ElasticElement):
+    """
+    Class that is the children of ElasticElement and combine the class SteelIShape (section) to retrieve the information needed.  
+
+    @param ElasticElement: Parent class.
+    """
     def __init__(self, iNode_ID: int, jNode_ID: int, section: SteelIShape, geo_transf_ID: int):
+        """
+        Constructor of the class.
+
+        @param iNode_ID (int): ID of the first end node.
+        @param jNode_ID (int): ID of the second end node.
+        @param section (SteelIShape): SteelIShape section object.
+        @param geo_transf_ID (int): A geometric transformation (for more information, see OpenSeesPy documentation).
+        """
         self.section = deepcopy(section)
         super().__init__(iNode_ID, jNode_ID, section.A, section.E, section.Iy, geo_transf_ID)
         self.section_name_tag = section.name_tag
@@ -456,21 +578,34 @@ class ElasticElementSteelIShape(ElasticElement):
 
 
 class SpringBasedElement(MemberModel):
-    # Class that stores funcions and material properties of a spring-based element. If vertical, iNode is bottom, if horizontal, iNode is left
-    # Warning: the units should be m and N
-    # Convention:																							
-    # 		NodeID: 		1xy 			with x = pier, y = floor 											o 1xy7	|	
-    #		PlHingeID:		1xya			with x = pier, y = floor, a:  --o 1xy  1xy2 o-----o 2xy3  2xy o--	|		o 1xy
-    #																									    	|	
-    #																									    	|		o 1xy
-    #																									    	o 1xy6	|
-    #		ElementID:		1xy(a)1xy(a)	with 1xy(a) = NodeID i and j
-    #		TrussID:		1xy(a)1xy(a)	with 1xy(a) = NodeID i and j
-    #		PDeltaColID:	1xy(a)1xy(a)	with 1xy(a) = NodeID i and j
-    #		Spring:			1xy(a)1xy(a)	with 1xy(a) = NodeID i and j
-    
-    def __init__(self, iNode_ID: int, jNode_ID: int, A, E, Iy_mod, geo_transf_ID: int, mat_ID_i = -1, mat_ID_j = -1):
+    """
+	Class that handles the storage and manipulation of a spring-based element's information (mechanical and geometrical parameters, etc) and the initialisation in the model.
 
+    @param MemberModel: Parent abstract class.
+    """
+    def __init__(self, iNode_ID: int, jNode_ID: int, A, E, Iy_mod, geo_transf_ID: int, mat_ID_i = -1, mat_ID_j = -1):
+        """
+        Constructor of the class.
+
+        @param iNode_ID (int): ID of the first end node.
+        @param jNode_ID (int): ID of the second end node.
+        @param A (float): Area of the member.
+        @param E (float): Young modulus.
+        @param Iy_mod (float): Second moment of inertia (strong axis).
+        @param geo_transf_ID (int): A geometric transformation (for more information, see OpenSeesPy documentation).
+        @param mat_ID_i (int, optional): ID of the material model for the spring in the node i (if present). Defaults to -1.
+        @param mat_ID_j (int, optional): ID of the material model for the spring in the node j (if present). Defaults to -1.
+
+        @exception NegativeValue: ID needs to be a positive integer.
+        @exception NegativeValue: ID needs to be a positive integer.
+        @exception NegativeValue: A needs to be positive.
+        @exception NegativeValue: E needs to be positive.
+        @exception NegativeValue: Iy_mod needs to be positive.
+        @exception NegativeValue: ID needs to be a positive integer.
+        @exception NegativeValue: ID needs to be a positive integer, if different from -1.
+        @exception NegativeValue: ID needs to be a positive integer, if different from -1.
+        @exception NameError: at least one spring needs to be defined.
+        """
         # Check
         if iNode_ID < 1: raise NegativeValue()
         if jNode_ID < 1: raise NegativeValue()
@@ -499,12 +634,10 @@ class SpringBasedElement(MemberModel):
 
 
     def ReInit(self):
-        """Function that computes the value of the parameters that are computed with respect of the arguments.
-        Use after changing the value of argument inside the class (to update the values accordingly). 
-        This function can be very useful in combination with the function "deepcopy()" from the module "copy".
         """
-        # Arguments
-
+        Implementation of the homonym abstract method.
+        See parent class DataManagement for detailed information.
+        """
         # Members
         if self.section_name_tag != "None": self.section_name_tag = self.section_name_tag + " (modified)"
         # orientation:
@@ -530,6 +663,10 @@ class SpringBasedElement(MemberModel):
 
     # Methods
     def UpdateStoredData(self):
+        """
+        Implementation of the homonym abstract method.
+        See parent class DataManagement for detailed information.
+        """
         self.data = [["INFO_TYPE", "SpringBasedElement"], # Tag for differentiating different data
             ["element_ID", self.element_ID],
             ["section_name_tag", self.section_name_tag],
@@ -548,7 +685,12 @@ class SpringBasedElement(MemberModel):
 
 
     def ShowInfo(self, plot = False, block = False):
-        """Function that show the data stored in the class in the command window and plots the member model (optional).
+        """
+        Implementation of the homonym abstract method.
+        See parent class DataManagement for detailed information.
+        
+        @param plot (bool, optional): Option to show the plot of the material model. Defaults to False.
+	    @param block (bool, optional): Option to wait the user command 'plt.show()' (avoiding the stop of the program everytime that a plot should pop up). Defaults to False.
         """
         print("")
         print("Requested info for SpringBasedElement member model, ID = {}".format(self.element_ID))
@@ -571,6 +713,9 @@ class SpringBasedElement(MemberModel):
 
 
     def CreateMember(self):
+        """
+        Method that initialises the member by calling the OpenSeesPy commands through various functions.
+        """
         self.element_array = [[self.element_ID, self.iNode_ID_spring, self.jNode_ID_spring]]
         if self.mat_ID_i != -1:
             # Define zero length element i
@@ -594,6 +739,10 @@ class SpringBasedElement(MemberModel):
 
 
     def Record(self, spring_or_element: str, name_txt: str, data_dir: str, force_rec=True, def_rec=True, time_rec=True):
+        """
+        Implementation of the homonym abstract method.
+        See parent class MemberModel for detailed information.
+        """
         if spring_or_element == "element":
             super().Record(self.element_ID, name_txt, data_dir, force_rec=force_rec, def_rec=def_rec, time_rec=time_rec)
         elif spring_or_element == "spring_i":
@@ -611,18 +760,31 @@ class SpringBasedElement(MemberModel):
     
 
 class SpringBasedElementSteelIShape(SpringBasedElement):
-    # L_b = assumed the same for top and bottom springs
+    """
+    Class that is the children of SpringBasedElement and combine the class SteelIShape (section) to retrieve the information needed.  
+    L_b is assumed the same for top and bottom springs.
+
+    @param SpringBasedElement: Parent class.
+    """
     def __init__(self, iNode_ID: int, jNode_ID: int, section: SteelIShape, geo_transf_ID: int, mat_ID_i=-1, mat_ID_j=-1):
+        """
+        Constructor of the class.
+
+        @param iNode_ID (int): ID of the first end node.
+        @param jNode_ID (int): ID of the second end node.
+        @param section (SteelIShape): SteelIShape section object.
+        @param geo_transf_ID (int): A geometric transformation (for more information, see OpenSeesPy documentation).
+        @param mat_ID_i (int, optional): ID of the material model for the spring in the node i (if present). Defaults to -1.
+        @param mat_ID_j (int, optional): ID of the material model for the spring in the node j (if present). Defaults to -1.
+
+        @exception NegativeValue: ID needs to be a positive integer.
+        @exception NegativeValue: ID needs to be a positive integer.
+        @exception NameError: at least one spring needs to be defined.
+        """
         self.section = deepcopy(section)
         if mat_ID_i != -1 and mat_ID_i < 0: raise NegativeValue()
         if mat_ID_j != -1 and mat_ID_j < 0: raise NegativeValue()
         if mat_ID_i == -1 and mat_ID_j == -1: raise NameError("No springs defined for element ID = {}".format(IDConvention(iNode_ID, jNode_ID)))
-        if mat_ID_i == 0 or mat_ID_j == 0: raise NameError("Class for autogenerate spring material model is SpringBasedElementModifiedIMKSteelIShape. Error for element ID = {}".format(IDConvention(iNode_ID, jNode_ID)))
-
-        if mat_ID_i != -1 and mat_ID_j != -1:
-            L_0 = section.L/2
-        else:
-            L_0 = section.L
 
         super().__init__(iNode_ID, jNode_ID, section.A, section.E, section.Iy_mod, geo_transf_ID, mat_ID_i=mat_ID_i, mat_ID_j=mat_ID_j)
         self.section_name_tag = section.name_tag
@@ -630,18 +792,46 @@ class SpringBasedElementSteelIShape(SpringBasedElement):
         # Check length
         self._CheckL()
 
+
 class SpringBasedElementModifiedIMKSteelIShape(SpringBasedElement):
-    # L_b = assumed the same for top and bottom springs
-    def __init__(self, iNode_ID: int, jNode_ID: int, section: SteelIShape, geo_transf_ID: int, new_mat_ID_i=-1, new_mat_ID_j=-1, N_G = 0, L_b = -1):
+    """
+    Class that is the children of SpringBasedElement and combine the class SteelIShape (section) to retrieve the information needed.  
+    If there are two springs and the inflection point not in the middle, use two spring elements, connect them rigidly in the inflection point with one spring each in the extremes.
+    L_b is assumed the same for top and bottom springs.
+
+    @param SpringBasedElement: Parent class.
+    """
+    def __init__(self, iNode_ID: int, jNode_ID: int, section: SteelIShape, geo_transf_ID: int, new_mat_ID_i=-1, new_mat_ID_j=-1, N_G = 0, L_0 = -1, L_b = -1):
+        """
+        Constructor of the class.
+
+        @param iNode_ID (int): ID of the first end node.
+        @param jNode_ID (int): ID of the second end node.
+        @param section (SteelIShape): SteelIShape section object.
+        @param geo_transf_ID (int): A geometric transformation (for more information, see OpenSeesPy documentation).
+        @param new_mat_ID_i (int, optional): New ID for the definition of the material model for the spring in the node i.
+            If -1 is passed, the class generate no material model and no spring. Defaults to -1.
+        @param new_mat_ID_j (int, optional): New ID for the definition of the material model for the spring in the node j.
+            If -1 is passed, the class generate no material model and no spring. Defaults to -1.
+        @param N_G (float, optional): Axial load. Defaults to 0.
+        @param L_0 (float, optional): Distance from the maximal moment to zero. Defaults to -1, e.g. computed in __init__().
+        @param L_b (float, optional): Maximal unbraced lateral buckling length. Defaults to -1, e.g. computed in __init__().
+
+        @exception NegativeValue: ID needs to be a positive integer.
+        @exception NegativeValue: ID needs to be a positive integer.
+        @exception NameError: at least one spring needs to be defined.
+        """
         self.section = deepcopy(section)
         if new_mat_ID_i != -1 and new_mat_ID_i < 0: raise NegativeValue()
         if new_mat_ID_j != -1 and new_mat_ID_j < 0: raise NegativeValue()
         if new_mat_ID_i == -1 and new_mat_ID_j == -1: raise NameError("No springs imposed for element ID = {}. Use ElasticElement instead".format(IDConvention(iNode_ID, jNode_ID)))
 
-        if new_mat_ID_i != -1 and new_mat_ID_j != -1:
-            L_0 = section.L/2
-        else:
-            L_0 = section.L
+        if L_0 == -1:
+            if new_mat_ID_i != -1 and new_mat_ID_j != -1:
+                L_0 = section.L/2
+            else:
+                L_0 = section.L
+        L_b = L_0 if L_b == -1 else L_b
 
         if new_mat_ID_i != -1:
             # Create mat i
@@ -661,22 +851,36 @@ class SpringBasedElementModifiedIMKSteelIShape(SpringBasedElement):
 
 
 class ForceBasedElement(MemberModel):
-    # Class that stores funcions and material properties of a force-based beam-column element.
-    # Warning: the units should be m and N
-    # Convention:																							
-    # 		NodeID: 		1xy 			with x = pier, y = floor 											o 1xy7	|	
-    #		PlHingeID:		1xya			with x = pier, y = floor, a:  --o 1xy  1xy2 o-----o 2xy3  2xy o--	|		o 1xy
-    #																									    	|	
-    #																									    	|		o 1xy
-    #																									    	o 1xy6	|
-    #		ElementID:		1xy(a)1xy(a)	with 1xy(a) = NodeID i and j
-    #		TrussID:		1xy(a)1xy(a)	with 1xy(a) = NodeID i and j
-    #		PDeltaColID:	1xy(a)1xy(a)	with 1xy(a) = NodeID i and j
-    #		Spring:			1xy(a)1xy(a)	with 1xy(a) = NodeID i and j
-    
+    """
+	Class that handles the storage and manipulation of a force-based element's information (mechanical and geometrical parameters, etc) and the initialisation in the model.
+
+    @param MemberModel: Parent abstract class.
+    """
     def __init__(self, iNode_ID: int, jNode_ID: int, fiber_ID: int, geo_transf_ID: int,
         new_integration_ID = -1, Ip = 5, integration_type = "Lobatto", max_iter = MAX_ITER_INTEGRATION, tol = TOL_INTEGRATION):
-    
+        """
+        Constructor of the class.
+
+        @param iNode_ID (int): ID of the first end node.
+        @param jNode_ID (int): ID of the second end node.
+        @param fiber_ID (int): ID of the fiber section.
+        @param geo_transf_ID (int): The geometric transformation (for more information, see OpenSeesPy documentation).
+        @param new_integration_ID (int, optional): ID of the integration technique. Defaults to -1, e.g. computed in ReInit().
+        @param Ip (int, optional): Number of integration points (min. 3). Defaults to 5.
+        @param integration_type (str, optional): Integration type. FOr more information, see OpenSeesPy documentation.
+            Defaults to "Lobatto".
+        @param max_iter (int, optional): Maximal number of iteration to reach the integretion convergence. Defaults to MAX_ITER_INTEGRATION (Units).
+        @param tol (float, optional): Tolerance for the integration convergence. Defaults to TOL_INTEGRATION (Units).
+        
+        @exception NegativeValue: ID needs to be a positive integer.
+        @exception NegativeValue: ID needs to be a positive integer.
+        @exception NegativeValue: ID needs to be a positive integer.
+        @exception NegativeValue: ID needs to be a positive integer.
+        @exception NegativeValue: ID needs to be a positive integer, if different from -1.
+        @exception NegativeValue: Ip needs to be a positive integer bigger than 3, if different from -1.
+        @exception NegativeValue: max_iter needs to be a positive integer.
+        @exception NegativeValue: tol needs to be positive.
+        """
         # Check
         if iNode_ID < 1: raise NegativeValue()
         if jNode_ID < 1: raise NegativeValue()
@@ -704,9 +908,9 @@ class ForceBasedElement(MemberModel):
 
 
     def ReInit(self, new_integration_ID):
-        """Function that computes the value of the parameters that are computed with respect of the arguments.
-        Use after changing the value of argument inside the class (to update the values accordingly). 
-        This function can be very useful in combination with the function "deepcopy()" from the module "copy".
+        """
+        Implementation of the homonym abstract method.
+        See parent class DataManagement for detailed information.
         """
         # Precompute some members
         self.element_ID = IDConvention(self.iNode_ID, self.jNode_ID)
@@ -723,6 +927,10 @@ class ForceBasedElement(MemberModel):
 
     # Methods
     def UpdateStoredData(self):
+        """
+        Implementation of the homonym abstract method.
+        See parent class DataManagement for detailed information.
+        """
         self.data = [["INFO_TYPE", "ForceBasedElement"], # Tag for differentiating different data
             ["element_ID", self.element_ID],
             ["section_name_tag", self.section_name_tag],
@@ -739,7 +947,12 @@ class ForceBasedElement(MemberModel):
 
 
     def ShowInfo(self, plot = False, block = False):
-        """Function that show the data stored in the class in the command window and plots the member model (optional).
+        """
+        Implementation of the homonym abstract method.
+        See parent class DataManagement for detailed information.
+        
+        @param plot (bool, optional): Option to show the plot of the material model. Defaults to False.
+	    @param block (bool, optional): Option to wait the user command 'plt.show()' (avoiding the stop of the program everytime that a plot should pop up). Defaults to False.
         """
         print("")
         print("Requested info for GIFBElement member model, ID = {}".format(self.element_ID))
@@ -760,6 +973,9 @@ class ForceBasedElement(MemberModel):
 
 
     def CreateMember(self):
+        """
+        Method that initialises the member by calling the OpenSeesPy commands through various functions.
+        """
         self.element_array = [[self.element_ID, self.iNode_ID, self.jNode_ID]]
 
         # Define integration type
@@ -774,12 +990,35 @@ class ForceBasedElement(MemberModel):
 
 
     def Record(self, name_txt: str, data_dir: str, force_rec=True, def_rec=True, time_rec=True):
-        return super().Record(self.element_ID, name_txt, data_dir, force_rec=force_rec, def_rec=def_rec, time_rec=time_rec)
+        """
+        Implementation of the homonym abstract method.
+        See parent class MemberModel for detailed information.
+        """
+        super().Record(self.element_ID, name_txt, data_dir, force_rec=force_rec, def_rec=def_rec, time_rec=time_rec)
 
 
 class ForceBasedElementFibersRectRCRectShape(ForceBasedElement):
+    """
+    Class that is the children of ForceBasedElement and combine the class FibersRectRCRectShape (fiber section) to retrieve the information needed.  
+
+    @param ForceBasedElement: Parent class.
+    """
     def __init__(self, iNode_ID: int, jNode_ID: int, fiber: FibersRectRCRectShape, geo_transf_ID: int,
         new_integration_ID=-1, Ip=5, integration_type="Lobatto", max_iter=MAX_ITER_INTEGRATION, tol=TOL_INTEGRATION):
+        """
+        Constructor of the class.
+
+        @param iNode_ID (int): ID of the first end node.
+        @param jNode_ID (int): ID of the second end node.
+        @param fiber (FibersRectRCRectShape): FibersRectRCRectShape fiber section object.
+        @param geo_transf_ID (int): A geometric transformation (for more information, see OpenSeesPy documentation).
+        @param new_integration_ID (int, optional): ID of the integration technique. Defaults to -1, e.g. computed in ReInit().
+        @param Ip (int, optional): Number of integration points (min. 3). Defaults to 5.
+        @param integration_type (str, optional): Integration type. FOr more information, see OpenSeesPy documentation.
+            Defaults to "Lobatto".
+        @param max_iter (int, optional): Maximal number of iteration to reach the integretion convergence. Defaults to MAX_ITER_INTEGRATION (Units).
+        @param tol (float, optional): Tolerance for the integration convergence. Defaults to TOL_INTEGRATION (Units).
+        """
         self.section = deepcopy(fiber.section)
         super().__init__(iNode_ID, jNode_ID, fiber.ID, geo_transf_ID,
             new_integration_ID=new_integration_ID, Ip=Ip, integration_type=integration_type, max_iter=max_iter, tol=tol)
@@ -790,8 +1029,27 @@ class ForceBasedElementFibersRectRCRectShape(ForceBasedElement):
 
 
 class ForceBasedElementFibersCircRCCircShape(ForceBasedElement):
+    """
+    Class that is the children of ForceBasedElement and combine the class FibersCircRCCircShape (fiber section) to retrieve the information needed.  
+
+    @param ForceBasedElement: Parent class.
+    """
     def __init__(self, iNode_ID: int, jNode_ID: int, fiber: FibersCircRCCircShape, geo_transf_ID: int,
         new_integration_ID=-1, Ip=5, integration_type="Lobatto", max_iter=MAX_ITER_INTEGRATION, tol=TOL_INTEGRATION):
+        """
+        Constructor of the class.
+
+        @param iNode_ID (int): ID of the first end node.
+        @param jNode_ID (int): ID of the second end node.
+        @param fiber (FibersCircRCCircShape): FibersCircRCCircShape fiber section object.
+        @param geo_transf_ID (int): A geometric transformation (for more information, see OpenSeesPy documentation).
+        @param new_integration_ID (int, optional): ID of the integration technique. Defaults to -1, e.g. computed in ReInit().
+        @param Ip (int, optional): Number of integration points (min. 3). Defaults to 5.
+        @param integration_type (str, optional): Integration type. FOr more information, see OpenSeesPy documentation.
+            Defaults to "Lobatto".
+        @param max_iter (int, optional): Maximal number of iteration to reach the integretion convergence. Defaults to MAX_ITER_INTEGRATION (Units).
+        @param tol (float, optional): Tolerance for the integration convergence. Defaults to TOL_INTEGRATION (Units).
+        """
         self.section = deepcopy(fiber.section)
         super().__init__(iNode_ID, jNode_ID, fiber.ID, geo_transf_ID,
             new_integration_ID=new_integration_ID, Ip=Ip, integration_type=integration_type, max_iter=max_iter, tol=tol)
@@ -802,8 +1060,27 @@ class ForceBasedElementFibersCircRCCircShape(ForceBasedElement):
 
 
 class ForceBasedElementFibersIShapeSteelIShape(ForceBasedElement):
+    """
+    Class that is the children of ForceBasedElement and combine the class FibersIShapeSteelIShape (fiber section) to retrieve the information needed.  
+
+    @param ForceBasedElement: Parent class.
+    """
     def __init__(self, iNode_ID: int, jNode_ID: int, fiber: FibersIShapeSteelIShape, geo_transf_ID: int,
         new_integration_ID=-1, Ip=5, integration_type="Lobatto", max_iter=MAX_ITER_INTEGRATION, tol=TOL_INTEGRATION):
+        """
+        Constructor of the class.
+
+        @param iNode_ID (int): ID of the first end node.
+        @param jNode_ID (int): ID of the second end node.
+        @param fiber (FibersIShapeSteelIShape): FibersIShapeSteelIShape fiber section object.
+        @param geo_transf_ID (int): A geometric transformation (for more information, see OpenSeesPy documentation).
+        @param new_integration_ID (int, optional): ID of the integration technique. Defaults to -1, e.g. computed in ReInit().
+        @param Ip (int, optional): Number of integration points (min. 3). Defaults to 5.
+        @param integration_type (str, optional): Integration type. FOr more information, see OpenSeesPy documentation.
+            Defaults to "Lobatto".
+        @param max_iter (int, optional): Maximal number of iteration to reach the integretion convergence. Defaults to MAX_ITER_INTEGRATION (Units).
+        @param tol (float, optional): Tolerance for the integration convergence. Defaults to TOL_INTEGRATION (Units).
+        """
         self.section = deepcopy(fiber.section)
         super().__init__(iNode_ID, jNode_ID, fiber.ID, geo_transf_ID,
             new_integration_ID=new_integration_ID, Ip=Ip, integration_type=integration_type, max_iter=max_iter, tol=tol)
@@ -814,23 +1091,52 @@ class ForceBasedElementFibersIShapeSteelIShape(ForceBasedElement):
 
 
 class GIFBElement(MemberModel):
-    # Class that stores funcions and material properties of a Gradient-Inelastic Flexibility-based element.
-    # Warning: the units should be m and N
-    # Convention:																							
-    # 		NodeID: 		1xy 			with x = pier, y = floor 											o 1xy7	|	
-    #		PlHingeID:		1xya			with x = pier, y = floor, a:  --o 1xy  1xy2 o-----o 2xy3  2xy o--	|		o 1xy
-    #																									    	|	
-    #																									    	|		o 1xy
-    #																									    	o 1xy6	|
-    #		ElementID:		1xy(a)1xy(a)	with 1xy(a) = NodeID i and j
-    #		TrussID:		1xy(a)1xy(a)	with 1xy(a) = NodeID i and j
-    #		PDeltaColID:	1xy(a)1xy(a)	with 1xy(a) = NodeID i and j
-    #		Spring:			1xy(a)1xy(a)	with 1xy(a) = NodeID i and j
-    
+    """
+	Class that handles the storage and manipulation of a Gradient-Inelastic Flexibility-based element's information
+        (mechanical and geometrical parameters, etc) and the initialisation in the model.
+    The integration technique is Simpson. For more information, see Sideris and Salehi 2016, 2017 and 2020.
+
+    @param MemberModel: Parent abstract class.
+    """
     def __init__(self, iNode_ID: int, jNode_ID: int, fiber_ID: int, D_bars, fy, geo_transf_ID: int, 
         lambda_i = -1, lambda_j = -1, Lp = -1, Ip = -1, new_integration_ID = -1,
         min_tol = TOL_INTEGRATION, max_tol = TOL_INTEGRATION*1e4, max_iter = MAX_ITER_INTEGRATION):
-    
+        """
+        Constructor of the class.
+
+        @param iNode_ID (int): ID of the first end node.
+        @param jNode_ID (int): ID of the second end node.
+        @param fiber_ID (int): ID of the fiber section.
+        @param D_bars (float): Diameter of the vertical reinforcing bars.
+        @param fy (float): Yield stress of the reinforcing bars.
+        @param geo_transf_ID (int): The geometric transformation (for more information, see OpenSeesPy documentation).
+        @param lambda_i (float, optional): Fraction of beam length over the plastic hinge length at end i.
+            Defaults to -1, e.g. no plastic hinge in the end i.
+        @param lambda_j (float, optional): Fraction of beam length over the plastic hinge length at end j.
+            Defaults to -1, e.g. no plastic hinge in the end j.
+        @param Lp (float, optional): Plastic hinge length. Defaults to -1, e.g. computed in ReInit().
+        @param Ip (int, optional): Number of integration points (min. 3). Defaults to 5.
+        @param new_integration_ID (int, optional): ID of the integration technique. Defaults to -1, e.g. computed in ReInit().
+        @param min_tol (float, optional): Minimal tolerance for the integration convergence. Defaults to TOL_INTEGRATION (Units).
+        @param max_tol (float, optional): Maximal tolerance for the integration convergence. Defaults to TOL_INTEGRATION*1e4.
+        @param max_iter (int, optional): Maximal number of iteration to reach the integretion convergence. Defaults to MAX_ITER_INTEGRATION (Units).
+
+        @exception NegativeValue: ID needs to be a positive integer.
+        @exception NegativeValue: ID needs to be a positive integer.
+        @exception NegativeValue: ID needs to be a positive integer.
+        @exception NegativeValue: D_bars needs to be positive.
+        @exception NegativeValue: fy needs to be positive.
+        @exception NegativeValue: ID needs to be a positive integer.
+        @exception NegativeValue: lambda_i needs to be positive.
+        @exception NegativeValue: lambda_j needs to be positive.
+        @exception NegativeValue: No plastic length defined.
+        @exception NegativeValue: Lp needs to be positive, if different from -1.
+        @exception NegativeValue: Ip needs to be a positive integer bigger than 3, if different from -1.
+        @exception NegativeValue: ID needs to be a positive integer.
+        @exception NegativeValue: min_tol needs to be positive.
+        @exception NegativeValue: max_tol needs to be positive.
+        @exception NegativeValue: max_iter needs to be a positive integer.
+        """
         # Check
         if iNode_ID < 1: raise NegativeValue()
         if jNode_ID < 1: raise NegativeValue()
@@ -840,7 +1146,7 @@ class GIFBElement(MemberModel):
         if geo_transf_ID < 1: raise NegativeValue()
         if lambda_i != -1 and lambda_i < 0: raise NegativeValue()
         if lambda_j != -1 and lambda_j < 0: raise NegativeValue()
-        if lambda_i == 0 and lambda_j == 0: raise print("!!!!!!! WARNING !!!!!!! No plastic length defined for element ID = {}".format(IDConvention(iNode_ID, jNode_ID)))
+        if lambda_i == 0 and lambda_j == 0: print("!!!!!!! WARNING !!!!!!! No plastic length defined for element ID = {}".format(IDConvention(iNode_ID, jNode_ID)))
         if Lp != -1 and Lp < 0: raise NegativeValue()
         if Ip != -1 and Ip < 3: raise NegativeValue()
         if new_integration_ID != -1 and new_integration_ID < 1: raise NegativeValue()
@@ -864,10 +1170,18 @@ class GIFBElement(MemberModel):
         self.Initialized = False
         self.ReInit(lambda_i, lambda_j, Lp, Ip, new_integration_ID)
 
-    def ReInit(self, lambda_i = -1, lambda_j = -1, Lp = -1, Ip = -1, new_integration_ID = -1):
-        """Function that computes the value of the parameters that are computed with respect of the arguments.
-        Use after changing the value of argument inside the class (to update the values accordingly). 
-        This function can be very useful in combination with the function "deepcopy()" from the module "copy".
+    def ReInit(self, lambda_i = -1, lambda_j = -1, Lp = -1, Ip = 5, new_integration_ID = -1):
+        """
+        Implementation of the homonym abstract method.
+        See parent class DataManagement for detailed information.
+
+        @param lambda_i (float, optional): Fraction of beam length over the plastic hinge length at end i.
+            Defaults to -1, e.g. no plastic hinge in the end i.
+        @param lambda_j (float, optional): Fraction of beam length over the plastic hinge length at end j.
+            Defaults to -1, e.g. no plastic hinge in the end j.
+        @param Lp (float, optional): Plastic hinge length. Defaults to -1, e.g. computed here.
+        @param Ip (int, optional): Number of integration points (min. 3). Defaults to 5.
+        @param new_integration_ID (int, optional): ID of the integration technique. Defaults to -1, e.g. computed in ReInit().
         """
         # Precompute some members
         iNode = np.array(nodeCoord(self.iNode_ID))
@@ -891,6 +1205,10 @@ class GIFBElement(MemberModel):
 
     # Methods
     def UpdateStoredData(self):
+        """
+        Implementation of the homonym abstract method.
+        See parent class DataManagement for detailed information.
+        """
         self.data = [["INFO_TYPE", "GIFBElement"], # Tag for differentiating different data
             ["element_ID", self.element_ID],
             ["section_name_tag", self.section_name_tag],
@@ -913,7 +1231,12 @@ class GIFBElement(MemberModel):
 
 
     def ShowInfo(self, plot = False, block = False):
-        """Function that show the data stored in the class in the command window and plots the member model (optional).
+        """
+        Implementation of the homonym abstract method.
+        See parent class DataManagement for detailed information.
+        
+        @param plot (bool, optional): Option to show the plot of the material model. Defaults to False.
+	    @param block (bool, optional): Option to wait the user command 'plt.show()' (avoiding the stop of the program everytime that a plot should pop up). Defaults to False.
         """
         print("")
         print("Requested info for GIFBElement member model, ID = {}".format(self.element_ID))
@@ -939,12 +1262,17 @@ class GIFBElement(MemberModel):
 
 
     def CreateMember(self):
+        """
+        Method that initialises the member by calling the OpenSeesPy commands through various functions.
+        """
         self.element_array = [[self.element_ID, self.iNode_ID, self.jNode_ID]]
 
         # Define integration type
         beamIntegration('Simpson', self.new_integration_ID, self.fiber_ID, self.Ip)
         
-        # Define element
+        # Define element TODO: CHECK!!!
+        # element('gradientInelasticBeamColumn', self.element_ID, self.iNode_ID, self.jNode_ID, self.geo_transf_ID,
+        #     self.new_integration_ID, self.Lp, '-iter', self.max_iter, self.min_tol, self.max_tol) # from doc
         element('gradientInelasticBeamColumn', self.element_ID, self.iNode_ID, self.jNode_ID, self.geo_transf_ID,
             self.new_integration_ID, self.lambda_i, self.lambda_j, self.Lp, '-iter', self.max_iter, self.min_tol, self.max_tol)
         
@@ -954,23 +1282,27 @@ class GIFBElement(MemberModel):
 
 
     def Record(self, name_txt: str, data_dir: str, force_rec=True, def_rec=True, time_rec=True):
-        return super().Record(self.element_ID, name_txt, data_dir, force_rec=force_rec, def_rec=def_rec, time_rec=time_rec)
+        """
+        Implementation of the homonym abstract method.
+        See parent class MemberModel for detailed information.
+        """
+        super().Record(self.element_ID, name_txt, data_dir, force_rec=force_rec, def_rec=def_rec, time_rec=time_rec)
 
 
     def ComputeLp(self):
-        """Compute the plastic length using Paulay 1992.
+        """
+        Method that computes the plastic length using Paulay 1992.
 
-        Returns:
-            double: Plastic length
+        @returns double: Plastic length
         """
         return (0.08*self.L/m_unit + 0.022*self.D_bars/m_unit*self.fy/MPa_unit)*m_unit
 
 
     def ComputeIp(self):
-        """Compute the number of integration points with equal distance along the element. For more information, see Salehi and Sideris 2020.
+        """
+        Compute the number of integration points with equal distance along the element. For more information, see Salehi and Sideris 2020.
 
-        Returns:
-            int: Number of integration points
+        @returns int: Number of integration points
         """
         tmp = math.ceil(1.5*self.L/self.Lp + 1)
         if (tmp % 2) == 0:
@@ -980,9 +1312,33 @@ class GIFBElement(MemberModel):
 
 
 class GIFBElementRCRectShape(GIFBElement):
+    """
+    Class that is the children of GIFBElement and combine the class RCRectShape (section) to retrieve the information needed.  
+
+    @param GIFBElement: Parent class.
+    """
     def __init__(self, iNode_ID: int, jNode_ID: int, fiber_ID: int, section: RCRectShape, geo_transf_ID: int,
         lambda_i=-1, lambda_j=-1, Lp=-1, Ip=-1, new_integration_ID=-1,
         min_tol = TOL_INTEGRATION, max_tol = TOL_INTEGRATION*1e4, max_iter = MAX_ITER_INTEGRATION):
+        """
+        Constructor of the class.
+
+        @param iNode_ID (int): ID of the first end node.
+        @param jNode_ID (int): ID of the second end node.
+        @param fiber_ID (int): ID of the fiber section.
+        @param section (RCRectShape): RCRectShape section object.
+        @param geo_transf_ID (int): A geometric transformation (for more information, see OpenSeesPy documentation).
+        @param lambda_i (float, optional): Fraction of beam length over the plastic hinge length at end i.
+            Defaults to -1, e.g. no plastic hinge in the end i.
+        @param lambda_j (float, optional): Fraction of beam length over the plastic hinge length at end j.
+            Defaults to -1, e.g. no plastic hinge in the end j.
+        @param Lp (float, optional): Plastic hinge length. Defaults to -1, e.g. computed in ReInit().
+        @param Ip (int, optional): Number of integration points (min. 3). Defaults to 5.
+        @param new_integration_ID (int, optional): ID of the integration technique. Defaults to -1, e.g. computed in ReInit().
+        @param min_tol (float, optional): Minimal tolerance for the integration convergence. Defaults to TOL_INTEGRATION (Units).
+        @param max_tol (float, optional): Maximal tolerance for the integration convergence. Defaults to TOL_INTEGRATION*1e4.
+        @param max_iter (int, optional): Maximal number of iteration to reach the integretion convergence. Defaults to MAX_ITER_INTEGRATION (Units).
+        """
         self.section = deepcopy(section)
         super().__init__(iNode_ID, jNode_ID, fiber_ID, section.D_bars, section.fy, geo_transf_ID,
             lambda_i=lambda_i, lambda_j=lambda_j, Lp=Lp, Ip=Ip, new_integration_ID=new_integration_ID,
@@ -994,9 +1350,32 @@ class GIFBElementRCRectShape(GIFBElement):
 
 
 class GIFBElementFibersRectRCRectShape(GIFBElement):
+    """
+    Class that is the children of GIFBElement and combine the class FibersRectRCRectShape (fiber section) to retrieve the information needed.  
+
+    @param GIFBElement: Parent class.
+    """
     def __init__(self, iNode_ID: int, jNode_ID: int, fib: FibersRectRCRectShape, geo_transf_ID: int,
         lambda_i=-1, lambda_j=-1, Lp=-1, Ip=-1, new_integration_ID=-1,
         min_tol = TOL_INTEGRATION, max_tol = TOL_INTEGRATION*1e4, max_iter = MAX_ITER_INTEGRATION):
+        """
+        Constructor of the class.
+
+        @param iNode_ID (int): ID of the first end node.
+        @param jNode_ID (int): ID of the second end node.
+        @param fib (FibersRectRCRectShape): FibersRectRCRectShape fiber section object.
+        @param geo_transf_ID (int): A geometric transformation (for more information, see OpenSeesPy documentation).
+        @param lambda_i (float, optional): Fraction of beam length over the plastic hinge length at end i.
+            Defaults to -1, e.g. no plastic hinge in the end i.
+        @param lambda_j (float, optional): Fraction of beam length over the plastic hinge length at end j.
+            Defaults to -1, e.g. no plastic hinge in the end j.
+        @param Lp (float, optional): Plastic hinge length. Defaults to -1, e.g. computed in ReInit().
+        @param Ip (int, optional): Number of integration points (min. 3). Defaults to 5.
+        @param new_integration_ID (int, optional): ID of the integration technique. Defaults to -1, e.g. computed in ReInit().
+        @param min_tol (float, optional): Minimal tolerance for the integration convergence. Defaults to TOL_INTEGRATION (Units).
+        @param max_tol (float, optional): Maximal tolerance for the integration convergence. Defaults to TOL_INTEGRATION*1e4.
+        @param max_iter (int, optional): Maximal number of iteration to reach the integretion convergence. Defaults to MAX_ITER_INTEGRATION (Units).
+        """
         self.section = deepcopy(fib.section)
         super().__init__(iNode_ID, jNode_ID, fib.ID, self.section.D_bars, self.section.fy, geo_transf_ID,
             lambda_i=lambda_i, lambda_j=lambda_j, Lp=Lp, Ip=Ip, new_integration_ID=new_integration_ID,
@@ -1008,9 +1387,33 @@ class GIFBElementFibersRectRCRectShape(GIFBElement):
 
 
 class GIFBElementRCCircShape(GIFBElement):
+    """
+    Class that is the children of GIFBElement and combine the class RCCircShape (section) to retrieve the information needed.  
+
+    @param GIFBElement: Parent class.
+    """
     def __init__(self, iNode_ID: int, jNode_ID: int, fiber_ID: int, section: RCCircShape, geo_transf_ID: int,
         lambda_i=-1, lambda_j=-1, Lp=-1, Ip=-1, new_integration_ID=-1,
         min_tol = TOL_INTEGRATION, max_tol = TOL_INTEGRATION*1e4, max_iter = MAX_ITER_INTEGRATION):
+        """
+        Constructor of the class.
+
+        @param iNode_ID (int): ID of the first end node.
+        @param jNode_ID (int): ID of the second end node.
+        @param fiber_ID (int): ID of the fiber section.
+        @param section (RCCircShape): RCCircShape section object.
+        @param geo_transf_ID (int): The geometric transformation (for more information, see OpenSeesPy documentation).
+        @param lambda_i (float, optional): Fraction of beam length over the plastic hinge length at end i.
+            Defaults to -1, e.g. no plastic hinge in the end i.
+        @param lambda_j (float, optional): Fraction of beam length over the plastic hinge length at end j.
+            Defaults to -1, e.g. no plastic hinge in the end j.
+        @param Lp (float, optional): Plastic hinge length. Defaults to -1, e.g. computed in ReInit().
+        @param Ip (int, optional): Number of integration points (min. 3). Defaults to 5.
+        @param new_integration_ID (int, optional): ID of the integration technique. Defaults to -1, e.g. computed in ReInit().
+        @param min_tol (float, optional): Minimal tolerance for the integration convergence. Defaults to TOL_INTEGRATION (Units).
+        @param max_tol (float, optional): Maximal tolerance for the integration convergence. Defaults to TOL_INTEGRATION*1e4.
+        @param max_iter (int, optional): Maximal number of iteration to reach the integretion convergence. Defaults to MAX_ITER_INTEGRATION (Units).
+        """
         self.section = deepcopy(section)
         super().__init__(iNode_ID, jNode_ID, fiber_ID, section.D_bars, section.fy, geo_transf_ID,
             lambda_i=lambda_i, lambda_j=lambda_j, Lp=Lp, Ip=Ip, new_integration_ID=new_integration_ID,
@@ -1022,9 +1425,32 @@ class GIFBElementRCCircShape(GIFBElement):
 
 
 class GIFBElementFibersCircRCCircShape(GIFBElement):
+    """
+    Class that is the children of GIFBElement and combine the class FibersCircRCCircShape (fiber section) to retrieve the information needed.  
+
+    @param GIFBElement: Parent class.
+    """
     def __init__(self, iNode_ID: int, jNode_ID: int, fib: FibersCircRCCircShape, geo_transf_ID: int,
         lambda_i=-1, lambda_j=-1, Lp=-1, Ip=-1, new_integration_ID=-1,
         min_tol = TOL_INTEGRATION, max_tol = TOL_INTEGRATION*1e4, max_iter = MAX_ITER_INTEGRATION):
+        """
+        Constructor of the class.
+
+        @param iNode_ID (int): ID of the first end node.
+        @param jNode_ID (int): ID of the second end node.
+        @param fib (FibersCircRCCircShape): FibersCircRCCircShape fiber section object.
+        @param geo_transf_ID (int): A geometric transformation (for more information, see OpenSeesPy documentation).
+        @param lambda_i (float, optional): Fraction of beam length over the plastic hinge length at end i.
+            Defaults to -1, e.g. no plastic hinge in the end i.
+        @param lambda_j (float, optional): Fraction of beam length over the plastic hinge length at end j.
+            Defaults to -1, e.g. no plastic hinge in the end j.
+        @param Lp (float, optional): Plastic hinge length. Defaults to -1, e.g. computed in ReInit().
+        @param Ip (int, optional): Number of integration points (min. 3). Defaults to 5.
+        @param new_integration_ID (int, optional): ID of the integration technique. Defaults to -1, e.g. computed in ReInit().
+        @param min_tol (float, optional): Minimal tolerance for the integration convergence. Defaults to TOL_INTEGRATION (Units).
+        @param max_tol (float, optional): Maximal tolerance for the integration convergence. Defaults to TOL_INTEGRATION*1e4.
+        @param max_iter (int, optional): Maximal number of iteration to reach the integretion convergence. Defaults to MAX_ITER_INTEGRATION (Units).
+        """
         self.section = deepcopy(fib.section)
         super().__init__(iNode_ID, jNode_ID, fib.ID, self.section.D_bars, self.section.fy, geo_transf_ID,
             lambda_i=lambda_i, lambda_j=lambda_j, Lp=Lp, Ip=Ip, new_integration_ID=new_integration_ID,

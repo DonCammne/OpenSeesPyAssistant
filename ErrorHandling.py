@@ -1,5 +1,7 @@
-# Module that handles the exceptions and errors of the library
-#   Carmine Schipani, 2021
+"""Module dedicated to the error handling. \n
+Carmine Schipani, 2021
+"""
+
 
 class ZeroDivision(Exception):
     """Exception class for the "zero division" error.

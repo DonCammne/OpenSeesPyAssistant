@@ -1,11 +1,11 @@
-# Module for units conversion to the default ones (m, N, kg, s)
-#   Carmine Schipani, 2021
-
-"""Module with the units conversion and the definition of the units used as default (m, N, kg, s).
+"""Module with the units conversion and the definition of the units used as default (m, N, s). \n
 Note that the decision of which unit for each measure (distance, force, mass, time) is equal to 1 is not arbitrary: 
-for example the natural frequency is computed behind the scene by the OpenSeesPy framework, thus the stiffness of the structure divided by the mass should result in a unit of 1 (thus seconds). 
-Furthermore, there are constants like the gravitational one g that is dependent on this decision.
+for example the natural frequency is computed behind the scene by the OpenSeesPy framework, thus the stiffness of the structure divided by the mass should result in a unit of 1 (thus seconds). \n
+Furthermore, there are constants like the gravitational one g that is dependent on this decision. If the units are used in a consistent way (using this library), these issues can be avoided. \n
+Carmine Schipani, 2021
 """
+
+
 # Fundamental
 m_unit = 1
 length_unit = "m" # It's the length unit associated with 1 (fundamental)
@@ -77,6 +77,4 @@ ksi_unit = psi_unit*1000
 # Time
 min_unit = s_unit*60
 hours_unit = min_unit*60
-
-#TODO: check with Andy
 

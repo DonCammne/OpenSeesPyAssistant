@@ -1,5 +1,7 @@
-# Module for the Section classes
-#          Carmine Schipani, 2021
+"""
+Module for the section (steel I shape profiles, RC circular/square/rectangular sections).
+Carmine Schipani, 2021
+"""
 
 import numpy as np
 import math
@@ -9,39 +11,55 @@ from OpenSeesPyAssistant.ErrorHandling import *
 from OpenSeesPyAssistant.Units import *
 
 class Section(DataManagement):
-    """Parent abstract class that groups every class in this module.
+    """
+    Parent abstract class for the storage and manipulation of a section's information (mechanical and geometrical parameters, etc).
 
-    Args:
-        DataManagement: Parent abstract class
+    @param DataManagement: Parent abstract class.
     """
     pass
 
 
 class SteelIShape(Section):
-    """Class that stores funcions, geometric and mechanical properties of a steel double symmetric I-shape profile.
-
-    Args:
-        Section: Parent abstract class
     """
+    Class that stores funcions, geometric and mechanical properties of a steel double symmetric I-shape profile.
+    The parameter 'n' is used as global throughout the SteelIShape sections to optimise the program (given the fact that is constant everytime).
 
+    @param Section: Parent abstract class.
+    """
     global n
     n = 10.0
 
-    def __init__(self, Type, d, bf, tf, tw, L, r, E, Fy, Fy_web = -1, name_tag = "Not Defined"):
-        """The conctructor of the class
+    def __init__(self, Type: str, d, bf, tf, tw, L, r, E, Fy, Fy_web = -1, name_tag = "Not Defined"):
+        """
+        The conctructor of the class.
 
-        Args:
-            Type (str): The type of element (Col or Beam)
-            d (double): The depth
-            bf (double): The flange's width
-            tf (double): The flange's thickness
-            tw (double): The web's thickness
-            L (double): The element length (exclude the panel zone if present)
-            r (double): The radius of the weld fillets
-            E (double): The Young modulus
-            Fy (double): The yield strength
-            Fy_web (double, optional): The yield strength of the web. Defaults to -1 (e.g. computed in __init__()).
-            name_tag (str, optional): A nametag for the section. Defaults to "Not Defined".
+        @param Type (str): Type of the section. It can be 'Col' for column or 'Beam' for beams.
+        @param d (float): Depth of the section.
+        @param bf (float): Flange's width of the section
+        @param tf (float): Flange's thickness of the section
+        @param tw (float): Web's thickness of the section
+        @param L (float): Effective length of the element associated with this section.
+            If the panel zone is present, exclude its dimension.
+        @param r (float): Radius of the weld fillets of the section.
+        @param E (float): Young modulus of the section.
+        @param Fy (float): Yield strength of the flange of the section. Used as the yield strength of the entire section.
+        @param Fy_web (float, optional): Yield strength of the web of the section. Used for panel zone associated to this section.
+            Defaults to -1, e.g. computed in __init__() as equal to Fy.
+        @param name_tag (str, optional): Name TAG of the section. Defaults to "Not Defined".
+
+        @exception WrongArgument: Type needs to be 'Col' or 'Beam'.
+        @exception NegativeValue: d needs to be positive.
+        @exception NegativeValue: bf needs to be positive.
+        @exception NegativeValue: tf needs to be positive.
+        @exception NegativeValue: tw needs to be positive.
+        @exception NegativeValue: L needs to be positive.
+        @exception NegativeValue: r needs to be positive.
+        @exception NegativeValue: E needs to be positive.
+        @exception NegativeValue: Fy needs to be positive.
+        @exception NegativeValue: Fy_web needs to be positive if different from -1.
+        @exception InconsistentGeometry: tw should be smaller than bf.
+        @exception InconsistentGeometry: tf needs to be smaller than half of d
+        @exception InconsistentGeometry: r should be less than half bf and d
         """
         # Check
         if Type != "Beam" and Type != "Col": raise WrongArgument()
@@ -56,7 +74,7 @@ class SteelIShape(Section):
         if Fy_web != -1 and Fy_web < 0: raise NegativeValue()
         if tw > bf: raise InconsistentGeometry()
         if tf > d/2: raise InconsistentGeometry()
-        if r > bf/2: raise InconsistentGeometry()
+        if r > bf/2 or r > d/2: raise InconsistentGeometry()
 
         # Arguments
         self.Type = Type
@@ -75,9 +93,9 @@ class SteelIShape(Section):
         self.ReInit()
 
     def ReInit(self):
-        """Function that computes the value of the parameters that are computed with respect of the arguments.
-        Use after changing the value of argument inside the class (to update the values accordingly). 
-        This function can be very useful in combination with the function "deepcopy()" from the module "copy".
+        """
+        Implementation of the homonym abstract method.
+        See parent class DataManagement for detailed information.
         """
         # Member
         self.h_1 = self.d - 2.0*self.r -2.0*self.tf
@@ -96,6 +114,10 @@ class SteelIShape(Section):
         self.UpdateStoredData()
 
     def UpdateStoredData(self):
+        """
+        Implementation of the homonym abstract method.
+        See parent class DataManagement for detailed information.
+        """
         self.data = [["INFO_TYPE", "SteelIShape"], # Tag for differentiating different data
             ["name_tag", self.name_tag], 
             ["Type", self.Type], 
@@ -121,7 +143,9 @@ class SteelIShape(Section):
             ["My", self.My]] 
 
     def ShowInfo(self):
-        """Function that show the data stored in the class in the command window.
+        """
+        Implementation of the homonym abstract method.
+        See parent class DataManagement for detailed information.
         """
         print("")
         print("Requested info for steel I shape section of type = {} and name tag = {}".format(self.Type, self.name_tag))
@@ -144,10 +168,10 @@ class SteelIShape(Section):
 
 
     def ComputeA(self):
-        """Compute the area of a double symmetric I-profile section with fillets.
+        """
+        Compute the area of a double symmetric I-profile section with fillets.
 
-        Returns:
-            double: The area of the section
+        @returns float: Area of the I shape section (with fillets included)
         """
         #  d :     The depth
         #  bf :    The flange's width
@@ -159,10 +183,10 @@ class SteelIShape(Section):
         return 2.0*self.bf*self.tf+self.tw*(self.d-2.0*self.tf)+0.8584*self.r**2
 
     def ComputeIy(self):
-        """Compute the moment of inertia of a double symmetric I-profile section, with respect to its strong axis with fillets.
+        """
+        Compute the moment of inertia of a double symmetric I-profile section, with respect to its strong axis with fillets.
 
-        Returns:
-            double: The moment of inertia with respect to the strong axis.
+        @returns float: The moment of inertia with respect to the strong axis.
         """
         #  d :     The depth
         #  bf :    The flange's width
@@ -174,10 +198,10 @@ class SteelIShape(Section):
         return (self.bf*self.d**3.0-(self.bf-self.tw)*(self.d-2.0*self.tf)**3)/12.0+0.8584*self.r**2*(0.5*self.d-self.tf-0.4467*self.r/2.0)**2
 
     def ComputeIz(self):
-        """Compute the moment of inertia of a double symmetric I-profile section, with respect to its weak axis with fillets.
+        """
+        Compute the moment of inertia of a double symmetric I-profile section, with respect to its weak axis with fillets.
 
-        Returns:
-            double: The moment of inertia with respect to the weak axis.
+        @returns float: The moment of inertia with respect to the weak axis.
         """
         #  d :     The depth
         #  bf :    The flange's width
@@ -188,10 +212,10 @@ class SteelIShape(Section):
         return (self.tf*self.bf**3)/6.0+((self.d-2.0*self.tf)*self.tw**3)/12.0+0.8584*self.r**2*(0.5*self.tw+0.2234*self.r)**2
 
     def ComputeWply(self):
-        """Compute the plastic modulus of a double symmetric I-profile section, with respect to its strong axis with fillets.
+        """
+        Compute the plastic modulus of a double symmetric I-profile section, with respect to its strong axis with fillets.
 
-        Returns:
-            double: The plastic modulus with respect to the strong axis.
+        @returns float: The plastic modulus with respect to the strong axis.
         """
         #  d :     The depth
         #  bf :    The flange's width
@@ -202,24 +226,23 @@ class SteelIShape(Section):
         return self.bf*self.tf*(self.d-self.tf)+(self.d-2.0*self.tf)**2.0*(self.tw/4.0)+0.4292*self.r**2*(self.d-2.0*self.tf-0.4467*self.r)
 
     def ComputeWplz(self):
-        """Compute the plastic modulus of a double symmetric I-profile section, with respect to its weak axis with fillets.
+        """
+        Compute the plastic modulus of a double symmetric I-profile section, with respect to its weak axis with fillets.
 
-        Returns:
-            double: The plastic modulus with respect to the weak axis.
+        @returns float: The plastic modulus with respect to the weak axis.
         """
         #  d :     The depth
         #  bf :    The flange's width
         #  tf :    The flange's thickness
         #  tw :    The web's thickness
         #  r :     The weld fillet radius
-        #TODO: add correct formula (at the moment is the formula for Wply)
-        return self.bf*self.tf*(self.d-self.tf)+(self.d-2.0*self.tf)**2.0*(self.tw/4.0)+0.4292*self.r**2*(self.d-2.0*self.tf-0.4467*self.r)
+        return (self.tf*self.bf**2)/2+(self.d-2.0*self.tf)*(self.tw**2/4.0)+0.4292*self.r**2*(self.tw+0.4467*self.r)
 
     def Compute_iy(self):
-        """Compute the gyration radius with respect to the strong axis.
+        """
+        Compute the gyration radius with respect to the strong axis.
 
-        Returns:
-            double: The gyration radius with respect to the strong axis
+        @returns float: The gyration radius with respect to the strong axis.
         """
         #  Iy :    The second moment of inertia with respect to thte strong axis
         #  A :     The area
@@ -227,10 +250,10 @@ class SteelIShape(Section):
         return math.sqrt(self.Iy/self.A)
 
     def Compute_iz(self):
-        """Compute the gyration radius with respect to the weak axis.
+        """
+        Compute the gyration radius with respect to the weak axis.
 
-        Returns:
-            double: The gyration radius with respect to the weak axis
+        @returns float: The gyration radius with respect to the weak axis.
         """
         #  Iz :    The second moment of inertia with respect to thte weak axis
         #  A :     The area
@@ -239,42 +262,66 @@ class SteelIShape(Section):
 
 
 class RCRectShape(Section):
-    """Class that stores funcions, geometric and mechanical properties of RC rectangular shape profile.
-
-    Args:
-        Section: Parent abstract class
     """
+    Class that stores funcions, geometric and mechanical properties of RC rectangular shape profile.
+    Note that for the validity of the formulas, at least one bar per corner and at least one hoop closed (with 135 degress possibly).
 
+    @param Section: Parent abstract class.
+    """
     def __init__(self, b, d, L, e, fc, D_bars, bars_position_x: np.ndarray, bars_ranges_position_y: np.ndarray, fy, Ey, 
         D_hoops, s, fs, Es, name_tag = "Not Defined", rho_s_x = -1, rho_s_y = -1, Ec = -1):
-        """The conctructor of the class.
-
-        Args:
-            b (double): Width of the section
-            d (double): Depth of the section
-            L (double): Length of the element
-            e (double): Concrete cover
-            fc (double): Unconfined concrete compressive strength (cylinder test)
-            D_bars (double): Diameter of the reinforcing bars
-            bars_position_x (np.ndarray): Distances from border to bar centerline, bar to bar centerlines and finally bar centerline to border in the x direction (aligned).
-                Starting from the left to right, from the top range to the bottom one. The number of bars for each range can vary; in this case, add this argument when defining the array " dtype = object"
-            bars_ranges_position_y (np.ndarray): Distances from border to range centerlines, range to range centerlines and finally range centerline to border in the y direction.
-                Starting from the top range to the bottom one
-            fy (double): Yield stress for reinforcing bars
-            Ey (double): Young modulus for reinforcing bars
-            D_hoops (double): Diameter of the hoops
-            s (double): Centerline distance for the hoops
-            fs (double): Yield stress for the hoops
-            Es (double): Young modulus for the hoops
-            name_tag (str, optional): A nametag for the section. Defaults to "Not Defined".
-            rho_s_x (double, optional): Volumetric or not?????????????. Defaults to -1 (e.g. computed in __init__() assuming one range of hoops).
-            rho_s_y (double, optional): Volumetric or not?????????????. Defaults to -1 (e.g. computed in __init__() assuming one range of hoops).
-            Ec (double, optional): Young modulus for concrete. Defaults to -1 (e.g. computed in __init__()).
         """
-        # Note that for the validity of the formulas, at least one bar per corner and at least one hoop closed with 135 degress!
+        The conctructor of the class.
 
-        #TODO: ask someone good with concrete (Katrin Beyer, Diego,... ) if rho_s is volumtric or not (and how to compute it)
-        
+        @param b (float): Width of the section.
+        @param d (float): Depth of the section.
+        @param L (float): Effective length of the element associated with this section.
+            If the panel zone is present, exclude its dimension.
+        @param e (float): Concrete cover.
+        @param fc (float): Unconfined concrete compressive strength (cylinder test).
+        @param D_bars (float): Diameter of the reinforcing bars.
+        @param bars_position_x (np.ndarray): Array with a range of aligned vertical reinforcing bars for each row in x direction.
+            Distances from border to bar centerline, bar to bar centerlines and
+            finally bar centerline to border in the x direction (aligned).
+            Starting from the left to right, from the top range to the bottom one.
+            The number of bars for each range can vary; in this case, add this argument when defining the array " dtype = object".
+        @param bars_ranges_position_y (np.ndarray): Array of dimension 1 with the position or spacing in y of the ranges in bars_position_x.
+            Distances from border to range centerlines, range to range centerlines and
+            finally range centerline to border in the y direction.
+            Starting from the top range to the bottom one.
+        @param fy (float): Yield stress for reinforcing bars.
+        @param Ey (float): Young modulus for reinforcing bars.
+        @param D_hoops (float): Diameter of the hoops.
+        @param s (float): Centerline distance for the hoops.
+        @param fs (float): Yield stress for the hoops.
+        @param Es (float): Young modulus for the hoops
+        @param name_tag (str, optional): A nametag for the section. Defaults to "Not Defined".
+        @param rho_s_x (float, optional): Ratio of the transversal area of the hoops to the associated concrete area in the x direction.
+            Defaults to -1, e.g. computed in __init__()  and ReInit() assuming one range of hoops.
+        @param rho_s_y (float, optional): Ratio of the transversal area of the hoops to the associated concrete area in the y direction.
+            Defaults to -1, e.g. computed in __init__()  and ReInit() assuming one range of hoops.
+        @param Ec (float, optional): Young modulus for concrete. Defaults to -1, e.g. computed in __init__() and ReInit().
+
+        @exception NegativeValue: b needs to be positive.
+        @exception NegativeValue: d needs to be positive.
+        @exception NegativeValue: L needs to be positive.
+        @exception NegativeValue: e needs to be positive.
+        @exception PositiveValue: fc needs to be negative.
+        @exception NegativeValue: D_bars needs to be positive.
+        @exception NegativeValue: fy needs to be positive.
+        @exception NegativeValue: Ey needs to be positive.
+        @exception NegativeValue: D_hoops needs to be positive.
+        @exception NegativeValue: s needs to be positive.
+        @exception NegativeValue: fs needs to be positive.
+        @exception NegativeValue: Es needs to be positive.
+        @exception NegativeValue: rho_s_x needs to be positive if different from -1. 
+        @exception NegativeValue: rho_s_y needs to be positive if different from -1.
+        @exception NegativeValue: Ec needs to be positive if different from -1.
+        @exception WrongDimension: Number of lists in the list bars_position_x needs to be the same of the length of bars_ranges_position_y - 1.
+        @exception InconsistentGeometry: The sum of the distances for each list in bars_position_x should be equal to the section's width (tol = 5 mm).
+        @exception InconsistentGeometry: The sum of the distances in bars_ranges_position_y should be equal to the section's depth (tol = 5 mm).
+        @exception InconsistentGeometry: e should be smaller than half the depth and the width of the section.
+        """
         # Check
         if b < 0: raise NegativeValue()
         if d < 0: raise NegativeValue()
@@ -325,9 +372,15 @@ class RCRectShape(Section):
 
 
     def ReInit(self, rho_s_x = -1, rho_s_y = -1, Ec = -1):
-        """Function that computes the value of the parameters that are computed with respect of the arguments.
-        Use after changing the value of argument inside the class (to update the values accordingly). 
-        This function can be very useful in combination with the function "deepcopy()" from the module "copy".
+        """
+        Implementation of the homonym abstract method.
+        See parent class DataManagement for detailed information.
+
+        @param rho_s_x (float, optional): Ratio of the transversal area of the hoops to the associated concrete area in the x direction.
+            Defaults to -1, e.g. computed assuming one range of hoops.
+        @param rho_s_y (float, optional): Ratio of the transversal area of the hoops to the associated concrete area in the y direction.
+            Defaults to -1, e.g. computed assuming one range of hoops.
+        @param Ec (float, optional): Young modulus for concrete. Defaults to -1, e.g. computed according to Mander et Al. 1988.
         """
         # Precompute some members
         self.cl_hoops = self.e + self.D_hoops/2.0 # centerline distance from the border of the extreme confining hoops
@@ -355,6 +408,10 @@ class RCRectShape(Section):
 
 
     def UpdateStoredData(self):
+        """
+        Implementation of the homonym abstract method.
+        See parent class DataManagement for detailed information.
+        """
         self.data = [["INFO_TYPE", "RCRectShape"], # Tag for differentiating different data
             ["name_tag", self.name_tag],
             ["b", self.b],
@@ -387,8 +444,11 @@ class RCRectShape(Section):
             ["fs", self.fs],
             ["Es", self.Es]]
 
+
     def ShowInfo(self):
-        """Function that show the data stored in the class in the command window.
+        """
+        Implementation of the homonym abstract method.
+        See parent class DataManagement for detailed information.
         """
         print("")
         print("Requested info for RC rectangular section of name tag = {}".format(self.name_tag))
@@ -410,10 +470,10 @@ class RCRectShape(Section):
         
 
     def ComputeNrBars(self):
-        """Compute the number of vertical bars in the array bars_position_x (note that this list of lists can have different list sizes).
+        """
+        Compute the number of vertical bars in the array bars_position_x (note that this list of lists can have different list sizes).
 
-        Returns:
-            double: Number of vertical bars
+        @returns int: Number of vertical reinforcing bars.
         """
         nr_bars = 0
         for range in self.bars_position_x:
@@ -423,85 +483,134 @@ class RCRectShape(Section):
 
 
     def ComputeEc(self):
-        """Compute Ec using the formula from Mander et Al. 1988.
+        """
+        Compute Ec using the formula from Mander et Al. 1988.
 
-        Returns:
-            double: Young modulus of concrete
+        @returns float: Young modulus of concrete.
         """
 
         return 5000.0 * math.sqrt(-self.fc/MPa_unit) * MPa_unit
 
 
     def ComputeA(self):
-        """Compute the area for a rectangular section.
+        """
+        Compute the area for a rectangular section.
 
-        Returns:
-            double: Total area
+        @returns float: Total area.
         """
         return self.b * self.d
 
 
     def ComputeAc(self):
-        """Compute the confined area.
+        """
+        Compute the confined area (area inside the centerline of the hoops, according to Mander et Al. 1988).
 
-        Returns:
-            double: Confined area
+        @returns float: Confined area.
         """
         return self.bc * self.dc
 
 
     def ComputeIy(self):
-        """Compute the moment of inertia of the rectangular section with respect to the strong axis.
+        """
+        Compute the moment of inertia of the rectangular section with respect to the strong axis.
 
-        Returns:
-            double: Moment of inertia (strong axis)
+        @returns float: Moment of inertia (strong axis)
         """
         return self.b * self.d**3 / 12.0
 
 
     def ComputeIz(self):
-        """Compute the moment of inertia of the rectangular section with respect to the weak axis.
+        """
+        Compute the moment of inertia of the rectangular section with respect to the weak axis.
 
-        Returns:
-            double: Moment of inertia (weak axis)
+        @returns float: Moment of inertia (weak axis)
         """
         return self.d * self.b**3 / 12.0
 
 
 class RCSquareShape(RCRectShape):
+    """
+    Class that is the children of RCRectShape and cover the specific case of square RC sections.  
+
+    @param RCRectShape: Parent class.
+    """
     def __init__(self, b, L, e, fc, D_bars, bars_position_x: np.ndarray, bars_ranges_position_y: np.ndarray, fy, Ey, D_hoops, s, fs, Es, name_tag="Not Defined", rho_s_x=-1, rho_s_y=-1, Ec=-1):
+        """
+        Constructor of the class. It passes the arguments into the parent class to generate the specific case of a aquare RC section.
+
+        @param b (float): Width/depth of the section.
+        @param L (float): Effective length of the element associated with this section.
+            If the panel zone is present, exclude its dimension.
+        @param e (float): Concrete cover.
+        @param fc (float): Unconfined concrete compressive strength (cylinder test).
+        @param D_bars (float): Diameter of the reinforcing bars.
+        @param bars_position_x (np.ndarray):  Distances from border to bar centerline, bar to bar centerlines and
+            finally bar centerline to border in the x direction (aligned).
+            Starting from the left to right, from the top range to the bottom one.
+            The number of bars for each range can vary; in this case, add this argument when defining the array " dtype = object".
+        @param bars_ranges_position_y (np.ndarray): Distances from border to range centerlines, range to range centerlines and
+            finally range centerline to border in the y direction.
+            Starting from the top range to the bottom one.
+        @param fy (float): Yield stress for reinforcing bars.
+        @param Ey (float): Young modulus for reinforcing bars.
+        @param D_hoops (float): Diameter of the hoops.
+        @param s (float): Vertical centerline spacing between hoops.
+        @param fs (float): Yield stress for the hoops.
+        @param Es (float): Young modulus for the hoops
+        @param name_tag (str, optional): A nametag for the section. Defaults to "Not Defined".
+        @param rho_s_x (float, optional): Ratio of the transversal area of the hoops to the associated concrete area in the x direction.
+            Defaults to -1, e.g. computed in __init__()  and ReInit() assuming one range of hoops.
+        @param rho_s_y (float, optional): Ratio of the transversal area of the hoops to the associated concrete area in the y direction.
+            Defaults to -1, e.g. computed in __init__()  and ReInit() assuming one range of hoops.
+        @param Ec (float, optional): Young modulus for concrete. Defaults to -1, e.g. computed in __init__() and ReInit().
+        """
         super().__init__(b, b, L, e, fc, D_bars, bars_position_x, bars_ranges_position_y, fy, Ey, D_hoops, s, fs, Es, name_tag, rho_s_x, rho_s_y, Ec)
 
 
 class RCCircShape(Section):
-    """Class that stores funcions, geometric and mechanical properties of RC circular shape profile.
-
-    Args:
-        Section: Parent abstract class
     """
+    Class that stores funcions, geometric and mechanical properties of RC circular shape profile.
+    Note that for the validity of the formulas, the hoops needs to be closed (with 135 degress possibly).
 
-    def __init__(self, b, L, e, fc, D_bars, n_bars: int, fy, Ey, D_hoops, s, fs, Es, name_tag = "Not Defined", Ec = -1):
-        """The conctructor of the class.
-
-        Args:
-            b (double): Width of the section
-            L (double): Length of the element
-            e (double): Concrete cover
-            fc (double): Unconfined concrete compressive strength (cylinder test)
-            D_bars (double): Diameter of the reinforcing bars
-            n_bars (int): number of reinforcing bars
-            fy (double): Yield stress for reinforcing bars
-            Ey (double): Young modulus for reinforcing bars
-            D_hoops (double): Diameter of the hoops
-            s (double): Centerline distance for the hoops
-            fs (double): Yield stress for the hoops
-            Es (double): Young modulus for the hoops
-            name_tag (str, optional): A nametag for the section. Defaults to "Not Defined".
-            Ec (double, optional): Young modulus for concrete. Defaults to -1 (e.g. computed in __init__()).
+    @param Section: Parent abstract class.
+    """
+    def __init__(self, b, L, e, fc, D_bars, n_bars: int, fy, Ey, D_hoops, s, fs, Es, name_tag = "Not Defined", rho_s_vol = -1, Ec = -1):
         """
-        # Note that for the validity of the formulas, at least one bar per corner and at least one hoop closed with 135 degress!
-        #TODO: ask someone good with concrete (Katrin Beyer, Diego,... ) if rho_s is volumtric or not (and how to compute it)
-        
+        The conctructor of the class.
+
+        @param b (float): Width of the section.
+        @param L (float): Effective length of the element associated with this section.
+            If the panel zone is present, exclude its dimension.
+        @param e (float): Concrete cover.
+        @param fc (float): Unconfined concrete compressive strength (cylinder test).
+        @param D_bars (float): Diameter of the vertical reinforcing bars.
+        @param n_bars (int): Number of vertical reinforcing bars.
+        @param fy (float): Yield stress for reinforcing bars.
+        @param Ey (float): Young modulus for reinforcing bars.
+        @param D_hoops (float): Diameter of the hoops.
+        @param s (float): Vertical centerline spacing between hoops.
+        @param fs (float): Yield stress for the hoops.
+        @param Es (float): Young modulus for the hoops
+        @param name_tag (str, optional): A nametag for the section. Defaults to "Not Defined".
+        @param rho_s_vol (float, optional): Ratio of the volume of transverse confining steel to the volume of confined concrete core.
+            Defaults to -1, e.g. computed according to Mander et Al. 1988.
+        @param Ec (float, optional): Young modulus for concrete. Defaults to -1, e.g. computed in __init__() and ReInit().
+
+        @exception NegativeValue: b needs to be positive.
+        @exception NegativeValue: L needs to be positive.
+        @exception NegativeValue: e needs to be positive.
+        @exception PositiveValue: fc needs to be negative.
+        @exception NegativeValue: D_bars needs to be positive.
+        @exception NegativeValue: n_bars needs to be a positive integer.
+        @exception NegativeValue: fy needs to be positive.
+        @exception NegativeValue: Ey needs to be positive.
+        @exception NegativeValue: D_hoops needs to be positive.
+        @exception NegativeValue: s needs to be positive.
+        @exception NegativeValue: fs needs to be positive.
+        @exception NegativeValue: Es needs to be positive.
+        @exception NegativeValue: Ec needs to be positive if different from -1.
+        @exception InconsistentGeometry: e should be smaller than half the depth and the width of the section.
+        """
         # Check
         if b < 0: raise NegativeValue()
         if L < 0: raise NegativeValue()
@@ -534,25 +643,29 @@ class RCCircShape(Section):
         self.name_tag = name_tag
 
         # Initialized the parameters that are dependent from others
-        self.ReInit(Ec)
+        self.ReInit(rho_s_vol, Ec)
 
 
-    def ReInit(self, Ec = -1):
-        """Function that computes the value of the parameters that are computed with respect of the arguments.
-        Use after changing the value of argument inside the class (to update the values accordingly). 
-        This function can be very useful in combination with the function "deepcopy()" from the module "copy".
+    def ReInit(self, rho_s_vol = -1, Ec = -1):
+        """
+        Implementation of the homonym abstract method.
+        See parent class DataManagement for detailed information.
+
+        @param rho_s_vol (float, optional): Ratio of the volume of transverse confining steel to the volume of confined concrete core.
+            Defaults to -1, e.g. computed according to Mander et Al. 1988.
+        @param Ec (float): Young modulus for concrete. Defaults to -1, e.g. computed according to Mander et Al. 1988.
         """
         # Precompute some members
         self.cl_hoops = self.e + self.D_hoops/2.0 # centerline distance from the border of the extreme confining hoops
         self.cl_bars = self.e + self.D_bars/2.0 + self.D_hoops # centerline distance from the border of the corner bars
         self.bc = self.b - self.cl_hoops*2 # diameter of spiral (hoops) between bar centerline
+        self.As = ComputeACircle(self.D_hoops)
 
         # Arguments
+        self.rho_s_vol = self.ComputeRhoVol() if rho_s_vol == -1 else rho_s_vol
         self.Ec = self.ComputeEc() if Ec == -1 else Ec
 
         # Members
-        self.As = ComputeACircle(self.D_hoops)
-        self.rho_s_vol = self.ComputeRhoVol()
         self.A = ComputeACircle(self.b)
         self.Ac = ComputeACircle(self.bc)
         self.Ay = ComputeACircle(self.D_bars)
@@ -564,6 +677,10 @@ class RCCircShape(Section):
 
 
     def UpdateStoredData(self):
+        """
+        Implementation of the homonym abstract method.
+        See parent class DataManagement for detailed information.
+        """
         self.data = [["INFO_TYPE", "RCCircShape"], # Tag for differentiating different data
             ["name_tag", self.name_tag],
             ["b", self.b],
@@ -591,10 +708,12 @@ class RCCircShape(Section):
             ["Es", self.Es]]
 
     def ShowInfo(self):
-        """Function that show the data stored in the class in the command window.
+        """
+        Implementation of the homonym abstract method.
+        See parent class DataManagement for detailed information.
         """
         print("")
-        print("Requested info for RC rectangular section of name tag = {}".format(self.name_tag))
+        print("Requested info for RC circular section of name tag = {}".format(self.name_tag))
         print("Width of the section b = {} mm".format(self.b/mm_unit))
         print("Concrete cover e = {} mm".format(self.e/mm_unit))
         print("Concrete area A = {} mm2".format(self.A/mm2_unit))
@@ -610,10 +729,11 @@ class RCCircShape(Section):
     
 
     def ComputeRhoVol(self):
-        """Compute the ratio of the volume of transverse confining steel to the volume of confined concrete core.
+        """
+        Compute the ratio of the volume of transverse confining steel to the volume of confined concrete core.
+        (according to Mander et Al. 1988).
 
-        Returns:
-            double: Ratio
+        @returns float: Ratio.
         """
         vol_s = self.As*math.pi*self.bc
         vol_c = math.pi/4*self.bc**2*self.s
@@ -622,45 +742,44 @@ class RCCircShape(Section):
 
 
     def ComputeEc(self):
-        """Compute Ec using the formula from Mander et Al. 1988.
+        """
+        Compute Ec using the formula from Mander et Al. 1988.
 
-        Returns:
-            double: Young modulus of concrete
+        @returns float: Young modulus of concrete.
         """
 
         return 5000.0 * math.sqrt(-self.fc/MPa_unit) * MPa_unit
 
 
     def ComputeI(self):
-        """Compute the moment of inertia of the circular section.
+        """
+        Compute the moment of inertia of the circular section.
 
-        Returns:
-            double: Moment of inertia
+        @returns float: Moment of inertia.
         """
         return self.b**4*math.pi/64
 
 
 def ComputeACircle(D):
-    """Compute the area of one circle (reinforcing bar or hoop).
+    """
+    Function that computes the area of one circle (reinforcing bar or hoop).
 
-    Args:
-        D (double): Diameter of the circle (reinforcing bar of hoop)
+    @param D (float): Diameter of the circle (reinforcing bar of hoop).
 
-    Returns:
-        double: Area the circle (for reinforcing bars or hoops)
+    @returns float: Area the circle (for reinforcing bars or hoops).
     """
     return D**2/4.0*math.pi
 
 
 def ComputeRho(A, nr, A_tot):
-    """Compute the ratio of area of a reinforcement to area of a section.
+    """
+    Compute the ratio of area of a reinforcement to area of a section.
 
-    Args:
-        A (double): Area of reinforcement
-        nr (int): Number of reinforcement
-        A_tot (double): Area of the concrete
+    @param A (float): Area of reinforcement.
+    @param nr (float): Number of reinforcement (allow float for computing ratio with different area;
+        just convert the other areas to one and compute the equivalent n).
+    @param A_tot (float): Area of the concrete.
 
-    Returns:
-        double: Ratio
+    @returns float: Ratio.
     """
     return nr * A / A_tot

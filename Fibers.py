@@ -1,14 +1,12 @@
-# Module with the fibers
-#   Carmine Schipani, 2021
+"""
+Module for the fibers (rectangular, circular and I shape).
+Carmine Schipani, 2021
+"""
 
-# from numpy.matrixlib import mat
 from openseespy.opensees import *
 import matplotlib.pyplot as plt
 from matplotlib.patches import Circle, Polygon, Wedge
-import openseespy.postprocessing.ops_vis as opsv
 import numpy as np
-import os
-import math
 from copy import copy, deepcopy
 from OpenSeesPyAssistant.Section import *
 from OpenSeesPyAssistant.DataManagement import *
@@ -16,22 +14,68 @@ from OpenSeesPyAssistant.ErrorHandling import *
 from OpenSeesPyAssistant.Units import *
 from OpenSeesPyAssistant.MaterialModels import *
 
+
 class Fibers(DataManagement):
+    """
+    Parent abstract class for the storage and manipulation of a fiber's information (mechanical
+        and geometrical parameters, etc) and initialisation in the model.
+
+    @param DataManagement: Parent abstract class.
+    """
     pass
 
+
 class FibersRect(Fibers):
-    # Class that stores funcions and material properties of the rectangular fiber section.
-    # Warning: the units should be m and N
-    # Coordinates: plotting coordinte (x, y) = fiber section coordinate (z, y)= (-x, y)
-    
+    """
+	Class that stores funcions, material properties, geometric and mechanical parameters for a rectangular RC fiber section.
+    Coordinates: plotting coordinte (x, y) = fiber section coordinate (z, y) = (-x, y). For more information, see the OpenSeesPy documentation.
+
+    @param Fibers: Parent abstract class.
+    """
     def __init__(self, ID: int, b, d, Ay, D_hoops, e, unconf_mat_ID: int, conf_mat_ID: int, bars_mat_ID: int,
         bars_x: np.ndarray, ranges_y: np.ndarray, discr_core: list, discr_cover_lateral: list, discr_cover_topbottom: list, GJ = 0.0):
-        # bars_x (np.ndarray): Distances from border to bar centerline, bar to bar centerlines and finally bar centerline to border in the x direction (aligned).
-        #         Starting from the left to right, from the top range to the bottom one. The number of bars for each range can vary; in this case, add this argument when defining the array " dtype = object"
-        # ranges_y (np.ndarray): Distances from border to range centerlines, range to range centerlines and finally range centerline to border in the y direction.
-        #     Starting from the top range to the bottom one
-        # discr in IJ (x or z) and JK (y)
+        """
+        Constructor of the class.
 
+        @param ID (int): Unique fiber section ID.
+        @param b (float): Width of the section.
+        @param d (float): Depth of the section.
+        @param Ay (float): Area of one vertical reinforcing bar.
+        @param D_hoops (float): Diameter of the hoops.
+        @param e (float): Concrete cover.
+        @param unconf_mat_ID (int): ID of material model that will be assigned to the unconfined fibers.
+        @param conf_mat_ID (int): ID of material model that will be assigned to the confined fibers.
+        @param bars_mat_ID (int): ID of material model that will be assigned to the reinforcing bars fibers.
+        @param bars_x (np.ndarray): Array with a range of aligned vertical reinforcing bars for each row in x direction.
+            Distances from border to bar centerline, bar to bar centerlines and finally bar centerline to border in the x direction (aligned).
+            Starting from the left to right, from the top range to the bottom one.
+            The number of bars for each range can vary; in this case, add this argument when defining the array " dtype = object"
+        @param ranges_y (np.ndarray): Array of dimension 1 with the position or spacing in y of the ranges in bars_x.
+            Distances from border to range centerlines, range to range centerlines and finally range centerline to border in the y direction.
+            Starting from the top range to the bottom one.
+        @param discr_core (list): List with two entries: discretisation in IJ (x/z) and JK (y) for the confined core.
+        @param discr_cover_lateral (list): List with two entries: discretisation in IJ (x/z) and JK (y) for the lateral unconfined cover.
+        @param discr_cover_topbottom (list): List with two entries: discretisation in IJ (x/z) and JK (y) for the top and bottom unconfined cover.
+        @param GJ (float, optional): Linear-elastic torsional stiffness assigned to the section. Defaults to 0.0, assume no torsional stiffness.
+
+        @exception NegativeValue: ID needs to be a positive integer.
+        @exception NegativeValue: b needs to be positive.
+        @exception NegativeValue: d needs to be positive.
+        @exception NegativeValue: Ay needs to be positive.
+        @exception NegativeValue: D_hoops needs to be positive.
+        @exception NegativeValue: e needs to be positive.
+        @exception NegativeValue: unconf_mat_ID needs to be a positive integer.
+        @exception NegativeValue: conf_mat_ID needs to be a positive integer.
+        @exception NegativeValue: bars_mat_ID needs to be a positive integer.
+        @exception WrongDimension: Number of rows in the list bars_x needs to be the same of the length of ranges_y - 1.
+        @exception InconsistentGeometry: The sum of the distances for each row in bars_x should be equal to the section's width (tol = 5 mm).
+        @exception InconsistentGeometry: The sum of the distances in ranges_y should be equal to the section's depth (tol = 5 mm).
+        @exception InconsistentGeometry: e should be smaller than half the depth and the width of the section.
+        @exception WrongDimension: discr_core has a length of 2.
+        @exception WrongDimension: discr_cover_lateral has a length of 2.
+        @exception WrongDimension: discr_cover_topbottom has a length of 2.
+        @exception NegativeValue: GJ needs to be positive.
+        """
         # Check
         if ID < 1: raise NegativeValue()
         if b < 0: raise NegativeValue()
@@ -68,7 +112,7 @@ class FibersRect(Fibers):
         self.discr_core = copy(discr_core)
         self.discr_cover_lateral = copy(discr_cover_lateral)
         self.discr_cover_topbottom = copy(discr_cover_topbottom)
-        self.GJ = GJ #TODO: check if with 0, no problems or how to compute it
+        self.GJ = GJ
 
         # Initialized the parameters that are dependent from others
         self.section_name_tag = "None"
@@ -76,9 +120,9 @@ class FibersRect(Fibers):
         self.ReInit()
 
     def ReInit(self):
-        """Function that computes the value of the parameters that are computed with respect of the arguments.
-        Use after changing the value of argument inside the class (to update the values accordingly). 
-        This function can be very useful in combination with the function "deepcopy()" from the module "copy".
+        """
+        Implementation of the homonym abstract method.
+        See parent class DataManagement for detailed information.
         """
         # Memebers
         if self.section_name_tag != "None": self.section_name_tag = self.section_name_tag + " (modified)"
@@ -129,6 +173,10 @@ class FibersRect(Fibers):
 
     # Methods
     def UpdateStoredData(self):
+        """
+        Implementation of the homonym abstract method.
+        See parent class DataManagement for detailed information.
+        """
         self.data = [["INFO_TYPE", "FibersRect"], # Tag for differentiating different data
             ["ID", self.ID],
             ["section_name_tag", self.section_name_tag],
@@ -149,7 +197,12 @@ class FibersRect(Fibers):
             ["Initialized", self.Initialized]]
 
     def ShowInfo(self, plot = False, block = False):
-        """Function that show the data stored in the class in the command window and plots the material model (optional).
+        """
+        Implementation of the homonym abstract method.
+        See parent class DataManagement for detailed information.
+        
+        @param plot (bool, optional): Option to show the plot of the fiber. Defaults to False.
+	    @param block (bool, optional): Option to wait the user command 'plt.show()' (avoiding the stop of the program everytime that a plot should pop up). Defaults to False.
         """
         print("")
         print("Requested info for FibersRect, ID = {}".format(self.ID))
@@ -171,30 +224,86 @@ class FibersRect(Fibers):
 
 
     def CreateFibers(self):
+        """
+        Method that initialises the fiber by calling the OpenSeesPy commands.
+        """
         create_fiber_section(self.fib_sec)
         self.Initialized = True
         self.UpdateStoredData()
 
 
 class FibersRectRCRectShape(FibersRect):
+    """
+    Class that is the children of FibersRect and combine the class RCRectShape (section) to retrieve the information needed.  
+
+    @param FibersRect: Parent class.
+    """
     def __init__(self, ID: int, section: RCRectShape, unconf_mat_ID: int, conf_mat_ID: int, bars_mat_ID: int,
         discr_core: list, discr_cover_lateral: list, discr_cover_topbottom: list, GJ=0):
-        self.section = section
+        """
+        Constructor of the class.
+
+        @param ID (int): Unique fiber section ID.
+        @param section (RCRectShape): RCRectShape section object.
+        @param unconf_mat_ID (int): ID of material model that will be assigned to the unconfined fibers.
+        @param conf_mat_ID (int): ID of material model that will be assigned to the confined fibers.
+        @param bars_mat_ID (int): ID of material model that will be assigned to the reinforcing bars fibers.
+        @param discr_core (list): List with two entries: discretisation in IJ (x/z) and JK (y) for the confined core.
+        @param discr_cover_lateral (list): List with two entries: discretisation in IJ (x/z) and JK (y) for the lateral unconfined core.
+        @param discr_cover_topbottom (list): List with two entries: discretisation in IJ (x/z) and JK (y) for the top and bottom unconfined core.
+        @param GJ (float, optional): Linear-elastic torsional stiffness assigned to the section. Defaults to 0.0, assume no torsional stiffness.
+        """
+        self.section = deepcopy(section)
         super().__init__(ID, section.b, section.d, section.Ay, section.D_hoops, section.e, unconf_mat_ID, conf_mat_ID, bars_mat_ID,
             section.bars_position_x, section.bars_ranges_position_y, discr_core, discr_cover_lateral, discr_cover_topbottom, GJ=GJ)
         self.section_name_tag = section.name_tag
         self.UpdateStoredData()
 
-class FibersCirc(Fibers):
-    # Class that stores funcions and material properties of the circular fiber section.
-    # Warning: the units should be m and N
-    # Coordinates: plotting coordinte (x, y) = fiber section coordinate (z, y)= (-x, y)
-    
-    def __init__(self, ID: int, b, e, D_bars, Ay, n_bars, D_hoops, unconf_mat_ID: int, conf_mat_ID: int, bars_mat_ID: int,
-        discr_core: list, discr_cover: list, alpha_i = 0, GJ = 0.0):
-        # discr = (number of subdivisions (fibers) in the circumferential direction (number of wedges), number of subdivisions (fibers) in the radial direction (number of rings))
-        # alpha_i in deg with respect to the y axis, counterclockwise
 
+class FibersCirc(Fibers):
+    """
+	Class that stores funcions, material properties, geometric and mechanical parameters for a circular RC fiber section.
+    Coordinates: plotting coordinte (x, y) = fiber section coordinate (z, y) = (-x, y). For more information, see the OpenSeesPy documentation.
+
+    @param Fibers: Parent abstract class.
+    """
+    def __init__(self, ID: int, b, e, D_bars, Ay, n_bars, D_hoops, unconf_mat_ID: int, conf_mat_ID: int, bars_mat_ID: int,
+        discr_core: list, discr_cover: list, alpha_i = 0.0, GJ = 0.0):
+        """
+        Constructor of the class.
+
+        @param ID (int): Unique fiber section ID.
+        @param b (float): Width of the section.
+        @param e (float): Concrete cover.
+        @param D_bars (float): Diameter of vertical reinforcing bars.
+        @param Ay (float): Area of one vertical reinforcing bar.
+        @param n_bars (float): Number of reinforcement (allow float for computing the equivalent n_bars with different reinforcement areas).
+        @param D_hoops (float): Diameter of the hoops.
+        @param unconf_mat_ID (int): ID of material model that will be assigned to the unconfined fibers.
+        @param conf_mat_ID (int): ID of material model that will be assigned to the confined fibers.
+        @param bars_mat_ID (int): ID of material model that will be assigned to the reinforcing bars fibers.
+        @param discr_core (list): List with two entries: number of subdivisions (fibers) in the circumferential direction (number of wedges),
+            number of subdivisions (fibers) in the radial direction (number of rings) for the confined core.
+        @param discr_cover (list): List with two entries: number of subdivisions (fibers) in the circumferential direction (number of wedges),
+            number of subdivisions (fibers) in the radial direction (number of rings) for the unconfined cover.
+        @param alpha_i (float, optional): Angle in deg of the first vertical rebars with respect to the y axis, counterclockwise. Defaults to 0.0.
+        @param GJ (float, optional): Linear-elastic torsional stiffness assigned to the section. Defaults to 0.0, assume no torsional stiffness.
+
+        @exception NegativeValue: ID needs to be a positive integer.
+        @exception NegativeValue: b needs to be positive.
+        @exception NegativeValue: e needs to be positive.
+        @exception InconsistentGeometry: e can't be bigger than half of the width b.
+        @exception NegativeValue: D_bars needs to be positive.
+        @exception NegativeValue: Ay needs to be positive.
+        @exception NegativeValue: n_bars needs to be positive.
+        @exception NegativeValue: D_hoops needs to be positive.
+        @exception NegativeValue: unconf_mat_ID needs to be a positive integer.
+        @exception NegativeValue: conf_mat_ID needs to be a positive integer.
+        @exception NegativeValue: bars_mat_ID needs to be a positive integer.
+        @exception WrongDimension: discr_core has a length of 2.
+        @exception WrongDimension: discr_cover has a length of 2.
+        @exception NegativeValue: GJ needs to be positive.
+        """
         # Check
         if ID < 1: raise NegativeValue()
         if b < 0: raise NegativeValue()
@@ -225,7 +334,7 @@ class FibersCirc(Fibers):
         self.discr_core = copy(discr_core)
         self.discr_cover = copy(discr_cover)
         self.alpha_i = alpha_i
-        self.GJ = GJ #TODO: check if with 0, no problems or how to compute it
+        self.GJ = GJ
 
         # Initialized the parameters that are dependent from others
         self.section_name_tag = "None"
@@ -233,9 +342,9 @@ class FibersCirc(Fibers):
         self.ReInit()
 
     def ReInit(self):
-        """Function that computes the value of the parameters that are computed with respect of the arguments.
-        Use after changing the value of argument inside the class (to update the values accordingly). 
-        This function can be very useful in combination with the function "deepcopy()" from the module "copy".
+        """
+        Implementation of the homonym abstract method.
+        See parent class DataManagement for detailed information.
         """
         # Memebers
         if self.section_name_tag != "None": self.section_name_tag = self.section_name_tag + " (modified)"
@@ -262,6 +371,10 @@ class FibersCirc(Fibers):
 
     # Methods
     def UpdateStoredData(self):
+        """
+        Implementation of the homonym abstract method.
+        See parent class DataManagement for detailed information.
+        """
         self.data = [["INFO_TYPE", "FibersCirc"], # Tag for differentiating different data
             ["ID", self.ID],
             ["section_name_tag", self.section_name_tag],
@@ -284,7 +397,12 @@ class FibersCirc(Fibers):
         
 
     def ShowInfo(self, plot = False, block = False):
-        """Function that show the data stored in the class in the command window and plots the material model (optional).
+        """
+        Implementation of the homonym abstract method.
+        See parent class DataManagement for detailed information.
+        
+        @param plot (bool, optional): Option to show the plot of the material model. Defaults to False.
+	    @param block (bool, optional): Option to wait the user command 'plt.show()' (avoiding the stop of the program everytime that a plot should pop up). Defaults to False.
         """
         print("")
         print("Requested info for FibersCirc, ID = {}".format(self.ID))
@@ -306,15 +424,38 @@ class FibersCirc(Fibers):
 
 
     def CreateFibers(self):
+        """
+        Method that initialise the fiber by calling the OpenSeesPy commands.
+        """
         create_fiber_section(self.fib_sec)
         self.Initialized = True
         self.UpdateStoredData()
 
 
 class FibersCircRCCircShape(FibersCirc):
+    """
+    Class that is the children of FibersCirc and combine the class RCCircShape (section) to retrieve the information needed.  
+
+    @param FibersCirc: Parent class.
+    """
     def __init__(self, ID: int, section: RCCircShape, unconf_mat_ID: int, conf_mat_ID: int, bars_mat_ID: int,
-        discr_core: list, discr_cover: list, alpha_i=0, GJ=0):
-        self.section = section
+        discr_core: list, discr_cover: list, alpha_i=0.0, GJ=0):
+        """
+        Constructor of the class.
+
+        @param ID (int): Unique fiber section ID.
+        @param section (RCCircShape): RCCircShape section object.
+        @param unconf_mat_ID (int): ID of material model that will be assigned to the unconfined fibers.
+        @param conf_mat_ID (int): ID of material model that will be assigned to the confined fibers.
+        @param bars_mat_ID (int): ID of material model that will be assigned to the reinforcing bars fibers.
+        @param discr_core (list): List with two entries: number of subdivisions (fibers) in the circumferential direction (number of wedges),
+            number of subdivisions (fibers) in the radial direction (number of rings) for the confined core.
+        @param discr_cover (list): List with two entries: number of subdivisions (fibers) in the circumferential direction (number of wedges),
+            number of subdivisions (fibers) in the radial direction (number of rings) for the unconfined cover.
+        @param alpha_i (float, optional): Angle in deg of the first vertical rebars with respect to the y axis, counterclockwise. Defaults to 0.0.
+        @param GJ (float, optional): Linear-elastic torsional stiffness assigned to the section. Defaults to 0.0, assume no torsional stiffness.
+        """
+        self.section = deepcopy(section)
         super().__init__(ID, section.b, section.e, section.D_bars, section.Ay, section.n_bars, section.D_hoops, unconf_mat_ID, conf_mat_ID, bars_mat_ID,
             discr_core, discr_cover, alpha_i=alpha_i, GJ=GJ)
         self.section_name_tag = section.name_tag
@@ -322,13 +463,48 @@ class FibersCircRCCircShape(FibersCirc):
 
 
 class FibersIShape(Fibers):
-    # Class that stores funcions and material properties of the I shape fiber section.
-    # Warning: the units should be m and N
-    # Coordinates: plotting coordinte (x, y) = fiber section coordinate (z, y)= (-x, y)
-    
+    """
+	Class that stores funcions, material properties, geometric and mechanical parameters for a steel I shape (non double symmetric) fiber section.
+    Coordinates: plotting coordinte (x, y) = fiber section coordinate (z, y) = (-x, y). For more information, see the OpenSeesPy documentation.
+
+    @param Fibers: Parent abstract class.
+    """
     def __init__(self, ID: int, d, bf_t, bf_b, tf_t, tf_b, tw, top_flange_mat_ID: int, bottom_flange_mat_ID: int, web_mat_ID: int,
         discr_top_flange: list, discr_bottom_flange: list, discr_web: list,  GJ = 0.0):
+        """
+        Constructor of the class.
 
+        @param ID (int): Unique fiber section ID.
+        @param d (float): Depth of the section.
+        @param bf_t (float): Top flange's width of the section
+        @param bf_b (float): Bottom flange's width of the section
+        @param tf_t (float): Top flange's thickness of the section
+        @param tf_b (float): Bottom flange's thickness of the section
+        @param tw (float): Web's thickness of the section
+        @param top_flange_mat_ID (int): ID of material model that will be assigned to the top flange fibers.
+        @param bottom_flange_mat_ID (int): ID of material model that will be assigned to the bottom flange fibers.
+        @param web_mat_ID (int): ID of material model that will be assigned to the web fibers.
+        @param discr_top_flange (list): List with two entries: discretisation in IJ (x/z) and JK (y) for the top flange.
+        @param discr_bottom_flange (list): List with two entries: discretisation in IJ (x/z) and JK (y) for the bottom flange.
+        @param discr_web (list): List with two entries: discretisation in IJ (x/z) and JK (y) for the web.
+        @param GJ (float, optional): Linear-elastic torsional stiffness assigned to the section. Defaults to 0.0, assume no torsional stiffness.
+
+        @exception NegativeValue: ID needs to be a positive integer.
+        @exception NegativeValue: d needs to be positive.
+        @exception NegativeValue: bf_t needs to be positive.
+        @exception NegativeValue: bf_b needs to be positive.
+        @exception NegativeValue: tf_t needs to be positive.
+        @exception NegativeValue: tf_b needs to be positive.
+        @exception NegativeValue: tw needs to be positive.
+        @exception NegativeValue: top_flange_mat_ID needs to be a positive integer.
+        @exception NegativeValue: bottom_flange_mat_ID needs to be a positive integer.
+        @exception NegativeValue: web_mat_ID needs to be a positive integer.
+        @exception WrongDimension: discr_top_flange has a length of 2.
+        @exception WrongDimension: discr_bottom_flange has a length of 2.
+        @exception WrongDimension: discr_web has a length of 2.
+        @exception NegativeValue: GJ needs to be positive.
+        @exception InconsistentGeometry: The sum of the flanges thickness can't be bigger than d.
+        """
         # Check
         if ID < 1: raise NegativeValue()
         if d < 0: raise NegativeValue()
@@ -343,6 +519,7 @@ class FibersIShape(Fibers):
         if len(discr_top_flange) != 2: raise WrongDimension()
         if len(discr_bottom_flange) != 2: raise WrongDimension()
         if len(discr_web) != 2: raise WrongDimension()
+        if GJ < 0: raise NegativeValue()
         if tf_t+tf_b >= d: raise InconsistentGeometry()
 
         # Arguments
@@ -359,7 +536,7 @@ class FibersIShape(Fibers):
         self.discr_top_flange = copy(discr_top_flange)
         self.discr_bottom_flange = copy(discr_bottom_flange)
         self.discr_web = copy(discr_web)
-        self.GJ = GJ #TODO: check if with 0, no problems or how to compute it
+        self.GJ = GJ
 
         # Initialized the parameters that are dependent from others
         self.section_name_tag = "None"
@@ -367,9 +544,9 @@ class FibersIShape(Fibers):
         self.ReInit()
 
     def ReInit(self):
-        """Function that computes the value of the parameters that are computed with respect of the arguments.
-        Use after changing the value of argument inside the class (to update the values accordingly). 
-        This function can be very useful in combination with the function "deepcopy()" from the module "copy".
+        """
+        Implementation of the homonym abstract method.
+        See parent class DataManagement for detailed information.
         """
         # Memebers
         if self.section_name_tag != "None": self.section_name_tag = self.section_name_tag + " (modified)"
@@ -399,6 +576,10 @@ class FibersIShape(Fibers):
 
     # Methods
     def UpdateStoredData(self):
+        """
+        Implementation of the homonym abstract method.
+        See parent class DataManagement for detailed information.
+        """
         self.data = [["INFO_TYPE", "FibersIShape"], # Tag for differentiating different data
             ["ID", self.ID],
             ["section_name_tag", self.section_name_tag],
@@ -419,7 +600,12 @@ class FibersIShape(Fibers):
 
 
     def ShowInfo(self, plot = False, block = False):
-        """Function that show the data stored in the class in the command window and plots the material model (optional).
+        """
+        Implementation of the homonym abstract method.
+        See parent class DataManagement for detailed information.
+        
+        @param plot (bool, optional): Option to show the plot of the fiber. Defaults to False.
+	    @param block (bool, optional): Option to wait the user command 'plt.show()' (avoiding the stop of the program everytime that a plot should pop up). Defaults to False.
         """
         print("")
         print("Requested info for FibersRect, ID = {}".format(self.ID))
@@ -443,15 +629,38 @@ class FibersIShape(Fibers):
 
 
     def CreateFibers(self):
+        """
+        Method that initialise the fiber by calling the OpenSeesPy commands.
+        """
         create_fiber_section(self.fib_sec)
         self.Initialized = True
         self.UpdateStoredData()
 
 
 class FibersIShapeSteelIShape(FibersIShape):
+    """
+    Class that is the children of FibersIShape and combine the class SteelIShape (section) to retrieve the information needed.  
+
+    @param FibersIShape: Parent class.
+    """
     def __init__(self, ID: int, section: SteelIShape, top_flange_mat_ID: int, discr_top_flange: list, discr_bottom_flange: list, discr_web: list,
-        GJ=0, bottom_flange_mat_ID = -1, web_mat_ID = -1):
-        self.section = section
+        GJ=0.0, bottom_flange_mat_ID = -1, web_mat_ID = -1):
+        """
+        Constructor of the class.
+
+        @param ID (int): Unique fiber section ID.
+        @param section (SteelIShape): SteelIShape section object.
+        @param top_flange_mat_ID (int): ID of material model that will be assigned to the top flange fibers.
+        @param discr_top_flange (list): List with two entries: discretisation in IJ (x/z) and JK (y) for the top flange.
+        @param discr_bottom_flange (list): List with two entries: discretisation in IJ (x/z) and JK (y) for the bottom flange.
+        @param discr_web (list): List with two entries: discretisation in IJ (x/z) and JK (y) for the web.
+        @param GJ (float, optional): Linear-elastic torsional stiffness assigned to the section. Defaults to 0.0, assume no torsional stiffness.
+        @param bottom_flange_mat_ID (int): ID of material model that will be assigned to the bottom flange fibers.
+            Defaults to -1, e.g. equal to top_flange_mat_ID.
+        @param web_mat_ID (int): ID of material model that will be assigned to the web fibers.
+            Defaults to -1, e.g. equal to top_flange_mat_ID.
+        """
+        self.section = deepcopy(section)
         if bottom_flange_mat_ID == -1: bottom_flange_mat_ID = top_flange_mat_ID
         if web_mat_ID == -1: web_mat_ID = top_flange_mat_ID
 
@@ -462,41 +671,36 @@ class FibersIShapeSteelIShape(FibersIShape):
 
 
 def plot_fiber_section(fiber_info, fill_shapes = True, matcolor=['#808080', '#D3D3D3', 'r', 'b', 'g', 'y']):
-    """Plot fiber cross-section. Coordinate system used: (y, z) 
-
-    Args:
-        fiber_info (list): list of lists in the format similar to the parameters
-            for the section, layer (circ, straight or bar), patch, fiber OpenSees commands (coordinate sys = yzlocal!!!)
-
-        fill_shapes (bool): True - filled fibers with color specified in matcolor
-            list, False - no color, only the outline of fibers
-
-        matcolor (list): sequence of colors for various material tags
-            assigned to fibers (number of colors should not be less than the number of mat model used)
-
-    Examples:
-        :: first matID, discr_width, discr_height
-
-            fib_sec_1 = [['section', 'Fiber', 1, '-GJ', 1.0e6],
-                         ['patch', 'quad', 1, 4, 1,  0.032, 0.317, -0.311, 0.067, -0.266, 0.005, 0.077, 0.254],  # noqa: E501
-                         ['patch', 'quad', 1, 1, 4,  -0.075, 0.144, -0.114, 0.116, 0.075, -0.144, 0.114, -0.116],  # noqa: E501
-                         ['patch', 'quad', 1, 4, 1,  0.266, -0.005,  -0.077, -0.254,  -0.032, -0.317,  0.311, -0.067]  # noqa: E501
-                         ]
-            opsv.fiber_info_to_cmds(fib_sec_1)
-            matcolor = ['r', 'lightgrey', 'gold', 'w', 'w', 'w']
-            opsv.plot_fiber_section(fib_sec_1, matcolor=matcolor)
-            plt.axis('equal')
-            # plt.savefig('fibsec_rc.png')
-            plt.show()
-
-    Notes:
-        ``fiber_info`` can be reused by means of a python helper function
-            ``ops_vis.fiber_info_to_cmds(fiber_info_1)``
-
-    See also:
-        ``ops_vis.fiber_info_to_cmds()``
     """
-    # Inspired by plot_fiber_section from ops_vis written by Seweryn Kokot
+    Plot fiber cross-section. Coordinate system used: plotting coordinte = (x, y), fiber section coordinate (z, y) = (-x, y)  
+    Inspired by plot_fiber_section from ops_vis written by Seweryn Kokot.
+
+    @param fiber_info (list): List of lists (be careful with the local coordinate system!). The first list defines the fiber section: \n
+        ['section', 'Fiber', ID, '-GJ', GJ] \n
+        The other lists have one of the following format (coordinate input: (y, z)!): \n
+        ['layer', 'bar', mat_ID, A, y, z] # one bar \n
+        ['layer', 'straight', mat_ID, n_bars, A, yI, zI, yJ, zJ] # line range of bars (with I = first bar, J = last bar) \n
+        ['layer', 'circ', mat_ID, n_bars, A, yC, zC, r, (a0_deg), (a1_deg)] # circular range of bars (with C = center, r = radius) \n
+        ['patch', 'rect', mat_ID, *discr, -yI, zI, yK, -zK] # rectangle (with yI = yK = d/2; zI = zK = b/2) \n
+        ['patch', 'quad', mat_ID, *discr, yI, zI, yJ, zJ, yK, zK, yL, zL] # quadrilateral shaped (starting from bottom left, counterclockwise: I, J, K, L) \n
+        ['patch', 'circ', mat_ID, *discr, yC, zC, ri, re, (a0), (a1)] #  (with C = center, ri = internal radius, re = external radius)
+    @param fill_shapes (bool, optional): Option to fill fibers with color specified in matcolor. Defaults to True.
+    @param matcolor (list, optional): List of colors for various material IDs. Defaults to ['#808080', '#D3D3D3', 'r', 'b', 'g', 'y'].
+
+    Example 1: Simple rectangle with 2 rebars (D = diameter) on top (e distance from the top and from the lateral borders).
+        Rectangle with first corner =  I (bottom left) and second corner = K (top right); number of fibers = discr (list of 2)
+        fib_sec = [['section', 'Fiber', ID, '-GJ', GJ], 
+            ['patch', 'rect', concrete_mat_ID, *discr, -yI, zI, yK, -zK],
+            ['layer', 'bar', bars_mat_ID, Ay, yI-e-D/2, zI-e-D/2], # left rebar
+            ['layer', 'bar', bars_mat_ID, Ay, yI-e-D/2, -(zI-e-D/2)]] # right rebar
+
+    Example 2: double symmetric I shape.
+        Each rectangle (2 flanges and 1 web): first corner =  I (bottom left) and second corner = K (top right); number of fibers = discr (list of 2)
+        fib_sec = [['section', 'Fiber', ID, '-GJ', GJ], 
+            ['patch', 'rect', mat_ID, *discr, -yI_tf, zI_tf, yK_tf, -zK_tf], # top flange
+            ['patch', 'rect', mat_ID, *discr, -yI_bf, zI_bf, yK_bf, -zK_bf], # bottom flange
+            ['patch', 'rect', mat_ID, *discr, -yI_w, zI_w, yK_w, -zK_w]] # web
+    """
     mat_to_col = {}
     fig, ax = plt.subplots()
     ax.set_xlabel('x [{}]'.format(length_unit))
@@ -623,7 +827,7 @@ def plot_fiber_section(fiber_info, fill_shapes = True, matcolor=['#808080', '#D3
                 for i in range(nc):
                     thi = a0 + i * dth
                     thi1 = thi + dth
-                    wedge = Wedge((-zC, yC), rj1, thi, thi1, width=dr, ec='k', #TODO: old: (yC, -zC), wrong, right??
+                    wedge = Wedge((-zC, yC), rj1, thi, thi1, width=dr, ec='k', #Seweryn Kokot: (yC, -zC), wrong??
                         lw=1, fc=mat_to_col[matID])
                     ax.add_patch(wedge)
 
@@ -631,6 +835,15 @@ def plot_fiber_section(fiber_info, fill_shapes = True, matcolor=['#808080', '#D3
 
 
 def __assignColorToMat(matID: int, mat_to_col: dict, matcolor: list):
+    """
+    PRIVATE FUNCTION. Used to assign different colors for each material model assign to the fiber section.
+
+    @param matID (int): ID of the material model.
+    @param mat_to_col (dict): Dictionary to check with material model has which color.
+    @param matcolor (list): List of colors.
+
+    @returns dict: Updated dictionary.
+    """
     print(matcolor)
     if not matID in mat_to_col:
         if len(mat_to_col) >= len(matcolor):
@@ -642,29 +855,21 @@ def __assignColorToMat(matID: int, mat_to_col: dict, matcolor: list):
 
 
 def create_fiber_section(fiber_info):
-    """Reuses fiber_info to define fiber section in OpenSees.
-
-    At present it is not possible to extract fiber section data from
-    the OpenSees domain, this function is a workaround. The idea is to
-    prepare data similar to the one the regular OpenSees commands
-    (``section('Fiber', ...)``, ``fiber()``, ``patch()`` and/or
-    ``layer()``) require. Coordinate system used: (y, z) 
-
-    Args:
-        fiber_info (list): is a list of fiber section data. First sub-list
-        also defines the torsional stiffness (GJ).
-
-    Warning:
-
-    If you use this function, do not issue the regular OpenSees:
-    section, Fiber, Patch or Layer commands.
-
-    See also:
-
-    ``ops_vis.plot_fiber_section()``
-
     """
-    # Inspired by fib_sec_list_to_cmds from ops_vis written by Seweryn Kokot 
+    Initialise fiber cross-section with OpenSeesPy commands. Coordinate system used: plotting coordinte = (x, y), fiber section coordinate (z, y) = (-x, y).
+    For examples, see plot_fiber_section.
+    Inspired by fib_sec_list_to_cmds from ops_vis written by Seweryn Kokot 
+
+    @param fiber_info (list): List of lists (be careful with the local coordinate system!). The first list defines the fiber section: \n
+        ['section', 'Fiber', ID, '-GJ', GJ] \n
+        The other lists have one of the following format (coordinate input: (y, z)!): \n
+        ['layer', 'bar', mat_ID, A, y, z] # one bar \n
+        ['layer', 'straight', mat_ID, n_bars, A, yI, zI, yJ, zJ] # line range of bars (with I = first bar, J = last bar) \n
+        ['layer', 'circ', mat_ID, n_bars, A, yC, zC, r, (a0_deg), (a1_deg)] # circular range of bars (with C = center, r = radius) \n
+        ['patch', 'rect', mat_ID, *discr, -yI, zI, yK, -zK] # rectangle (with yI = yK = d/2; zI = zK = b/2) \n
+        ['patch', 'quad', mat_ID, *discr, yI, zI, yJ, zJ, yK, zK, yL, zL] # quadrilateral shaped (starting from bottom left, counterclockwise: I, J, K, L) \n
+        ['patch', 'circ', mat_ID, *discr, yC, zC, ri, re, (a0), (a1)] #  (with C = center, ri = internal radius, re = external radius)
+    """
     for dat in fiber_info:
         if dat[0] == 'section':
             fib_ID, GJ = dat[2], dat[4]
