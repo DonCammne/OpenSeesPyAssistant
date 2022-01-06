@@ -2899,9 +2899,9 @@ def PlotConcrete04(fc, Ec, ec, ecu, Type: str, ax, ID = 0):
         fig, ax = plt.subplots()
     """
     if Type == "C":
-        name = "Confined"
+        name = "Confined (Co04)"
     elif Type == "U":
-        name = "Unconfined"
+        name = "Unconfined (Co04)"
     else:
         raise NameError("Type should be C or U (ID={})".format(ID))
 
@@ -2914,7 +2914,7 @@ def PlotConcrete04(fc, Ec, ec, ecu, Type: str, ax, ID = 0):
         y_axis[i] = Concrete04Funct(fc, x_axis[i], ec, Ec)
 
 
-    ax.plot(-x_axis*100.0, -y_axis/MPa_unit, 'k-', label = name)
+    ax.plot(x_axis*100.0, y_axis/MPa_unit, 'k-', label = name)
     ax.set(xlabel='Strain [%]', ylabel='Stress MPa]', 
                     title='Mander 1988 (Concrete04) material model (ID={})'.format(ID))
     plt.legend()
@@ -2953,7 +2953,6 @@ def PlotConcrete01(fc, ec, fpcu, ecu, ax, ID = 0):
     @param ecu (float): Concrete strain at crushing strength (negative).
     @param ax (matplotlib.axes._subplots.AxesSubplot): The figure's wrapper.
     @param ID (int, optional): ID of the material model. Defaults to 0 (= not defined).
-
     
     Example: to create the plot, call this line to pass the correct ax:
         fig, ax = plt.subplots()
@@ -2968,7 +2967,7 @@ def PlotConcrete01(fc, ec, fpcu, ecu, ax, ID = 0):
         y_axis[i] = Concrete01Funct(fc, ec, fpcu, ecu, x_axis[i])
 
 
-    ax.plot(x_axis*100.0, y_axis/MPa_unit, 'k-')
+    ax.plot(x_axis*100.0, y_axis/MPa_unit, 'k--', label = "Co01")
     ax.set(xlabel='Strain [%]', ylabel='Stress MPa]', 
                     title='Mander 1988 (Concrete01) material model (ID={})'.format(ID))
     plt.legend()

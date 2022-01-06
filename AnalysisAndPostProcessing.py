@@ -114,7 +114,7 @@ class Analysis():
         print("")
         print("Gravity analysis starts")
         for iteration in range(n_step):
-            convergence = self.__VertLoadCtrlLoop(DGravity, iteration,
+            convergence = self.__LoadCtrlLoop(DGravity, iteration,
                 self.algo, self.test_type, self.tol, self.test_opt, self.max_iter)
             if convergence != 0: break
             dataG[iteration+1,0] = nodeDisp(loaded_nodes[0], 2)/mm_unit
@@ -133,11 +133,88 @@ class Analysis():
         print("Gravity complete")
 
 
+    def LateralForce(self, loaded_nodes: list, Fx: list, timeSeries_ID: int, pattern_ID: int, n_step = 1000, timeSeries_type = "Linear", pattern_type = "Plain",
+        constraints_type = "Plain", numberer_type = "RCM", system_type = "BandGeneral", analysis_type = "Static", show_plot = False):
+        """
+        Method to perform the gravity analyisis with vertical loadings.
+        It can be used before calling the Pushover or LoadingProtocol methods that perform the actual anlysis. If no vertical loadings present, thus method can be avoided.
+
+        @param loaded_nodes (list): List of nodes that are loaded by the the forces in Fx. The first node will be recorded (thus usually should be in the roof).
+        @param Fx (list): List of horizontal loadings (negative is toward left; see global coordinate system).
+        @param timeSeries_ID (int): ID of the timeseries.
+        @param pattern_ID (int): ID of the pattern.
+        @param n_step (int, optional): Number of steps used to during the analysis to reach the objective state (with 100% horizontal loadings imposed). Defaults to 1000.
+        @param timeSeries_type (str, optional): Type of timeseries chosen.
+            For more information, see the OpenSeesPy documentation. Defaults to "Linear".
+        @param pattern_type (str, optional): Type of pattern chosen.
+            For more information, see the OpenSeesPy documentation. Defaults to "Plain".
+        @param constraints_type (str, optional): Type of contraints chosen. It detemines how the constraint equations are enforced in the analysis.
+            For more information, see the OpenSeesPy documentation. Defaults to "Plain".
+        @param numberer_type (str, optional): Type of numberer chosen. It determines the mapping between equation numbers and degrees-of-freedom.
+            For more information, see the OpenSeesPy documentation. Defaults to "RCM".
+        @param system_type (str, optional): Type of system of equations chosen. It determines how to construct the LinearSOE and LinearSolver objects to store and solve the system of equations in the analysis.
+            For more information, see the OpenSeesPy documentation. Defaults to "BandGeneral".
+        @param analysis_type (str, optional): Type of analysis chosen. It determines how to construct the Analysis object, which defines what type of analysis is to be performed.
+            For more information, see the OpenSeesPy documentation. Defaults to "Static".
+        @param show_plot (bool, optional): Option to show the 'Horizontal displacement vs. Horizontal loading' curve after the analysis. Defaults to False.
+
+        @exception WrongDimension: The dimension of the loaded_nodes and Fx arguments needs to be the same.
+        @exception NegativeValue: The ID of timeSeries_ID needs to be a positive integer.
+        @exception NegativeValue: The ID of pattern_ID needs to be a positive integer.
+        """
+        if len(loaded_nodes) != len(Fx): raise WrongDimension()
+        if timeSeries_ID < 1: raise NegativeValue()
+        if pattern_ID < 1: raise NegativeValue()
+
+        # for mass defined: opsplt.createODB(self.name_ODB, "LateralForce", Nmodes = nEigen); 
+        # for tracking LateralForce with ODB: opsplt.createODB(self.name_ODB, "LateralForce");
+
+        # Create load pattern
+        timeSeries(timeSeries_type, timeSeries_ID)
+        pattern(pattern_type, timeSeries_ID, pattern_ID)
+        for ii, node_ID in enumerate(loaded_nodes):
+            load(node_ID, Fx[ii], 0.0, 0.0)     # load(IDNode, Fx, Fy, Mz)
+        force = 1.0/n_step                   # load increment                  
+
+        # Set up analysis options
+        constraints(constraints_type)   # how it handles boundary conditions
+        numberer(numberer_type)         # renumber dof's to minimize band-width (optimization)
+        system(system_type)             # how to store and solve the system of equations in the analysis
+                                        # For static model, BandGeneral, for transient and/or big model, UmfPack
+        integrator("LoadControl", force)# LoadControl and DisplacementControl only with static model, linear TimeSeries w/ factor of 1
+                                        # Newmark used for transient model  
+        algorithm("Newton")             # placeholder
+        analysis(analysis_type)         # define type of analysis: static for pushover
+
+        # Analysis
+        dataLF = np.zeros((n_step+1,2))
+        print("")
+        print("Lateral Force analysis starts")
+        for iteration in range(n_step):
+            convergence = self.__LoadCtrlLoop(force, iteration,
+                self.algo, self.test_type, self.tol, self.test_opt, self.max_iter)
+            if convergence != 0: break
+            dataLF[iteration+1,0] = nodeDisp(loaded_nodes[0], 1)/mm_unit
+            dataLF[iteration+1,1] = getLoadFactor(pattern_ID)*Fx[0]/kN_unit
+
+        if show_plot:
+            plt.plot(dataLF[:,0], dataLF[:,1])
+            plt.xlabel('Lateral Displacement [mm]')
+            plt.ylabel('Lateral Load [kN]')
+            plt.title('Lateral force curve')
+            plt.show()
+
+        loadConst("-time", 0.0)
+
+        print("")
+        print("Lateral force complete")
+
+
     def Pushover(self, CtrlNode: int, Dmax, Dincr, timeSeries_ID: int, pattern_ID: int, Fx = 1*kN_unit, fiber_ID_analysed = -1, fiber_section = 1,
         timeSeries_type = "Linear", pattern_type = "Plain", constraints_type = "Plain", numberer_type = "RCM", system_type = "UmfPack", analysis_type = "Static",
         show_plot = True):
         """
-        Method to perform a pushover analysis (displacement-control). If this method is called, the LoadingProtocol method should be avoided.
+        Method to perform a pushover analysis (displacement-control). If this method is called, the LoadingProtocol and LateralForce methods should be avoided.
 
         @param CtrlNode (int): The node that will be used to impose the displacement Dmax of the pushover analysis.
             If the show_plot option is True, the curve displayed follows this node.
@@ -223,7 +300,7 @@ class Analysis():
         timeSeries_type = "Linear", pattern_type = "Plain", constraints_type = "Plain", numberer_type = "RCM", system_type = "UmfPack", analysis_type = "Static",
         show_plot = True):
         """
-        Method to perform a pushover analysis (displacement-control). If this method is called, the LoadingProtocol method should be avoided.
+        Method to perform a pushover analysis (displacement-control). If this method is called, the LoadingProtocol and LateralForce methods should be avoided.
 
         @param CtrlNode (int): The node that will be used to impose the displacement from the discr_LP to perform the analysis.
         @param discr_LP (np.ndarray): The loading protocol array (1 dimension) discretised. It needs to be filled with imposed displacement, not SDR.
@@ -310,12 +387,12 @@ class Analysis():
         wipe()
 
 
-    def __VertLoadCtrlLoop(self, DGravity, iteration: int, algo = "KrylovNewton", test_type = "NormDispIncr", tol = TOL, test_opt = 0, max_iter = MAX_ITER):
+    def __LoadCtrlLoop(self, force, iteration: int, algo = "KrylovNewton", test_type = "NormDispIncr", tol = TOL, test_opt = 0, max_iter = MAX_ITER):
         """
-        PRIVATE METHOD. It is used perform one vertical load increment 'DGravity' load-control analysis step using 'algo' and 'test_type' as algorithm and test.
+        PRIVATE METHOD. It is used perform one load increment 'force' load-control analysis step using 'algo' and 'test_type' as algorithm and test.
         The integrator is LoadControl. If convergence issues are encountered, the method performa a convergence analysis trying different ways to converge.
 
-        @param DGravity (dougle): The vertical load increment performed.
+        @param force (dougle): The load increment performed.
         @param iteration (int): The current iteration.
         @param algo (str, optional): Type of alghoritm chosen for the analysis. It detemines how to construct a SolutionAlgorithm object, which determines the sequence of steps taken to solve the non-linear equation.
             For more information on the available types, see the OpenSeesPy documentation. Defaults to "KrylovNewton".
@@ -339,7 +416,7 @@ class Analysis():
         if max_iter < 0: raise NegativeValue()
 
         # Default analysis
-        integrator("LoadControl", DGravity)         # LoadControl and DisplacementControl only with static model, linear TimeSeries w/ factor of 1
+        integrator("LoadControl", force)            # LoadControl and DisplacementControl only with static model, linear TimeSeries w/ factor of 1
                                                     # Newmark used for transient model 
         test(test_type, tol, max_iter, test_opt)    # type of convergence criteria with tolerance, max iterations;
                                                     # Normally use EnergyIncr, if conv issues, try NormDispIncr; optional: test_opt = 2 for debugging  
@@ -404,7 +481,7 @@ class Analysis():
             if convergence != 0:
                 print("")
                 print("#############################################################################")
-                print("NO CONVERGENCE! Vertical Load-control analysis stops at iteration {} ".format(iteration))
+                print("NO CONVERGENCE! Load-control analysis stops at iteration {} ".format(iteration))
                 print("#############################################################################")
                 print("")
             else:
