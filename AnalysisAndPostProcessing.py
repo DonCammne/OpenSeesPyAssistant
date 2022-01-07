@@ -54,6 +54,7 @@ class Analysis():
         self.test_opt = test_opt
         self.max_iter = max_iter
         self.allow_smaller_step = allow_smaller_step
+        self.load_case = "None"
 
 
     def Gravity(self, loaded_nodes: list, Fy: list, timeSeries_ID: int, pattern_ID: int, n_step = 10, timeSeries_type = "Linear", pattern_type = "Plain",
@@ -133,8 +134,9 @@ class Analysis():
         print("Gravity complete")
 
 
-    def LateralForce(self, loaded_nodes: list, Fx: list, timeSeries_ID: int, pattern_ID: int, n_step = 1000, timeSeries_type = "Linear", pattern_type = "Plain",
-        constraints_type = "Plain", numberer_type = "RCM", system_type = "BandGeneral", analysis_type = "Static", show_plot = False):
+    def LateralForce(self, loaded_nodes: list, Fx: list, timeSeries_ID: int, pattern_ID: int, n_step = 1000, fiber_ID_analysed = -1, fiber_section = 1,
+        timeSeries_type = "Linear", pattern_type = "Plain", constraints_type = "Plain", numberer_type = "RCM", system_type = "BandGeneral", analysis_type = "Static",
+        show_plot = True, block = False):
         """
         Method to perform the gravity analyisis with vertical loadings.
         It can be used before calling the Pushover or LoadingProtocol methods that perform the actual anlysis. If no vertical loadings present, thus method can be avoided.
@@ -144,6 +146,11 @@ class Analysis():
         @param timeSeries_ID (int): ID of the timeseries.
         @param pattern_ID (int): ID of the pattern.
         @param n_step (int, optional): Number of steps used to during the analysis to reach the objective state (with 100% horizontal loadings imposed). Defaults to 1000.
+        @param fiber_ID_analysed (int, optional): The ID of the analysed fiber. If fibers are present in the model and the user wants to save ODB data
+            (to use in the post-processing with for example FiberResponse), assign to this argument the ID of the fiber chosen.
+            -1 will ignore the storage of data for fibers. Defaults to -1.
+        @param fiber_section (int, optional): The section number, i.e. the Gauss integratio number.
+            If the fiber_ID_analysed is equal to -1, this argument is not used. Defaults to 1.
         @param timeSeries_type (str, optional): Type of timeseries chosen.
             For more information, see the OpenSeesPy documentation. Defaults to "Linear".
         @param pattern_type (str, optional): Type of pattern chosen.
@@ -156,18 +163,22 @@ class Analysis():
             For more information, see the OpenSeesPy documentation. Defaults to "BandGeneral".
         @param analysis_type (str, optional): Type of analysis chosen. It determines how to construct the Analysis object, which defines what type of analysis is to be performed.
             For more information, see the OpenSeesPy documentation. Defaults to "Static".
-        @param show_plot (bool, optional): Option to show the 'Horizontal displacement vs. Horizontal loading' curve after the analysis. Defaults to False.
+        @param show_plot (bool, optional): Option to show the 'Horizontal displacement vs. Horizontal loading' curve after the analysis. Defaults to True.
+	    @param block (bool, optional): Option to wait the user command 'plt.show()' (avoiding the stop of the program everytime that a plot should pop up). Defaults to False.
 
         @exception WrongDimension: The dimension of the loaded_nodes and Fx arguments needs to be the same.
         @exception NegativeValue: The ID of timeSeries_ID needs to be a positive integer.
         @exception NegativeValue: The ID of pattern_ID needs to be a positive integer.
+        @exception NegativeValue: The ID of fiber_ID_analysed needs to be a positive integer.
         """
         if len(loaded_nodes) != len(Fx): raise WrongDimension()
         if timeSeries_ID < 1: raise NegativeValue()
         if pattern_ID < 1: raise NegativeValue()
+        if fiber_ID_analysed != -1 and fiber_ID_analysed < 1: raise NegativeValue()
 
         # for mass defined: opsplt.createODB(self.name_ODB, "LateralForce", Nmodes = nEigen); 
-        # for tracking LateralForce with ODB: opsplt.createODB(self.name_ODB, "LateralForce");
+        opsplt.createODB(self.name_ODB, "LateralForce");
+        if fiber_ID_analysed != -1: opsplt.saveFiberData2D(self.name_ODB, "LateralForce", fiber_ID_analysed, fiber_section)
 
         # Create load pattern
         timeSeries(timeSeries_type, timeSeries_ID)
@@ -202,17 +213,21 @@ class Analysis():
             plt.xlabel('Lateral Displacement [mm]')
             plt.ylabel('Lateral Load [kN]')
             plt.title('Lateral force curve')
-            plt.show()
+            if block:
+                plt.show()
 
         loadConst("-time", 0.0)
 
         print("")
         print("Lateral force complete")
+        self.load_case = "LateralForce"
+
+        wipe()
 
 
     def Pushover(self, CtrlNode: int, Dmax, Dincr, timeSeries_ID: int, pattern_ID: int, Fx = 1*kN_unit, fiber_ID_analysed = -1, fiber_section = 1,
         timeSeries_type = "Linear", pattern_type = "Plain", constraints_type = "Plain", numberer_type = "RCM", system_type = "UmfPack", analysis_type = "Static",
-        show_plot = True):
+        show_plot = True, block = False):
         """
         Method to perform a pushover analysis (displacement-control). If this method is called, the LoadingProtocol and LateralForce methods should be avoided.
 
@@ -242,6 +257,7 @@ class Analysis():
         @param analysis_type (str, optional): Type of analysis chosen. It determines how to construct the Analysis object, which defines what type of analysis is to be performed.
             For more information, see the OpenSeesPy documentation. Defaults to "Static".
         @param show_plot (bool, optional): Option to show the 'lateral displacement vs. lateral loading' curve after the analysis. Defaults to True.
+	    @param block (bool, optional): Option to wait the user command 'plt.show()' (avoiding the stop of the program everytime that a plot should pop up). Defaults to False.
 
         @exception NegativeValue: The ID of CtrlNode needs to be a positive integer.
         @exception NegativeValue: The ID of timeSeries_ID needs to be a positive integer.
@@ -268,6 +284,8 @@ class Analysis():
         numberer(numberer_type)         # renumber dof's to minimize band-width (optimization)
         system(system_type)             # how to store and solve the system of equations in the analysis
                                         # For static model, BandGeneral, for transient and/or big model, UmfPack
+        integrator("LoadControl", 1)    # placeholder
+        algorithm("Newton")             # placeholder
         analysis(analysis_type)         # define type of analysis: static for pushover
 
         # Analysis
@@ -288,17 +306,19 @@ class Analysis():
             plt.xlabel('Horizontal Displacement [mm]')
             plt.ylabel('Horizontal Load [kN]')
             plt.title('Pushover curve')
-            plt.show()
+            if block:
+                plt.show()
         
         print("")
         print("Pushover complete")
+        self.load_case = "Pushover"
 
         wipe()
 
 
     def LoadingProtocol(self, CtrlNode: int, discr_LP: np.ndarray, timeSeries_ID: int, pattern_ID: int, Fx = 1*kN_unit, fiber_ID_analysed = -1, fiber_section = 1,
         timeSeries_type = "Linear", pattern_type = "Plain", constraints_type = "Plain", numberer_type = "RCM", system_type = "UmfPack", analysis_type = "Static",
-        show_plot = True):
+        show_plot = True, block = False):
         """
         Method to perform a pushover analysis (displacement-control). If this method is called, the LoadingProtocol and LateralForce methods should be avoided.
 
@@ -327,6 +347,7 @@ class Analysis():
         @param analysis_type (str, optional): Type of analysis chosen. It determines how to construct the Analysis object, which defines what type of analysis is to be performed.
             For more information, see the OpenSeesPy documentation. Defaults to "Static".
         @param show_plot (bool, optional): Option to show the 'lateral displacement vs. lateral loading' curve after the analysis. Defaults to True.
+	    @param block (bool, optional): Option to wait the user command 'plt.show()' (avoiding the stop of the program everytime that a plot should pop up). Defaults to False.
 
         @exception NegativeValue: The ID of CtrlNode needs to be a positive integer.
         @exception NegativeValue: The ID of timeSeries_ID needs to be a positive integer.
@@ -354,6 +375,8 @@ class Analysis():
         numberer(numberer_type)         # renumber dof's to minimize band-width (optimization)
         system(system_type)             # how to store and solve the system of equations in the analysis
                                         # For static model, BandGeneral, for transient and/or big model, UmfPack
+        integrator("LoadControl", 1)    # placeholder
+        algorithm("Newton")             # placeholder
         analysis(analysis_type)         # define type of analysis: static for LoadingProtocol
 
         # Analysis
@@ -379,10 +402,12 @@ class Analysis():
             plt.xlabel('Horizontal Displacement [mm]')
             plt.ylabel('Horizontal Load [kN]')
             plt.title('Loading Protocol curve')
-            plt.show()
+            if block:
+                plt.show()
         
         print("")
         print("Loading Protocol complete")
+        self.load_case = "LoadingProtocol"
         
         wipe()
 
@@ -624,28 +649,30 @@ class Analysis():
         return convergence
 
 
-    def DeformedShape(self, load_case: str, scale = 1, animate = False, dt = 0.01):
+    def DeformedShape(self, scale = 1, animate = False, dt = 0.01):
         """
         Method that shows the final deformed shape of the model. It can also show the animation that shows how the model behaved during the analysis.
 
-        @param load_case (str): The name of the load case analysed. It can be 'Pushover' or 'LoadingProtocol'.
         @param scale (int, optional): The scaling factor to magnify the deformation. The value should be adjusted for each model. Defaults to 1.
         @param animate (bool, optional): Option to show the animation of the model during the analysis. Defaults to False.
         @param dt (float, optional): The time step between every iteration. Defaults to 0.01.
+        
+        @exception NameError: The methods for the analysis were not called.
         """
+        if self.load_case == "None": raise NameError("The analysis is not complete.")
+        
         # Display deformed shape, the scaling factor needs to be adjusted for each model
-        opsplt.plot_deformedshape(Model = self.name_ODB, LoadCase=load_case, scale = scale)
+        opsplt.plot_deformedshape(Model = self.name_ODB, LoadCase=self.load_case, scale = scale)
         if animate:
-            opsplt.animate_deformedshape(Model = self.name_ODB, LoadCase=load_case, dt = dt, scale = scale)
+            opsplt.animate_deformedshape(Model = self.name_ODB, LoadCase=self.load_case, dt = dt, scale = scale)
 
 
-    def FiberResponse(self, load_case: str, fiber_ID_analysed: int, fiber_section = 1, animate_stress = False, animate_strain = False, fps = 25):
+    def FiberResponse(self, fiber_ID_analysed: int, fiber_section = 1, animate_stress = False, animate_strain = False, fps = 25):
         """
         Method that shows the final stress response of the fiber section chosen.
         It can also show the animation that shows how the fiber section behaved during the analysis. The fiber ID and section needs to be recorded during the analysis,
         thus if the method Pushover or LoadingProtocol was used, the same fiber ID and section need to be used. 
 
-        @param load_case (str): The name of the load case analysed. It can be 'Pushover' or 'LoadingProtocol'.
         @param fiber_ID_analysed (int): The ID of the analysed fiber. If fibers are present in the model and the user wants to save ODB data
             (to use in the post-processing with for example FiberResponse), assign to this argument the ID of the fiber chosen.
             -1 will ignore the storage of data for fibers.
@@ -654,12 +681,15 @@ class Analysis():
         @param animate_stress (bool, optional): Option to show the animation of the fiber stress during the analysis. Defaults to False.
         @param animate_strain (bool, optional): Option to show the animation of the fiber strain during the analysis. Defaults to False.
         @param fps (int, optional): Number of frame per seconds for the animations. Defaults to 25.
+        @exception NameError: The methods for the analysis were not called.
         """
-        opsplt.plot_fiberResponse2D(self.name_ODB, load_case, fiber_ID_analysed, fiber_section, InputType = 'stress')
+        if self.load_case == "None": raise NameError("The analysis is not complete.")
+
+        opsplt.plot_fiberResponse2D(self.name_ODB, self.load_case, fiber_ID_analysed, fiber_section, InputType = 'stress')
         if animate_stress:
-            ani1 = opsplt.animate_fiberResponse2D(self.name_ODB, load_case, fiber_ID_analysed, fiber_section, InputType = 'stress', fps = fps)
+            ani1 = opsplt.animate_fiberResponse2D(self.name_ODB, self.load_case, fiber_ID_analysed, fiber_section, InputType = 'stress', fps = fps)
         if animate_strain:
-            ani1 = opsplt.animate_fiberResponse2D(self.name_ODB, load_case, fiber_ID_analysed, fiber_section, InputType = 'strain', fps = fps)
+            ani1 = opsplt.animate_fiberResponse2D(self.name_ODB, self.load_case, fiber_ID_analysed, fiber_section, InputType = 'strain', fps = fps)
 
 
 def _ConvergenceTest(algo_type: str, test_type: str, tol, max_iter, test_opt = 0):
