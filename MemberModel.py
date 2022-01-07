@@ -26,12 +26,12 @@ class MemberModel(DataManagement):
     @param DataManagement: Parent abstract class.
     """
     @abstractmethod
-    def Record(self, ele, name_txt: str, data_dir: str, force_rec = True, def_rec = True, time_rec = True):
+    def Record(self, ele_ID, name_txt: str, data_dir: str, force_rec = True, def_rec = True, time_rec = True):
         """
         Abstract method that records the forces, deformation and time of the member associated with the class.
 
-        @param ele (class): The object that represent the section.
-        @param name_txt (str): Name of the recorded data.
+        @param ele_ID (int): The ID of the element that will be recorded.
+        @param name_txt (str): Name of the recorded data (no .txt).
         @param data_dir (str): Directory for the storage of data.
         @param force_rec (bool, optional): Option to record the forces (Fx, Fy, Mz). Defaults to True.
         @param def_rec (bool, optional): Option to record the deformation (Ux, Uy, theta). Defaults to True.
@@ -44,16 +44,16 @@ class MemberModel(DataManagement):
             
             if time_rec:
                 if force_rec:
-                    recorder("Element", "-file", '{}/{}.txt'.format(data_dir, name_txt), "-time", "-ele", ele, "force")
+                    recorder("Element", "-file", '{}/{}.txt'.format(data_dir, name_txt), "-time", "-ele", ele_ID, "force")
                 if def_rec:
-                    recorder("Element", "-file", '{}/{}.txt'.format(data_dir, name_txt), "-time", "-ele", ele, "deformation")
+                    recorder("Element", "-file", '{}/{}.txt'.format(data_dir, name_txt), "-time", "-ele", ele_ID, "deformation")
             else:
                 if force_rec:
-                    recorder("Element", "-file", '{}/{}.txt'.format(data_dir, name_txt), "-ele", ele, "force")
+                    recorder("Element", "-file", '{}/{}.txt'.format(data_dir, name_txt), "-ele", ele_ID, "force")
                 if def_rec:
-                    recorder("Element", "-file", '{}/{}.txt'.format(data_dir, name_txt), "-ele", ele, "deformation")
+                    recorder("Element", "-file", '{}/{}.txt'.format(data_dir, name_txt), "-ele", ele_ID, "deformation")
         else:
-                print("The element is not initialized (node and/or elements not created), ID = {}".format(ele))
+                print("The element is not initialized (node and/or elements not created), ID = {}".format(ele_ID))
     
     def _CheckL(self):
         """
@@ -184,7 +184,7 @@ class PanelZone(MemberModel):
 
         if plot:
             if self.Initialized:
-                plot_member(self.element_array)
+                plot_member(self.element_array, "Panel zone, ID = {}".format(self.master_node_ID))
                 if block:
                     plt.show()
             else:
@@ -434,7 +434,7 @@ class ElasticElement(MemberModel):
 
     @param MemberModel: Parent abstract class.
     """
-    def __init__(self, iNode_ID: int, jNode_ID: int, A, E, Iy, geo_transf_ID: int):
+    def __init__(self, iNode_ID: int, jNode_ID: int, A, E, Iy, geo_transf_ID: int, ele_ID = -1):
         """
         Constructor of the class.
 
@@ -444,12 +444,14 @@ class ElasticElement(MemberModel):
         @param E (float): Young modulus.
         @param Iy (float): Second moment of inertia (strong axis).
         @param geo_transf_ID (int): A geometric transformation (for more information, see OpenSeesPy documentation).
+        @param ele_ID (int, optional): Optional ID of the element. Defaults to -1, e.g. use IDConvention to define it.
 
         @exception NegativeValue: ID needs to be a positive integer.
         @exception NegativeValue: ID needs to be a positive integer.
         @exception NegativeValue: A needs to be positive.
         @exception NegativeValue: E needs to be positive.
         @exception NegativeValue: Iy needs to be positive.
+        @exception NegativeValue: ID needs to be a positive integer.
         @exception NegativeValue: ID needs to be a positive integer.
         """
         # Check
@@ -459,6 +461,7 @@ class ElasticElement(MemberModel):
         if E < 0: raise NegativeValue()
         if Iy < 0: raise NegativeValue()
         if geo_transf_ID < 1: raise NegativeValue()
+        if ele_ID != -1 and ele_ID < 1: raise NegativeValue()
 
         # Arguments
         self.iNode_ID = iNode_ID
@@ -471,18 +474,20 @@ class ElasticElement(MemberModel):
         # Initialized the parameters that are dependent from others
         self.section_name_tag = "None"
         self.Initialized = False
-        self.ReInit()
+        self.ReInit(ele_ID = -1)
 
-    def ReInit(self):
+    def ReInit(self, ele_ID = -1):
         """
         Implementation of the homonym abstract method.
         See parent class DataManagement for detailed information.
+
+        @param ele_ID (int, optional): Optional ID of the element. Defaults to -1, e.g. use IDConvention to define it.
         """
         # Members
         if self.section_name_tag != "None": self.section_name_tag = self.section_name_tag + " (modified)"
         
         # element ID
-        self.element_ID = IDConvention(self.iNode_ID, self.jNode_ID)
+        self.element_ID = IDConvention(self.iNode_ID, self.jNode_ID) if ele_ID == -1 else ele_ID
 
         # Data storage for loading/saving
         self.UpdateStoredData()
@@ -525,7 +530,7 @@ class ElasticElement(MemberModel):
 
         if plot:
             if self.Initialized:
-                plot_member(self.element_array)
+                plot_member(self.element_array, "Elastic Element, ID = {}".format(self.element_ID))
                 if block:
                     plt.show()
             else:
@@ -560,7 +565,7 @@ class ElasticElementSteelIShape(ElasticElement):
 
     @param ElasticElement: Parent class.
     """
-    def __init__(self, iNode_ID: int, jNode_ID: int, section: SteelIShape, geo_transf_ID: int):
+    def __init__(self, iNode_ID: int, jNode_ID: int, section: SteelIShape, geo_transf_ID: int, ele_ID = -1):
         """
         Constructor of the class.
 
@@ -568,9 +573,10 @@ class ElasticElementSteelIShape(ElasticElement):
         @param jNode_ID (int): ID of the second end node.
         @param section (SteelIShape): SteelIShape section object.
         @param geo_transf_ID (int): A geometric transformation (for more information, see OpenSeesPy documentation).
+        @param ele_ID (int, optional): Optional ID of the element. Defaults to -1, e.g. use IDConvention to define it.
         """
         self.section = deepcopy(section)
-        super().__init__(iNode_ID, jNode_ID, section.A, section.E, section.Iy, geo_transf_ID)
+        super().__init__(iNode_ID, jNode_ID, section.A, section.E, section.Iy, geo_transf_ID, ele_ID)
         self.section_name_tag = section.name_tag
         self.UpdateStoredData()
         # Check length
@@ -583,7 +589,7 @@ class SpringBasedElement(MemberModel):
 
     @param MemberModel: Parent abstract class.
     """
-    def __init__(self, iNode_ID: int, jNode_ID: int, A, E, Iy_mod, geo_transf_ID: int, mat_ID_i = -1, mat_ID_j = -1):
+    def __init__(self, iNode_ID: int, jNode_ID: int, A, E, Iy_mod, geo_transf_ID: int, mat_ID_i = -1, mat_ID_j = -1, ele_ID = -1):
         """
         Constructor of the class.
 
@@ -595,6 +601,7 @@ class SpringBasedElement(MemberModel):
         @param geo_transf_ID (int): A geometric transformation (for more information, see OpenSeesPy documentation).
         @param mat_ID_i (int, optional): ID of the material model for the spring in the node i (if present). Defaults to -1.
         @param mat_ID_j (int, optional): ID of the material model for the spring in the node j (if present). Defaults to -1.
+        @param ele_ID (int, optional): Optional ID of the element. Defaults to -1, e.g. use IDConvention to define it.
 
         @exception NegativeValue: ID needs to be a positive integer.
         @exception NegativeValue: ID needs to be a positive integer.
@@ -605,6 +612,7 @@ class SpringBasedElement(MemberModel):
         @exception NegativeValue: ID needs to be a positive integer, if different from -1.
         @exception NegativeValue: ID needs to be a positive integer, if different from -1.
         @exception NameError: at least one spring needs to be defined.
+        @exception NegativeValue: ID needs to be a positive integer, if different from -1.
         """
         # Check
         if iNode_ID < 1: raise NegativeValue()
@@ -616,6 +624,7 @@ class SpringBasedElement(MemberModel):
         if mat_ID_i != -1 and mat_ID_i < 0: raise NegativeValue()
         if mat_ID_j != -1 and mat_ID_j < 0: raise NegativeValue()
         if mat_ID_i == -1 and mat_ID_j == -1: raise NameError("No springs defined for element ID = {}".format(IDConvention(iNode_ID, jNode_ID)))
+        if ele_ID != -1 and ele_ID < 0: raise NegativeValue()
 
         # Arguments
         self.iNode_ID = iNode_ID
@@ -630,13 +639,15 @@ class SpringBasedElement(MemberModel):
         # Initialized the parameters that are dependent from others
         self.section_name_tag = "None"
         self.Initialized = False
-        self.ReInit()
+        self.ReInit(ele_ID)
 
 
-    def ReInit(self):
+    def ReInit(self, ele_ID = -1):
         """
         Implementation of the homonym abstract method.
         See parent class DataManagement for detailed information.
+        
+        @param ele_ID (int, optional): Optional ID of the element. Defaults to -1, e.g. use IDConvention to define it.
         """
         # Members
         if self.section_name_tag != "None": self.section_name_tag = self.section_name_tag + " (modified)"
@@ -655,7 +666,7 @@ class SpringBasedElement(MemberModel):
             self.jNode_ID_spring = self.jNode_ID
                 
         # element ID
-        self.element_ID = IDConvention(self.iNode_ID_spring, self.jNode_ID_spring)
+        self.element_ID = IDConvention(self.iNode_ID_spring, self.jNode_ID_spring) if ele_ID == -1 else ele_ID
 
         # Data storage for loading/saving
         self.UpdateStoredData()
@@ -705,7 +716,7 @@ class SpringBasedElement(MemberModel):
 
         if plot:
             if self.Initialized:
-                plot_member(self.element_array)
+                plot_member(self.element_array, "SpringBased Element, ID = {}".format(self.element_ID))
                 if block:
                     plt.show()
             else:
@@ -766,7 +777,7 @@ class SpringBasedElementSteelIShape(SpringBasedElement):
 
     @param SpringBasedElement: Parent class.
     """
-    def __init__(self, iNode_ID: int, jNode_ID: int, section: SteelIShape, geo_transf_ID: int, mat_ID_i=-1, mat_ID_j=-1):
+    def __init__(self, iNode_ID: int, jNode_ID: int, section: SteelIShape, geo_transf_ID: int, mat_ID_i=-1, mat_ID_j=-1, ele_ID = -1):
         """
         Constructor of the class.
 
@@ -776,17 +787,20 @@ class SpringBasedElementSteelIShape(SpringBasedElement):
         @param geo_transf_ID (int): A geometric transformation (for more information, see OpenSeesPy documentation).
         @param mat_ID_i (int, optional): ID of the material model for the spring in the node i (if present). Defaults to -1.
         @param mat_ID_j (int, optional): ID of the material model for the spring in the node j (if present). Defaults to -1.
-
+        @param ele_ID (int, optional): Optional ID of the element. Defaults to -1, e.g. use IDConvention to define it.
+        
         @exception NegativeValue: ID needs to be a positive integer.
         @exception NegativeValue: ID needs to be a positive integer.
         @exception NameError: at least one spring needs to be defined.
+        @exception NegativeValue: ID needs to be a positive integer.
         """
         self.section = deepcopy(section)
         if mat_ID_i != -1 and mat_ID_i < 0: raise NegativeValue()
         if mat_ID_j != -1 and mat_ID_j < 0: raise NegativeValue()
         if mat_ID_i == -1 and mat_ID_j == -1: raise NameError("No springs defined for element ID = {}".format(IDConvention(iNode_ID, jNode_ID)))
+        if ele_ID != -1 and ele_ID < 0: raise NegativeValue()
 
-        super().__init__(iNode_ID, jNode_ID, section.A, section.E, section.Iy_mod, geo_transf_ID, mat_ID_i=mat_ID_i, mat_ID_j=mat_ID_j)
+        super().__init__(iNode_ID, jNode_ID, section.A, section.E, section.Iy_mod, geo_transf_ID, mat_ID_i=mat_ID_i, mat_ID_j=mat_ID_j, ele_ID=ele_ID)
         self.section_name_tag = section.name_tag
         self.UpdateStoredData()
         # Check length
@@ -801,7 +815,8 @@ class SpringBasedElementModifiedIMKSteelIShape(SpringBasedElement):
 
     @param SpringBasedElement: Parent class.
     """
-    def __init__(self, iNode_ID: int, jNode_ID: int, section: SteelIShape, geo_transf_ID: int, new_mat_ID_i=-1, new_mat_ID_j=-1, N_G = 0, L_0 = -1, L_b = -1):
+    def __init__(self, iNode_ID: int, jNode_ID: int, section: SteelIShape, geo_transf_ID: int, new_mat_ID_i=-1, new_mat_ID_j=-1,
+        N_G = 0, L_0 = -1, L_b = -1, ele_ID = -1):
         """
         Constructor of the class.
 
@@ -816,15 +831,18 @@ class SpringBasedElementModifiedIMKSteelIShape(SpringBasedElement):
         @param N_G (float, optional): Axial load. Defaults to 0.
         @param L_0 (float, optional): Distance from the maximal moment to zero. Defaults to -1, e.g. computed in __init__().
         @param L_b (float, optional): Maximal unbraced lateral buckling length. Defaults to -1, e.g. computed in __init__().
+        @param ele_ID (int, optional): Optional ID of the element. Defaults to -1, e.g. use IDConvention to define it.
 
         @exception NegativeValue: ID needs to be a positive integer.
         @exception NegativeValue: ID needs to be a positive integer.
         @exception NameError: at least one spring needs to be defined.
+        @exception NegativeValue: ID needs to be a positive integer.
         """
         self.section = deepcopy(section)
         if new_mat_ID_i != -1 and new_mat_ID_i < 0: raise NegativeValue()
         if new_mat_ID_j != -1 and new_mat_ID_j < 0: raise NegativeValue()
         if new_mat_ID_i == -1 and new_mat_ID_j == -1: raise NameError("No springs imposed for element ID = {}. Use ElasticElement instead".format(IDConvention(iNode_ID, jNode_ID)))
+        if ele_ID != -1 and ele_ID < 0: raise NegativeValue()
 
         if L_0 == -1:
             if new_mat_ID_i != -1 and new_mat_ID_j != -1:
@@ -843,7 +861,7 @@ class SpringBasedElementModifiedIMKSteelIShape(SpringBasedElement):
             jSpring = ModifiedIMKSteelIShape(new_mat_ID_j, section, N_G, L_0 = L_0, L_b = L_b)
             jSpring.Bilin()
 
-        super().__init__(iNode_ID, jNode_ID, section.A, section.E, section.Iy_mod, geo_transf_ID, mat_ID_i=new_mat_ID_i, mat_ID_j=new_mat_ID_j)
+        super().__init__(iNode_ID, jNode_ID, section.A, section.E, section.Iy_mod, geo_transf_ID, mat_ID_i=new_mat_ID_i, mat_ID_j=new_mat_ID_j, ele_ID=ele_ID)
         self.section_name_tag = section.name_tag
         self.UpdateStoredData()
         # Check length
@@ -857,7 +875,7 @@ class ForceBasedElement(MemberModel):
     @param MemberModel: Parent abstract class.
     """
     def __init__(self, iNode_ID: int, jNode_ID: int, fiber_ID: int, geo_transf_ID: int,
-        new_integration_ID = -1, Ip = 5, integration_type = "Lobatto", max_iter = MAX_ITER_INTEGRATION, tol = TOL_INTEGRATION):
+        new_integration_ID = -1, Ip = 5, integration_type = "Lobatto", max_iter = MAX_ITER_INTEGRATION, tol = TOL_INTEGRATION, ele_ID = -1):
         """
         Constructor of the class.
 
@@ -871,6 +889,7 @@ class ForceBasedElement(MemberModel):
             Defaults to "Lobatto".
         @param max_iter (int, optional): Maximal number of iteration to reach the integretion convergence. Defaults to MAX_ITER_INTEGRATION (Units).
         @param tol (float, optional): Tolerance for the integration convergence. Defaults to TOL_INTEGRATION (Units).
+        @param ele_ID (int, optional): Optional ID of the element. Defaults to -1, e.g. use IDConvention to define it.
         
         @exception NegativeValue: ID needs to be a positive integer.
         @exception NegativeValue: ID needs to be a positive integer.
@@ -880,6 +899,7 @@ class ForceBasedElement(MemberModel):
         @exception NegativeValue: Ip needs to be a positive integer bigger than 3, if different from -1.
         @exception NegativeValue: max_iter needs to be a positive integer.
         @exception NegativeValue: tol needs to be positive.
+        @exception NegativeValue: ID needs to be a positive integer, if different from -1.
         """
         # Check
         if iNode_ID < 1: raise NegativeValue()
@@ -890,6 +910,7 @@ class ForceBasedElement(MemberModel):
         if Ip != -1 and Ip < 3: raise NegativeValue()
         if max_iter < 0: raise NegativeValue()
         if tol < 0: raise NegativeValue()
+        if ele_ID != -1 and ele_ID < 1: raise NegativeValue()
 
         # Arguments
         self.iNode_ID = iNode_ID
@@ -904,16 +925,19 @@ class ForceBasedElement(MemberModel):
         # Initialized the parameters that are dependent from others
         self.section_name_tag = "None"
         self.Initialized = False
-        self.ReInit(new_integration_ID)
+        self.ReInit(new_integration_ID, ele_ID)
 
 
-    def ReInit(self, new_integration_ID):
+    def ReInit(self, new_integration_ID, ele_ID = -1):
         """
         Implementation of the homonym abstract method.
         See parent class DataManagement for detailed information.
+
+        @param new_integration_ID (int): ID of the integration technique.
+        @param ele_ID (int, optional): Optional ID of the element. Defaults to -1, e.g. use IDConvention to define it.
         """
         # Precompute some members
-        self.element_ID = IDConvention(self.iNode_ID, self.jNode_ID)
+        self.element_ID = IDConvention(self.iNode_ID, self.jNode_ID) if ele_ID == -1 else ele_ID
 
         # Arguments
         self.new_integration_ID = self.element_ID if new_integration_ID == -1 else new_integration_ID
@@ -955,7 +979,7 @@ class ForceBasedElement(MemberModel):
 	    @param block (bool, optional): Option to wait the user command 'plt.show()' (avoiding the stop of the program everytime that a plot should pop up). Defaults to False.
         """
         print("")
-        print("Requested info for GIFBElement member model, ID = {}".format(self.element_ID))
+        print("Requested info for ForceBasedElement member model, ID = {}".format(self.element_ID))
         print("Fiber associated, ID = {} ".format(self.fiber_ID))
         print("Integration type '{}', ID = {}".format(self.integration_type, self.new_integration_ID))
         print("Section associated {} ".format(self.section_name_tag))
@@ -965,7 +989,7 @@ class ForceBasedElement(MemberModel):
 
         if plot:
             if self.Initialized:
-                plot_member(self.element_array)
+                plot_member(self.element_array, "ForceBased Element, ID = {}".format(self.element_ID))
                 if block:
                     plt.show()
             else:
@@ -1004,7 +1028,7 @@ class ForceBasedElementFibersRectRCRectShape(ForceBasedElement):
     @param ForceBasedElement: Parent class.
     """
     def __init__(self, iNode_ID: int, jNode_ID: int, fiber: FibersRectRCRectShape, geo_transf_ID: int,
-        new_integration_ID=-1, Ip=5, integration_type="Lobatto", max_iter=MAX_ITER_INTEGRATION, tol=TOL_INTEGRATION):
+        new_integration_ID=-1, Ip=5, integration_type="Lobatto", max_iter=MAX_ITER_INTEGRATION, tol=TOL_INTEGRATION, ele_ID = -1):
         """
         Constructor of the class.
 
@@ -1018,10 +1042,11 @@ class ForceBasedElementFibersRectRCRectShape(ForceBasedElement):
             Defaults to "Lobatto".
         @param max_iter (int, optional): Maximal number of iteration to reach the integretion convergence. Defaults to MAX_ITER_INTEGRATION (Units).
         @param tol (float, optional): Tolerance for the integration convergence. Defaults to TOL_INTEGRATION (Units).
+        @param ele_ID (int, optional): Optional ID of the element. Defaults to -1, e.g. use IDConvention to define it.
         """
         self.section = deepcopy(fiber.section)
         super().__init__(iNode_ID, jNode_ID, fiber.ID, geo_transf_ID,
-            new_integration_ID=new_integration_ID, Ip=Ip, integration_type=integration_type, max_iter=max_iter, tol=tol)
+            new_integration_ID=new_integration_ID, Ip=Ip, integration_type=integration_type, max_iter=max_iter, tol=tol, ele_ID= ele_ID)
         self.section_name_tag = self.section.name_tag
         self.UpdateStoredData()
         # Check length
@@ -1035,7 +1060,7 @@ class ForceBasedElementFibersCircRCCircShape(ForceBasedElement):
     @param ForceBasedElement: Parent class.
     """
     def __init__(self, iNode_ID: int, jNode_ID: int, fiber: FibersCircRCCircShape, geo_transf_ID: int,
-        new_integration_ID=-1, Ip=5, integration_type="Lobatto", max_iter=MAX_ITER_INTEGRATION, tol=TOL_INTEGRATION):
+        new_integration_ID=-1, Ip=5, integration_type="Lobatto", max_iter=MAX_ITER_INTEGRATION, tol=TOL_INTEGRATION, ele_ID = -1):
         """
         Constructor of the class.
 
@@ -1049,10 +1074,11 @@ class ForceBasedElementFibersCircRCCircShape(ForceBasedElement):
             Defaults to "Lobatto".
         @param max_iter (int, optional): Maximal number of iteration to reach the integretion convergence. Defaults to MAX_ITER_INTEGRATION (Units).
         @param tol (float, optional): Tolerance for the integration convergence. Defaults to TOL_INTEGRATION (Units).
+        @param ele_ID (int, optional): Optional ID of the element. Defaults to -1, e.g. use IDConvention to define it.
         """
         self.section = deepcopy(fiber.section)
         super().__init__(iNode_ID, jNode_ID, fiber.ID, geo_transf_ID,
-            new_integration_ID=new_integration_ID, Ip=Ip, integration_type=integration_type, max_iter=max_iter, tol=tol)
+            new_integration_ID=new_integration_ID, Ip=Ip, integration_type=integration_type, max_iter=max_iter, tol=tol, ele_ID=ele_ID)
         self.section_name_tag = self.section.name_tag
         self.UpdateStoredData()
         # Check length
@@ -1066,7 +1092,7 @@ class ForceBasedElementFibersIShapeSteelIShape(ForceBasedElement):
     @param ForceBasedElement: Parent class.
     """
     def __init__(self, iNode_ID: int, jNode_ID: int, fiber: FibersIShapeSteelIShape, geo_transf_ID: int,
-        new_integration_ID=-1, Ip=5, integration_type="Lobatto", max_iter=MAX_ITER_INTEGRATION, tol=TOL_INTEGRATION):
+        new_integration_ID=-1, Ip=5, integration_type="Lobatto", max_iter=MAX_ITER_INTEGRATION, tol=TOL_INTEGRATION, ele_ID = -1):
         """
         Constructor of the class.
 
@@ -1080,10 +1106,11 @@ class ForceBasedElementFibersIShapeSteelIShape(ForceBasedElement):
             Defaults to "Lobatto".
         @param max_iter (int, optional): Maximal number of iteration to reach the integretion convergence. Defaults to MAX_ITER_INTEGRATION (Units).
         @param tol (float, optional): Tolerance for the integration convergence. Defaults to TOL_INTEGRATION (Units).
+        @param ele_ID (int, optional): Optional ID of the element. Defaults to -1, e.g. use IDConvention to define it.
         """
         self.section = deepcopy(fiber.section)
         super().__init__(iNode_ID, jNode_ID, fiber.ID, geo_transf_ID,
-            new_integration_ID=new_integration_ID, Ip=Ip, integration_type=integration_type, max_iter=max_iter, tol=tol)
+            new_integration_ID=new_integration_ID, Ip=Ip, integration_type=integration_type, max_iter=max_iter, tol=tol, ele_ID=ele_ID)
         self.section_name_tag = self.section.name_tag
         self.UpdateStoredData()   
         # Check length
@@ -1100,7 +1127,7 @@ class GIFBElement(MemberModel):
     """
     def __init__(self, iNode_ID: int, jNode_ID: int, fiber_ID: int, D_bars, fy, geo_transf_ID: int, 
         lambda_i = -1, lambda_j = -1, Lp = -1, Ip = -1, new_integration_ID = -1,
-        min_tol = TOL_INTEGRATION, max_tol = TOL_INTEGRATION*1e4, max_iter = MAX_ITER_INTEGRATION):
+        min_tol = TOL_INTEGRATION, max_tol = TOL_INTEGRATION*1e4, max_iter = MAX_ITER_INTEGRATION, ele_ID = -1):
         """
         Constructor of the class.
 
@@ -1120,6 +1147,7 @@ class GIFBElement(MemberModel):
         @param min_tol (float, optional): Minimal tolerance for the integration convergence. Defaults to TOL_INTEGRATION (Units).
         @param max_tol (float, optional): Maximal tolerance for the integration convergence. Defaults to TOL_INTEGRATION*1e4.
         @param max_iter (int, optional): Maximal number of iteration to reach the integretion convergence. Defaults to MAX_ITER_INTEGRATION (Units).
+        @param ele_ID (int, optional): Optional ID of the element. Defaults to -1, e.g. use IDConvention to define it.
 
         @exception NegativeValue: ID needs to be a positive integer.
         @exception NegativeValue: ID needs to be a positive integer.
@@ -1136,6 +1164,7 @@ class GIFBElement(MemberModel):
         @exception NegativeValue: min_tol needs to be positive.
         @exception NegativeValue: max_tol needs to be positive.
         @exception NegativeValue: max_iter needs to be a positive integer.
+        @exception NegativeValue: ID needs to be a positive integer, if different from -1.
         """
         # Check
         if iNode_ID < 1: raise NegativeValue()
@@ -1153,6 +1182,7 @@ class GIFBElement(MemberModel):
         if min_tol < 0: raise NegativeValue()
         if max_tol < 0: raise NegativeValue()
         if max_iter < 0: raise NegativeValue()
+        if ele_ID != -1 and ele_ID < 0: raise NegativeValue()
 
         # Arguments
         self.iNode_ID = iNode_ID
@@ -1168,9 +1198,9 @@ class GIFBElement(MemberModel):
         # Initialized the parameters that are dependent from others
         self.section_name_tag = "None"
         self.Initialized = False
-        self.ReInit(lambda_i, lambda_j, Lp, Ip, new_integration_ID)
+        self.ReInit(lambda_i, lambda_j, Lp, Ip, new_integration_ID, ele_ID)
 
-    def ReInit(self, lambda_i = -1, lambda_j = -1, Lp = -1, Ip = 5, new_integration_ID = -1):
+    def ReInit(self, lambda_i = -1, lambda_j = -1, Lp = -1, Ip = 5, new_integration_ID = -1, ele_ID = -1):
         """
         Implementation of the homonym abstract method.
         See parent class DataManagement for detailed information.
@@ -1182,12 +1212,13 @@ class GIFBElement(MemberModel):
         @param Lp (float, optional): Plastic hinge length. Defaults to -1, e.g. computed here.
         @param Ip (int, optional): Number of integration points (min. 3). Defaults to 5.
         @param new_integration_ID (int, optional): ID of the integration technique. Defaults to -1, e.g. computed in ReInit().
+        @param ele_ID (int, optional): Optional ID of the element. Defaults to -1, e.g. use IDConvention to define it.
         """
         # Precompute some members
         iNode = np.array(nodeCoord(self.iNode_ID))
         jNode = np.array(nodeCoord(self.jNode_ID))
         self.L = np.linalg.norm(iNode-jNode)
-        self.element_ID = IDConvention(self.iNode_ID, self.jNode_ID)
+        self.element_ID = IDConvention(self.iNode_ID, self.jNode_ID) if ele_ID == -1 else ele_ID
 
         # Arguments
         self.Lp = self.ComputeLp() if Lp == -1 else Lp
@@ -1254,7 +1285,7 @@ class GIFBElement(MemberModel):
 
         if plot:
             if self.Initialized:
-                plot_member(self.element_array)
+                plot_member(self.element_array, "GIFB Element, ID = {}".format(self.element_ID))
                 if block:
                     plt.show()
             else:
@@ -1319,7 +1350,7 @@ class GIFBElementRCRectShape(GIFBElement):
     """
     def __init__(self, iNode_ID: int, jNode_ID: int, fiber_ID: int, section: RCRectShape, geo_transf_ID: int,
         lambda_i=-1, lambda_j=-1, Lp=-1, Ip=-1, new_integration_ID=-1,
-        min_tol = TOL_INTEGRATION, max_tol = TOL_INTEGRATION*1e4, max_iter = MAX_ITER_INTEGRATION):
+        min_tol = TOL_INTEGRATION, max_tol = TOL_INTEGRATION*1e4, max_iter = MAX_ITER_INTEGRATION, ele_ID = -1):
         """
         Constructor of the class.
 
@@ -1338,11 +1369,12 @@ class GIFBElementRCRectShape(GIFBElement):
         @param min_tol (float, optional): Minimal tolerance for the integration convergence. Defaults to TOL_INTEGRATION (Units).
         @param max_tol (float, optional): Maximal tolerance for the integration convergence. Defaults to TOL_INTEGRATION*1e4.
         @param max_iter (int, optional): Maximal number of iteration to reach the integretion convergence. Defaults to MAX_ITER_INTEGRATION (Units).
+        @param ele_ID (int, optional): Optional ID of the element. Defaults to -1, e.g. use IDConvention to define it.
         """
         self.section = deepcopy(section)
         super().__init__(iNode_ID, jNode_ID, fiber_ID, section.D_bars, section.fy, geo_transf_ID,
             lambda_i=lambda_i, lambda_j=lambda_j, Lp=Lp, Ip=Ip, new_integration_ID=new_integration_ID,
-            min_tol=min_tol, max_tol=max_tol, max_iter=max_iter)
+            min_tol=min_tol, max_tol=max_tol, max_iter=max_iter, ele_ID = ele_ID)
         self.section_name_tag = section.name_tag
         self.UpdateStoredData()
         # Check length
@@ -1357,7 +1389,7 @@ class GIFBElementFibersRectRCRectShape(GIFBElement):
     """
     def __init__(self, iNode_ID: int, jNode_ID: int, fib: FibersRectRCRectShape, geo_transf_ID: int,
         lambda_i=-1, lambda_j=-1, Lp=-1, Ip=-1, new_integration_ID=-1,
-        min_tol = TOL_INTEGRATION, max_tol = TOL_INTEGRATION*1e4, max_iter = MAX_ITER_INTEGRATION):
+        min_tol = TOL_INTEGRATION, max_tol = TOL_INTEGRATION*1e4, max_iter = MAX_ITER_INTEGRATION, ele_ID = -1):
         """
         Constructor of the class.
 
@@ -1375,11 +1407,12 @@ class GIFBElementFibersRectRCRectShape(GIFBElement):
         @param min_tol (float, optional): Minimal tolerance for the integration convergence. Defaults to TOL_INTEGRATION (Units).
         @param max_tol (float, optional): Maximal tolerance for the integration convergence. Defaults to TOL_INTEGRATION*1e4.
         @param max_iter (int, optional): Maximal number of iteration to reach the integretion convergence. Defaults to MAX_ITER_INTEGRATION (Units).
+        @param ele_ID (int, optional): Optional ID of the element. Defaults to -1, e.g. use IDConvention to define it.
         """
         self.section = deepcopy(fib.section)
         super().__init__(iNode_ID, jNode_ID, fib.ID, self.section.D_bars, self.section.fy, geo_transf_ID,
             lambda_i=lambda_i, lambda_j=lambda_j, Lp=Lp, Ip=Ip, new_integration_ID=new_integration_ID,
-            min_tol=min_tol, max_tol=max_tol, max_iter=max_iter)
+            min_tol=min_tol, max_tol=max_tol, max_iter=max_iter, ele_ID = ele_ID)
         self.section_name_tag = self.section.name_tag
         self.UpdateStoredData()
         # Check length
@@ -1394,7 +1427,7 @@ class GIFBElementRCCircShape(GIFBElement):
     """
     def __init__(self, iNode_ID: int, jNode_ID: int, fiber_ID: int, section: RCCircShape, geo_transf_ID: int,
         lambda_i=-1, lambda_j=-1, Lp=-1, Ip=-1, new_integration_ID=-1,
-        min_tol = TOL_INTEGRATION, max_tol = TOL_INTEGRATION*1e4, max_iter = MAX_ITER_INTEGRATION):
+        min_tol = TOL_INTEGRATION, max_tol = TOL_INTEGRATION*1e4, max_iter = MAX_ITER_INTEGRATION, ele_ID = -1):
         """
         Constructor of the class.
 
@@ -1413,11 +1446,12 @@ class GIFBElementRCCircShape(GIFBElement):
         @param min_tol (float, optional): Minimal tolerance for the integration convergence. Defaults to TOL_INTEGRATION (Units).
         @param max_tol (float, optional): Maximal tolerance for the integration convergence. Defaults to TOL_INTEGRATION*1e4.
         @param max_iter (int, optional): Maximal number of iteration to reach the integretion convergence. Defaults to MAX_ITER_INTEGRATION (Units).
+        @param ele_ID (int, optional): Optional ID of the element. Defaults to -1, e.g. use IDConvention to define it.
         """
         self.section = deepcopy(section)
         super().__init__(iNode_ID, jNode_ID, fiber_ID, section.D_bars, section.fy, geo_transf_ID,
             lambda_i=lambda_i, lambda_j=lambda_j, Lp=Lp, Ip=Ip, new_integration_ID=new_integration_ID,
-            min_tol=min_tol, max_tol=max_tol, max_iter=max_iter)
+            min_tol=min_tol, max_tol=max_tol, max_iter=max_iter, ele_ID = ele_ID)
         self.section_name_tag = section.name_tag
         self.UpdateStoredData()
         # Check length
@@ -1432,7 +1466,7 @@ class GIFBElementFibersCircRCCircShape(GIFBElement):
     """
     def __init__(self, iNode_ID: int, jNode_ID: int, fib: FibersCircRCCircShape, geo_transf_ID: int,
         lambda_i=-1, lambda_j=-1, Lp=-1, Ip=-1, new_integration_ID=-1,
-        min_tol = TOL_INTEGRATION, max_tol = TOL_INTEGRATION*1e4, max_iter = MAX_ITER_INTEGRATION):
+        min_tol = TOL_INTEGRATION, max_tol = TOL_INTEGRATION*1e4, max_iter = MAX_ITER_INTEGRATION, ele_ID = -1):
         """
         Constructor of the class.
 
@@ -1450,11 +1484,12 @@ class GIFBElementFibersCircRCCircShape(GIFBElement):
         @param min_tol (float, optional): Minimal tolerance for the integration convergence. Defaults to TOL_INTEGRATION (Units).
         @param max_tol (float, optional): Maximal tolerance for the integration convergence. Defaults to TOL_INTEGRATION*1e4.
         @param max_iter (int, optional): Maximal number of iteration to reach the integretion convergence. Defaults to MAX_ITER_INTEGRATION (Units).
+        @param ele_ID (int, optional): Optional ID of the element. Defaults to -1, e.g. use IDConvention to define it.
         """
         self.section = deepcopy(fib.section)
         super().__init__(iNode_ID, jNode_ID, fib.ID, self.section.D_bars, self.section.fy, geo_transf_ID,
             lambda_i=lambda_i, lambda_j=lambda_j, Lp=Lp, Ip=Ip, new_integration_ID=new_integration_ID,
-            min_tol=min_tol, max_tol=max_tol, max_iter=max_iter)
+            min_tol=min_tol, max_tol=max_tol, max_iter=max_iter, ele_ID = ele_ID)
         self.section_name_tag = self.section.name_tag
         self.UpdateStoredData()
         # Check length

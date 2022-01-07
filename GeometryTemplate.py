@@ -101,14 +101,13 @@ def DefineFrameNodes(n_hor_axis: int, n_vert_axis: int, storey_width, storey_hei
 
 def DefineFrameNodesAndElementsSteelIShape(n_hor_axis: int, n_vert_axis: int, storey_width, storey_height,
     list_col: list, list_beam: list, geo_trans_ID: int, N_G = np.array([]), t_dp = np.array([]), L_b_col = np.array([]), L_b_beam = np.array([]),
-    fix_support = True, show_plot = True):
+    fix_support = True, show_plot = True, panel_zone = True):
     """
     WIP (Work In Progress). Function that declares and initialises the grid nodes of a frame and the members using steel I shape SpringBasedElements.
-    WARNING: Current limit of the geometry: if the x_axis < 9 but y_axis > 999 or if x_axis < 99 but y_axis > 99, problem with the IDs; the limit is exceeded.
+    WARNING: Current limit of the geometry: n_hor_axis and n_vert_axis < 10; if exceeded, there are problems with the IDs (ID limit is exceeded, ~2.2e9).
     WARNING: if the section of the columns change, the function does not account for the splacing. Each colum section is defined from floor to floor;
       if there is a change in the column section, it happens right after the panel zone (not realistic but good enough for predesign).
-    WIP: panel zone implemented (see bool variable 'panel_zone') but if used, maximal ID of an element is exceeded (~2.2e9), 
-        thus automatization for large building need implementations (for example the use of a different ID convention or the use of the class IDGenerator).
+    WIP: Solve ID limit for large building need implementations (for example the use of a different ID convention or the use of the class IDGenerator).
 
     @param n_hor_axis (int): Number of horizontal axis (or piers) for the grid of the frame.
     @param n_vert_axis (int): Number of vertical axis (or floors) for the grid of the frame.
@@ -123,6 +122,7 @@ def DefineFrameNodesAndElementsSteelIShape(n_hor_axis: int, n_vert_axis: int, st
     @param L_b_beam (np.ndarray, optional): Array of dimension 1 with the maxiaml unbraced lateral buckling length for each beam. Defaults to np.array([]), e.g. -1.
     @param fix_support (bool, optional): Option to fix the support of the frame. Defaults to True.
     @param show_plot (bool, optional): Option to show the plot of the nodes declared and initialised. Defaults to True.
+    @param panel_zone (bool, optional): Option to add the panel zones in the model. Defaults to True.
 
     @exception WrongDimension: N_G dimension needs to be equal to n_vert_axis-1, if different from 0.
     @exception WrongDimension: t_dp dimension needs to be equal to n_vert_axis-1, if different from 0.
@@ -134,7 +134,7 @@ def DefineFrameNodesAndElementsSteelIShape(n_hor_axis: int, n_vert_axis: int, st
 
     @returns List: List with the element objects in the frame.
     """
-    panel_zone = False 
+    panel_zone = True
     if np.size(N_G) == 0: N_G = np.zeros(n_vert_axis-1)
     if np.size(t_dp) == 0: t_dp = np.zeros(n_vert_axis-1)
     if np.size(L_b_col) == 0: L_b_col = np.ones(n_vert_axis-1) * (-1.0)
@@ -175,8 +175,9 @@ def DefineFrameNodesAndElementsSteelIShape(n_hor_axis: int, n_vert_axis: int, st
                 col_i_node_ID = node_array[xx*n_vert_axis + yy - 1]
                 col_mat_i = OffsetNodeIDConvention(col_i_node_ID, "vertical", "i")
                 col_mat_j = OffsetNodeIDConvention(col_j_node_ID, "vertical", "j")
+                ele_ID = col_i_node_ID if panel_zone else -1
                 tmp_col = SpringBasedElementModifiedIMKSteelIShape(col_i_node_ID, col_j_node_ID, list_col[yy-1], geo_trans_ID,
-                    col_mat_i, col_mat_j, N_G[yy-1], L_b=L_b_col[yy-1])
+                    col_mat_i, col_mat_j, N_G[yy-1], L_b=L_b_col[yy-1], ele_ID = ele_ID)
                 tmp_col.CreateMember()
                 beam_column_pzspring[1].append(deepcopy(tmp_col))
 
@@ -188,8 +189,9 @@ def DefineFrameNodesAndElementsSteelIShape(n_hor_axis: int, n_vert_axis: int, st
                         beam_i_node_ID = IDConvention(node_array[(xx-1)*n_vert_axis + yy], 2, 1)
                     beam_mat_i = OffsetNodeIDConvention(beam_i_node_ID, "horizontal", "i")
                     beam_mat_j = OffsetNodeIDConvention(beam_j_node_ID, "horizontal", "j")
+                    ele_ID = beam_i_node_ID if panel_zone else -1
                     tmp_beam = SpringBasedElementModifiedIMKSteelIShape(beam_i_node_ID, beam_j_node_ID, list_beam[yy-1], geo_trans_ID,
-                        beam_mat_i, beam_mat_j, L_b=L_b_beam[xx-1])
+                        beam_mat_i, beam_mat_j, L_b=L_b_beam[xx-1], ele_ID = ele_ID)
                     tmp_beam.CreateMember()
                     beam_column_pzspring[0].append(deepcopy(tmp_beam))
             else:

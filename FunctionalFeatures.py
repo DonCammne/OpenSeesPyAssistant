@@ -159,7 +159,7 @@ def DiscretizeLinearly(LP: np.ndarray, discr: int, plot = False, block = False, 
 def GridIDConvention(pier_axis: int, floor_axis: int, max_pier = -1, max_floor = -1):
 	"""
 	Function used to construct the ID of the nodes in the grid (first nodes that define the geometry of the model).
-	The conventional grid node ID is 1xy, with x = the pier postion 'pier_axis'; y = the floor postion 'floor_axis'.
+	The conventional grid node ID is xy, with x = the pier postion 'pier_axis'; y = the floor postion 'floor_axis'.
 
 	@param pier_axis (int): The pier (or x) postion of the node. 
 	@param floor_axis (int): The floor (or y) position of the node.
@@ -168,6 +168,7 @@ def GridIDConvention(pier_axis: int, floor_axis: int, max_pier = -1, max_floor =
 	@param max_floor (int, optional): Maximal floor position of the model (used to identify the number of digits).
 		Defaults to -1, e.g. taken equal of floor_axis.
 
+	@exception NameError: Work In Progress: only 9 floors/bays.
 	@exception NegativeValue: The argument pier_axis needs to be a positive integer.
 	@exception NegativeValue: The argument floor_axis needs to be a positive integer.
 	@exception NegativeValue: The argument max_pier needs to be a positive integer if different from -1.
@@ -178,7 +179,8 @@ def GridIDConvention(pier_axis: int, floor_axis: int, max_pier = -1, max_floor =
 	@returns int: The grid node ID
 	"""
 	# Convention:
-    # 		GridNodeID: 	1xy 			with x = pier, y = floor 
+    # 		GridNodeID: 	xy 			with x = pier, y = floor 
+	if pier_axis > 9 or floor_axis > 9 or max_pier > 9 or max_floor > 9: raise NameError("WIP: maximal 9 floors or bays")
 	max_pier = pier_axis if max_pier == -1 else max_pier
 	max_floor = floor_axis if max_floor == -1 else max_floor
 
@@ -192,15 +194,16 @@ def GridIDConvention(pier_axis: int, floor_axis: int, max_pier = -1, max_floor =
 	max_x_digits = int(math.log10(max_pier))+1
 	max_y_digits = int(math.log10(max_floor))+1
 
-	return 10**(max_x_digits+max_y_digits) + pier_axis*10**max_y_digits + floor_axis
+	# return 10**(max_x_digits+max_y_digits) + pier_axis*10**max_y_digits + floor_axis # with 1 as prefix (to consider more than one digit per axis, but exceed max ID)
+	return pier_axis*10**max_y_digits + floor_axis
 
 
 def IDConvention(prefix: int, suffix: int, n_zeros_between = 0):
 	"""
 	Function used to construct IDs for elements and offgrid nodes.
 	It appends to a positive integer number 'prefix' a number of zeros 'n_zeros_between' and at last another positive integer 'suffix'.
-	The conventional element ID is 1xy(a)1x'y'(a') with 1xya = the node ID in pier x, floor y and offgrid parameter a (optional);
-		1x'y'a' = the node ID in pier x', floor y' and offgrid parameter a' (optional).
+	The conventional element ID is xy(a)x'y'(a') with xya = the node ID in pier x, floor y and offgrid parameter a (optional);
+		x'y'a' = the node ID in pier x', floor y' and offgrid parameter a' (optional).
 	For more information on x and y, see GridIDConvention; for more information on a, see OffsetNodeIDConvention.
 
 	@param prefix (int): Prefix of the new ID. For a vertical element it should be the left node ID;
@@ -216,9 +219,9 @@ def IDConvention(prefix: int, suffix: int, n_zeros_between = 0):
 	@returns int: The combined ID
 	"""
 	# Convention:
-    #		ElementID:		1xy(a)1x'y'(a')	with 1xy(a) = NodeID i and 1x'y'(a') = NodeID j
-    #		TrussID:		1xy(a)1x'y'(a')	with 1xy(a) = NodeID i and 1x'y'(a') = NodeID j
-    #		Spring:			1xy(a)1x'y'(a')	with 1xy(a) = NodeID i and 1x'y'(a') = NodeID j
+    #		ElementID:		xy(a)x'y'(a')	with xy(a) = NodeID i and x'y'(a') = NodeID j
+    #		TrussID:		xy(a)x'y'(a')	with xy(a) = NodeID i and x'y'(a') = NodeID j
+    #		Spring:			xy(a)x'y'(a')	with xy(a) = NodeID i and x'y'(a') = NodeID j
 	if prefix < 0: raise NegativeValue()
 	if suffix < 0: raise NegativeValue()
 	if n_zeros_between < 0: raise NegativeValue()
@@ -241,13 +244,13 @@ def OffsetNodeIDConvention(node_ID: int, orientation: str, position_i_or_j: str)
 
 	@returns int: The combined ID
 	"""
-	# Convention:																							o 1xy
-    # 		GridNodeID: 	1xy 			with x = pier, y = floor 										o 1xy7		
-    #	AdditionalNodeID:   1xya			with x = pier, y = floor, a:  o 1xy  1xy2 o-----o 1x'y3  1x'y o	|		
-    #	PanelZoneNodeID: 	1xy(a)a 	see MemberModel for the panel zone ID convention					|	
+	# Convention:																							o xy
+    # 		GridNodeID: 	 xy 			with x = pier, y = floor 										o xy7		
+    #	AdditionalNodeID:    xya			with x = pier, y = floor, a:  o xy  xy2 o-------o x'y3  x'y o	|		
+    #	PanelZoneNodeID: 	 xy(a)a 	see MemberModel for the panel zone ID convention					|	
     #																								   		|		
-    #																								   		o 1xy'6	
-    #																										o 1xy'
+    #																								   		o xy'6	
+    #																										o xy'
 	if node_ID < 1: raise NegativeValue()
 	if position_i_or_j != "i" and position_i_or_j != "j": raise WrongArgument()
 
