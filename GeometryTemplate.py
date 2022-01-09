@@ -237,11 +237,11 @@ def DefineSubassemblageNodes(beam_left_L_cl, beam_right_L_cl, col_top_L_cl, col_
     if depth_col < 0: raise NegativeValue()
     if depth_beam < 0: raise NegativeValue()
 
-    node(12, 0.0, col_bottom_L_cl)
-    node(21, beam_left_L_cl, 0.0)
-    node(22, beam_left_L_cl, col_bottom_L_cl+depth_beam/2)
-    node(23, beam_left_L_cl, col_bottom_L_cl + col_top_L_cl)
-    node(32, beam_left_L_cl + beam_right_L_cl, col_bottom_L_cl)
+    node(12, 0.0, col_bottom_L_cl+depth_beam/2)
+    node(21, beam_left_L_cl+depth_col/2, 0.0)
+    node(22, beam_left_L_cl+depth_col/2, col_bottom_L_cl+depth_beam)
+    node(23, beam_left_L_cl+depth_col/2, col_bottom_L_cl+depth_beam+col_top_L_cl)
+    node(32, beam_left_L_cl+depth_col+beam_right_L_cl, col_bottom_L_cl+depth_beam/2)
     node_array = [12, 21, 22, 23, 32]
     
     if boundary_condition:
