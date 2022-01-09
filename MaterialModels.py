@@ -529,7 +529,7 @@ class Gupta1999(MaterialModels):
     @param MaterialModels: Parent abstract class.
     """
     def __init__(self, ID: int, d_c, bf_c, tf_c, I_c, d_b, tf_b, Fy, E, t_p,
-        t_dp = 0.0, a_s = 0.03, pinchx = 1.0, pinchy = 1.0, dmg1 = 0.0, dmg2 = 0.0, beta = 0.0, safety_factor = False):
+        t_dp = 0.0, a_s = 0.03, pinchx = 0.25, pinchy = 0.75, dmg1 = 0.0, dmg2 = 0.0, beta = 0.0, safety_factor = False):
         """
         Constructor of the class.
 
@@ -545,8 +545,8 @@ class Gupta1999(MaterialModels):
         @param t_p (float): Panel zone thickness.
         @param t_dp (float, optional): Doubler plate thickness. Defaults to 0.0.
         @param a_s (float, optional): Strain hardening. Defaults to 0.03.
-        @param pinchx (float, optional): Pinching factor for strain (or deformation) during reloading. Defaults to 1.0.
-        @param pinchy (float, optional): Pinching factor for stress (or force) during reloading. Defaults to 1.0.
+        @param pinchx (float, optional): Pinching factor for strain (or deformation) during reloading. Defaults to 0.25.
+        @param pinchy (float, optional): Pinching factor for stress (or force) during reloading. Defaults to 0.75.
         @param dmg1 (float, optional): Damage due to ductility: D1(mu-1). Defaults to 0.0.
         @param dmg2 (float, optional): Damage due to energy: D2(Eii/Eult). Defaults to 0.0.
         @param beta (float, optional): Power used to determine the degraded unloading stiffness based on ductility, mu-beta. Defaults to 0.0.
@@ -750,7 +750,7 @@ class Gupta1999SteelIShape(Gupta1999):
     @param Gupta1999: Parent class.
     """
     def __init__(self, ID: int, col: SteelIShape, beam: SteelIShape,
-        t_dp = 0.0, a_s = 0.03, pinchx = 1.0, pinchy = 1.0, dmg1 = 0.0, dmg2 = 0.0, beta = 0.0, safety_factor = False):
+        t_dp = 0.0, a_s = 0.03, pinchx = 0.25, pinchy = 0.75, dmg1 = 0.0, dmg2 = 0.0, beta = 0.0, safety_factor = False):
         """
         Constructor of the class. It passes the arguments into the parent class to generate the combination of the parent class
             and the section class SteelIShape.
@@ -761,8 +761,8 @@ class Gupta1999SteelIShape(Gupta1999):
         @param beam (SteelIShape): SteelIShape beam section object.
         @param t_dp (float, optional): Doubler plate thickness. Defaults to 0.0.
         @param a_s (float, optional): Strain hardening. Defaults to 0.03.
-        @param pinchx (float, optional): Pinching factor for strain (or deformation) during reloading. Defaults to 1.0.
-        @param pinchy (float, optional): Pinching factor for stress (or force) during reloading. Defaults to 1.0.
+        @param pinchx (float, optional): Pinching factor for strain (or deformation) during reloading. Defaults to 0.25.
+        @param pinchy (float, optional): Pinching factor for stress (or force) during reloading. Defaults to 0.75
         @param dmg1 (float, optional): Damage due to ductility: D1(mu-1). Defaults to 0.0.
         @param dmg2 (float, optional): Damage due to energy: D2(Eii/Eult). Defaults to 0.0.
         @param beta (float, optional): Power used to determine the degraded unloading stiffness based on ductility, mu-beta. Defaults to 0.0.
@@ -806,7 +806,7 @@ class Skiadopoulos2021(MaterialModels):
     Cf6_tests.reverse()
 
     def __init__(self, ID: int, d_c, bf_c, tf_c, I_c, d_b, tf_b, Fy, E, t_p,
-        t_dp = 0.0, a_s = 0.03, pinchx = 1.0, pinchy = 1.0, dmg1 = 0.0, dmg2 = 0.0, beta = 0.0, safety_factor = False):
+        t_dp = 0.0, a_s = 0.03, pinchx = 0.25, pinchy = 0.75, dmg1 = 0.0, dmg2 = 0.0, beta = 0.0, safety_factor = False, t_fbp = 0):
         """
         Constructor of the class.
 
@@ -822,12 +822,13 @@ class Skiadopoulos2021(MaterialModels):
         @param t_p (float): Panel zone thickness.
         @param t_dp (float, optional): Doubler plate thickness. Defaults to 0.0.
         @param a_s (float, optional): Strain hardening. Defaults to 0.03.
-        @param pinchx (float, optional): Pinching factor for strain (or deformation) during reloading. Defaults to 1.0.
-        @param pinchy (float, optional): Pinching factor for stress (or force) during reloading. Defaults to 1.0.
+        @param pinchx (float, optional): Pinching factor for strain (or deformation) during reloading. Defaults to 0.25
+        @param pinchy (float, optional): Pinching factor for stress (or force) during reloading. Defaults to 0.75
         @param dmg1 (float, optional): Damage due to ductility: D1(mu-1). Defaults to 0.0.
         @param dmg2 (float, optional): Damage due to energy: D2(Eii/Eult). Defaults to 0.0.
         @param beta (float, optional): Power used to determine the degraded unloading stiffness based on ductility, mu-beta. Defaults to 0.0.
         @param safety_factor (bool, optional): Safety factor used if standard mechanical parameters are used (not test results). Defaults to False.
+        @param t_fbp (float, optional): Thickness of the face bearing plate (if present). Defaults to 0.
 
         @exception NegativeValue: ID needs to be a positive integer.
         @exception NegativeValue: d_c needs to be positive.
@@ -851,6 +852,7 @@ class Skiadopoulos2021(MaterialModels):
         if E < 0: raise NegativeValue()
         if t_p < 0: raise NegativeValue()
         if a_s < 0: raise NegativeValue()
+        if t_fbp < 0: raise NegativeValue()
 
         # Arguments
         self.ID = ID
@@ -874,6 +876,7 @@ class Skiadopoulos2021(MaterialModels):
             self.Ry = 1.2
         else:
             self.Ry = 1.0
+        self.t_fbp = t_fbp
 
         # Initialized the parameters that are dependent from others
         self.beam_section_name_tag = "None"
@@ -904,8 +907,8 @@ class Skiadopoulos2021(MaterialModels):
         self.Ke = self.Ks*self.Kb/(self.Ks+self.Kb)
 
         # Column Flange Stiffness
-        self.Ksf = 2.0*(self.tf_c*self.bf_c*self.G)
-        self.Kbf = 2.0*(12.0*self.E*self.bf_c*self.tf_c**3/12.0/(self.d_b-0)**2)
+        self.Ksf = 2.0*((self.tf_c+self.t_fbp)*self.bf_c*self.G)
+        self.Kbf = 2.0*(12.0*self.E*self.bf_c*(self.tf_c**3+self.t_fbp**3)/12.0/(self.d_b-0)**2)
         self.Kf = self.Ksf*self.Kbf/(self.Ksf+self.Kbf)
 
         # Kf/Ke Calculation for Panel Zone Categorization
@@ -1050,7 +1053,7 @@ class Skiadopoulos2021SteelIShape(Skiadopoulos2021):
     @param Skiadopoulos2021: Parent class.
     """
     def __init__(self, ID: int, col: SteelIShape, beam: SteelIShape,
-        t_dp=0, a_s=0.03, pinchx=1, pinchy=1, dmg1=0, dmg2=0, beta=0, safety_factor=False):
+        t_dp=0, a_s=0.03, pinchx=0.25, pinchy=0.75, dmg1=0, dmg2=0, beta=0, safety_factor=False, t_fbp = 0):
         """
         Constructor of the class. It passes the arguments into the parent class to generate the combination of the parent class
             and the section class SteelIShape.
@@ -1061,19 +1064,53 @@ class Skiadopoulos2021SteelIShape(Skiadopoulos2021):
         @param beam (SteelIShape): SteelIShape beam section object.
         @param t_dp (float, optional): Doubler plate thickness. Defaults to 0.0.
         @param a_s (float, optional): Strain hardening. Defaults to 0.03.
-        @param pinchx (float, optional): Pinching factor for strain (or deformation) during reloading. Defaults to 1.0.
-        @param pinchy (float, optional): Pinching factor for stress (or force) during reloading. Defaults to 1.0.
+        @param pinchx (float, optional): Pinching factor for strain (or deformation) during reloading. Defaults to 0.25.
+        @param pinchy (float, optional): Pinching factor for stress (or force) during reloading. Defaults to 0.75.
+        @param dmg1 (float, optional): Damage due to ductility: D1(mu-1). Defaults to 0.0.
+        @param dmg2 (float, optional): Damage due to energy: D2(Eii/Eult). Defaults to 0.0.
+        @param beta (float, optional): Power used to determine the degraded unloading stiffness based on ductility, mu-beta. Defaults to 0.0.
+        @param safety_factor (bool, optional): Safety factor used if standard mechanical parameters are used (not test results). Defaults to False.
+        @param t_fbp (float, optional): Thickness of the face bearing plate (if present). Defaults to 0.
+        """
+        self.col = deepcopy(col)
+        self.beam = deepcopy(beam)
+        super().__init__(ID, col.d, col.bf, col.tf, col.Iy, beam.d, beam.tf, col.Fy_web, col.E, col.tw,
+            t_dp=t_dp, a_s=a_s, pinchx=pinchx, pinchy=pinchy, dmg1=dmg1, dmg2=dmg2, beta=beta, safety_factor=safety_factor, t_fbp=t_fbp)
+        self.beam_section_name_tag = beam.name_tag
+        self.col_section_name_tag = col.name_tag
+        self.UpdateStoredData()
+        
+
+class Skiadopoulos2021RCS(Skiadopoulos2021):
+    """
+    WIP: Class that is the children of Skiadopoulos2021 and it's used for the panel zone spring in a RCS (RC column continous, Steel beam).  
+
+    @param Skiadopoulos2021: Parent class.
+    """
+    def __init__(self, ID: int, beam: SteelIShape, d_col, t_fbp = 0,
+        t_dp=0, a_s=0.03, pinchx=0.25, pinchy=0.75, dmg1=0, dmg2=0, beta=0, safety_factor=False):
+        """
+        Constructor of the class. It passes the arguments into the parent class to generate the combination of the parent class
+            and the section class SteelIShape.
+        The copy of the section (beam) passed is stored in the member variable self.beam.
+
+        @param ID (int): Unique material model ID.
+        @param beam (SteelIShape): SteelIShape beam section object.
+        @param d_col (float): Depth of the RC column (continous)
+        @param t_fbp (float, optional): Thickness of the face bearing plate (if present). Defaults to 0.
+        @param t_dp (float, optional): Doubler plate thickness. Defaults to 0.0.
+        @param a_s (float, optional): Strain hardening. Defaults to 0.03.
+        @param pinchx (float, optional): Pinching factor for strain (or deformation) during reloading. Defaults to 0.25
+        @param pinchy (float, optional): Pinching factor for stress (or force) during reloading. Defaults to 0.75
         @param dmg1 (float, optional): Damage due to ductility: D1(mu-1). Defaults to 0.0.
         @param dmg2 (float, optional): Damage due to energy: D2(Eii/Eult). Defaults to 0.0.
         @param beta (float, optional): Power used to determine the degraded unloading stiffness based on ductility, mu-beta. Defaults to 0.0.
         @param safety_factor (bool, optional): Safety factor used if standard mechanical parameters are used (not test results). Defaults to False.
         """
-        self.col = deepcopy(col)
         self.beam = deepcopy(beam)
-        super().__init__(ID, col.d, col.bf, col.tf, col.Iy, beam.d, beam.tf, col.Fy_web, col.E, col.tw,
-            t_dp=t_dp, a_s=a_s, pinchx=pinchx, pinchy=pinchy, dmg1=dmg1, dmg2=dmg2, beta=beta, safety_factor=safety_factor)
+        super().__init__(ID, beam.d, beam.bf, beam.tf, beam.Iy, d_col, 0, beam.Fy_web, beam.E, beam.tw,
+            t_dp=t_dp, a_s=a_s, pinchx=pinchx, pinchy=pinchy, dmg1=dmg1, dmg2=dmg2, beta=beta, safety_factor=safety_factor, t_fbp=t_fbp)
         self.beam_section_name_tag = beam.name_tag
-        self.col_section_name_tag = col.name_tag
         self.UpdateStoredData()
         
 
@@ -1674,6 +1711,14 @@ class ConfMander1988Rect(MaterialModels):
             ["rho_s_y", self.rho_s_y],
             ["fs", self.fs],
             ["esu", self.esu],
+            ["Ai", self.Ai],
+            ["Ae", self.Ae],
+            ["rho_cc", self.rho_cc],
+            ["Acc", self.Acc],
+            ["ke", self.ke],
+            ["fl_x", self.fl_x],
+            ["fl_y", self.fl_y],
+            ["K_combo", self.K_combo],
             ["Initialized", self.Initialized]]
 
 
@@ -1821,10 +1866,10 @@ class ConfMander1988Rect(MaterialModels):
         @returns float: Confinement factor.
         """
         if self.fl_x == self.fl_y:
-            return -1.254 + 2.254 * math.sqrt(1.0+7.94*self.fl_x/self.fc) - 2.0*self.fl_x/self.fc # in Mander, it has a prime
+            return -1.254 + 2.254 * math.sqrt(1.0+7.94*self.fl_x*self.ke/self.fc) - 2.0*self.fl_x*self.ke/self.fc # in Mander, it has a prime
         else:
-            fl2_ratio = max(self.fl_x/self.fc, self.fl_y/self.fc)
-            fl1_ratio = min(self.fl_x/self.fc, self.fl_y/self.fc)    
+            fl2_ratio = max(self.fl_x*self.ke/self.fc, self.fl_y*self.ke/self.fc)
+            fl1_ratio = min(self.fl_x*self.ke/self.fc, self.fl_y*self.ke/self.fc)    
 
             if fl1_ratio > 0.3: raise NoApplicability()
             if fl2_ratio > 0.3: raise NoApplicability()
@@ -2742,7 +2787,7 @@ class UVCCalibrated(UVC):
         # 'S460NL_25mm_plate' \n
         # 'S690QL_25mm_plate' \n
         # 'A992Gr50_W14X82_web' \n
-        # 'A992Gr50_W14X82' \n
+        # 'A992Gr50_W14X82_flange' \n
         # 'A500GrB_HSS305X16' \n
         # 'BCP325_22mm_plate' \n
         # 'BCR295_HSS350X22' \n
