@@ -134,14 +134,14 @@ class FibersRect(Fibers):
         yc = y1-self.e-self.D_hoops/2
 
         # Create the concrete core fibers
-        core = [-yc, zc, yc, -zc]
+        core = [-yc, -zc, yc, zc]
         core_cmd = ['patch', 'rect', self.conf_mat_ID, *self.discr_core, *core]
 
         # Create the concrete cover fibers (bottom left, top right)
-        cover_up = [yc, z1, y1, -z1]
-        cover_down = [-y1, z1, -yc, -z1]
-        cover_left = [-yc, z1, yc, zc]
-        cover_right = [-yc, -zc, yc, -z1]
+        cover_up = [yc, -z1, y1, z1]
+        cover_down = [-y1, -z1, -yc, z1]
+        cover_left = [-yc, zc, yc, z1]
+        cover_right = [-yc, -z1, yc, -zc]
         cover_up_cmd = ['patch', 'rect', self.unconf_mat_ID, *self.discr_cover_topbottom, *cover_up]
         cover_down_cmd = ['patch', 'rect', self.unconf_mat_ID, *self.discr_cover_topbottom, *cover_down]
         cover_left_cmd = ['patch', 'rect', self.unconf_mat_ID, *self.discr_cover_lateral, *cover_left]
@@ -556,15 +556,15 @@ class FibersIShape(Fibers):
         y1 = (self.d - self.tf_t - self.tf_b)/2
 
         # Create the flange top
-        flange_top = [y1, self.bf_t/2, y1+self.tf_t, -self.bf_t/2]
+        flange_top = [y1, -self.bf_t/2, y1+self.tf_t, self.bf_t/2]
         flange_top_cmd = ['patch', 'rect', self.top_flange_mat_ID, *self.discr_top_flange, *flange_top]
 
         # Create the flange bottom
-        flange_bottom = [-y1-self.tf_b, self.bf_b/2, -y1, -self.bf_b/2]
+        flange_bottom = [-y1-self.tf_b, -self.bf_b/2, -y1, self.bf_b/2]
         flange_bottom_cmd = ['patch', 'rect', self.bottom_flange_mat_ID, *self.discr_bottom_flange, *flange_bottom]
 
         # Create the web
-        web = [-y1, z1, y1, -z1]
+        web = [-y1, -z1, y1, z1]
         web_cmd = ['patch', 'rect', self.web_mat_ID, *self.discr_web, *web]
 
         self.fib_sec = [['section', 'Fiber', self.ID, '-GJ', self.GJ], 
@@ -688,27 +688,27 @@ def plot_fiber_section(fiber_info, fill_shapes = True, matcolor=['#808080', '#D3
     @param matcolor (list, optional): List of colors for various material IDs. Defaults to ['#808080', '#D3D3D3', 'r', 'b', 'g', 'y'].
 
     Example 1: Simple rectangle with 2 rebars (D = diameter) on top (e distance from the top and from the lateral borders).
-        Rectangle with first corner =  I (bottom left) and second corner = K (top right); number of fibers = discr (list of 2)
+        Rectangle with first corner =  I (bottom right) and second corner = K (top left); number of fibers = discr (list of 2)
         fib_sec = [['section', 'Fiber', ID, '-GJ', GJ], 
-            ['patch', 'rect', concrete_mat_ID, *discr, -yI, zI, yK, -zK],
+            ['patch', 'rect', concrete_mat_ID, *discr, yI, zI, yK, zK],
             ['layer', 'bar', bars_mat_ID, Ay, yI-e-D/2, zI-e-D/2], # left rebar
             ['layer', 'bar', bars_mat_ID, Ay, yI-e-D/2, -(zI-e-D/2)]] # right rebar
 
     Example 2: double symmetric I shape.
-        Each rectangle (2 flanges and 1 web): first corner =  I (bottom left) and second corner = K (top right); number of fibers = discr (list of 2)
+        Each rectangle (2 flanges and 1 web): first corner =  I (bottom right) and second corner = K (top left); number of fibers = discr (list of 2)
         fib_sec = [['section', 'Fiber', ID, '-GJ', GJ], 
-            ['patch', 'rect', mat_ID, *discr, -yI_tf, zI_tf, yK_tf, -zK_tf], # top flange
-            ['patch', 'rect', mat_ID, *discr, -yI_bf, zI_bf, yK_bf, -zK_bf], # bottom flange
-            ['patch', 'rect', mat_ID, *discr, -yI_w, zI_w, yK_w, -zK_w]] # web
+            ['patch', 'rect', mat_ID, *discr, yI_tf, zI_tf, yK_tf, zK_tf], # top flange
+            ['patch', 'rect', mat_ID, *discr, yI_bf, zI_bf, yK_bf, zK_bf], # bottom flange
+            ['patch', 'rect', mat_ID, *discr, yI_w, zI_w, yK_w, zK_w]] # web
     """
+    
     mat_to_col = {}
     fig, ax = plt.subplots()
-    ax.set_xlabel('x [{}]'.format(length_unit))
-    ax.set_ylabel('y [{}]'.format(length_unit))
     ax.grid(False)
 
     for item in fiber_info:
-
+        if item[0] == 'section':
+            fib_ID = item[2]
         if item[0] == 'layer':
             matID = item[2]
             mat_to_col = __assignColorToMat(matID, mat_to_col, matcolor)
@@ -762,7 +762,7 @@ def plot_fiber_section(fiber_info, fill_shapes = True, matcolor=['#808080', '#D3
                 Iy, Iz, Ky, Kz = item[5], item[6], item[7], item[8]
                 Jy, Jz, Ly, Lz = Iy, Kz, Ky, Iz
                 # check order of definition
-                if Iz-Kz < 0 or Ky-Iy < 0: print("!!!!!!! WARNING !!!!!!! The fiber is not defined bottom left, top right")
+                if Kz-Iz < 0 or Ky-Iy < 0: print("!!!!!!! WARNING !!!!!!! The fiber is not defined bottom right, top left")
             
             # check for convexity (vector products)
             outIJxIK = (Jy-Iy)*(Kz-Iz) - (Ky-Iy)*(Jz-Iz)
@@ -771,7 +771,7 @@ def plot_fiber_section(fiber_info, fill_shapes = True, matcolor=['#808080', '#D3
             outIJxIL = (Jy-Iy)*(Lz-Iz) - (Ly-Iy)*(Jz-Iz)
             # outJKxJL = (Ky-Jy)*(Lz-Jz) - (Ly-Jy)*(Kz-Jz)
 
-            if outIJxIK <= 0 or outIKxIL <= 0 or outIJxIL <= 0:
+            if -outIJxIK <= 0 or -outIKxIL <= 0 or -outIJxIL <= 0:
                 print('!!!!!!! WARNING !!!!!!! Patch quad is non-convex or non-counter-clockwise defined or has at least 3 colinear points in line')
 
             IJz, IJy = np.linspace(Iz, Jz, nIJ+1), np.linspace(Iy, Jy, nIJ+1)
@@ -830,7 +830,8 @@ def plot_fiber_section(fiber_info, fill_shapes = True, matcolor=['#808080', '#D3
                     wedge = Wedge((-zC, yC), rj1, thi, thi1, width=dr, ec='k', #Seweryn Kokot: (yC, -zC), wrong??
                         lw=1, fc=mat_to_col[matID])
                     ax.add_patch(wedge)
-
+    ax.set(xlabel='x dimension [{}]'.format(length_unit), ylabel='y dimension [{}]'.format(length_unit), 
+                    title='Fiber section (ID = {})'.format(fib_ID))
     ax.axis('equal')
 
 
@@ -844,7 +845,6 @@ def __assignColorToMat(matID: int, mat_to_col: dict, matcolor: list):
 
     @returns dict: Updated dictionary.
     """
-    print(matcolor)
     if not matID in mat_to_col:
         if len(mat_to_col) >= len(matcolor):
             print("Warning: not enough colors defined for fiber section plot (white used)")
@@ -886,7 +886,8 @@ def create_fiber_section(fiber_info):
                 As = dat[3]
                 Iy = dat[4]
                 Iz = dat[5]
-                layer('straight', mat_ID, 1, As, Iy, Iz, Iy, Iz)
+                fiber(Iy, Iz, As, mat_ID)
+                # layer('straight', mat_ID, 1, As, Iy, Iz, Iy, Iz)
             if dat[1] == 'circ':
                 n_bars, As = dat[3], dat[4]
                 yC, zC, r = dat[5], dat[6], dat[7]
@@ -900,8 +901,8 @@ def create_fiber_section(fiber_info):
 
         if dat[0] == 'patch':
             mat_ID = dat[2]
-            nIJ = dat[3]
-            nJK = dat[4]
+            nIJ = dat[4] ###
+            nJK = dat[3] ###
 
             if dat[1] == 'quad' or dat[1] == 'quadr':
                 Iy, Iz, Jy, Jz = dat[5], dat[6], dat[7], dat[8]
@@ -912,6 +913,7 @@ def create_fiber_section(fiber_info):
             if dat[1] == 'rect':
                 Iy, Iz, Ky, Kz = dat[5], dat[6], dat[7], dat[8]
                 patch('rect', mat_ID, nIJ, nJK, Iy, Iz, Ky, Kz)
+                # patch('rect', mat_ID, nIJ, nJK, Iy, Kz, Ky, Iz)
 
             if dat[1] == 'circ':
                 mat_ID, nc, nr = dat[2], dat[3], dat[4]
