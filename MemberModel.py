@@ -34,7 +34,7 @@ class MemberModel(DataManagement):
         @param name_txt (str): Name of the recorded data (no .txt).
         @param data_dir (str): Directory for the storage of data.
         @param force_rec (bool, optional): Option to record the forces (Fx, Fy, Mz). Defaults to True.
-        @param def_rec (bool, optional): Option to record the deformation (Ux, Uy, theta). Defaults to True.
+        @param def_rec (bool, optional): Option to record the deformation (theta) for ZeroLength element. Defaults to True.
         @param time_rec (bool, optional): Option to record time. Defaults to True.
         """
         if self.Initialized:
@@ -55,6 +55,30 @@ class MemberModel(DataManagement):
         else:
                 print("The element is not initialized (node and/or elements not created), ID = {}".format(ele_ID))
     
+    @abstractmethod
+    def RecordNodeDef(self, iNode_ID: int, jNode_ID: int, name_txt: str, data_dir: str, time_rec = True):
+        """
+        Abstract method that records the forces, deformation and time of the member associated with the class.
+
+        @param iNode_ID (int): ID of the node i.
+        @param jNode_ID (int): ID of the node j.
+        @param name_txt (str): Name of the recorded data (no .txt).
+        @param data_dir (str): Directory for the storage of data.
+        @param time_rec (bool, optional): Option to record time. Defaults to True.
+        """
+        if self.Initialized:
+            if not os.path.exists(data_dir):
+                print("Folder {} not found in this directory; creating one".format(data_dir))
+                os.makedirs(data_dir)
+            
+            if time_rec:
+                recorder("Node", "-file", '{}/{}.txt'.format(data_dir, name_txt), "-time", "-node", iNode_ID, jNode_ID, "-dof", 1, 2, 3, "disp")
+            else:
+                recorder("Node", "-file", '{}/{}.txt'.format(data_dir, name_txt), "-node", iNode_ID, jNode_ID, "-dof", 1, 2, 3, "disp")
+        else:
+                print("The element is not initialized (node and/or elements not created), iNode ID = {}, jNode ID = {}".format(iNode_ID, jNode_ID))
+    
+
     def _CheckL(self):
         """
         Private abstract method to check if the length of the line member is the same (with 1 cm of tolerance) with the length defined in the section used.
@@ -73,7 +97,7 @@ class PanelZone(MemberModel):
 
     @param MemberModel: Parent abstract class.
     """
-    def __init__(self, master_node_ID: int, mid_panel_zone_width, mid_panel_zone_height, E, A_rigid, I_rigid, geo_transf_ID: int, mat_ID: int):
+    def __init__(self, master_node_ID: int, mid_panel_zone_width, mid_panel_zone_height, E, A_rigid, I_rigid, geo_transf_ID: int, mat_ID: int, pin_corners = True):
         """
         Constructor of the class.
 
@@ -85,6 +109,7 @@ class PanelZone(MemberModel):
         @param I_rigid (float): A very rigid moment of inertia.
         @param geo_transf_ID (int): A geometric transformation (for more information, see OpenSeesPy documentation).
         @param mat_ID (int): ID of the material model for the panel zone spring.
+        @param pin_corners (bool, optional): Option to pin the corners (xy03/xy04, xy06/xy07, xy09/xy10) or not. Used for RCS models. Defaults to True.
 
         @exception NegativeValue: ID needs to be a positive integer.
         @exception NegativeValue: mid_panel_zone_width needs to be positive.
@@ -115,6 +140,7 @@ class PanelZone(MemberModel):
         self.I_rigid = I_rigid
         self.geo_transf_ID = geo_transf_ID
         self.mat_ID = mat_ID 
+        self.pin_corners = pin_corners
 
         # Initialized the parameters that are dependent from others
         self.col_section_name_tag = "None"
@@ -213,11 +239,14 @@ class PanelZone(MemberModel):
         self.spring_ID = IDConvention(xy1, xy01)
         RotationalSpring(self.spring_ID, xy1, xy01, self.mat_ID)
         self.element_array.append([self.spring_ID, xy1, xy01])
+        self.iNode_ID = xy1
+        self.jNode_ID = xy01
 
         # Pin connections
-        Pin(xy03, xy04)
-        Pin(xy06, xy07)
-        Pin(xy09, xy10)
+        if self.pin_corners:
+            Pin(xy03, xy04)
+            Pin(xy06, xy07)
+            Pin(xy09, xy10)
 
         # Update class
         self.Initialized = True
@@ -230,6 +259,14 @@ class PanelZone(MemberModel):
         See parent class MemberModel for detailed information.
         """
         super().Record(self.spring_ID, name_txt, data_dir, force_rec=force_rec, def_rec=def_rec, time_rec=time_rec)
+
+
+    def RecordNodeDef(self, name_txt: str, data_dir: str, time_rec=True):
+        """
+        Implementation of the homonym abstract method.
+        See parent class MemberModel for detailed information.
+        """
+        super().RecordNodeDef(self.iNode_ID, self.jNode_ID, name_txt, data_dir, time_rec=time_rec)
 
 
     def _CheckL(self):
@@ -260,6 +297,34 @@ class PanelZoneSteelIShape(PanelZone):
         self.col = deepcopy(col)
         self.beam = deepcopy(beam)
         super().__init__(master_node_ID, col.d/2.0, beam.d/2.0, col.E, max(col.A, beam.A)*rigid, max(col.Iy, beam.Iy)*rigid, geo_transf_ID, mat_ID)
+
+        self.col_section_name_tag = col.name_tag
+        self.beam_section_name_tag = beam.name_tag
+        self.UpdateStoredData()
+
+
+class PanelZoneRCS(PanelZone):
+    """
+    WIP: Class that is the children of PanelZone and it's used for the panel zone in a RCS (RC column continous, Steel beam).
+    Note that the corners are not pinned (do it manually).
+
+    @param PanelZone: Parent class.
+    """
+    def __init__(self, master_node_ID: int, col: RCRectShape, beam: SteelIShape, geo_transf_ID: int, mat_ID: int, rigid = RIGID):
+        """
+        Constructor of the class.
+
+        @param master_node_ID (int): ID of the master node (central top node that should be a grid node).
+        @param col (RCRectShape): RCRectShape column section object.
+        @param beam (SteelIShape): SteelIShape beam section object.
+        @param geo_transf_ID (int): A geometric transformation (for more information, see OpenSeesPy documentation).
+        @param mat_ID (int): ID of the material model for the panel zone spring.
+        @param rigid (float, optional): Parameter with a value enough big to assure rigidity of one element
+            but enough small to avoid convergence problem. Defaults to RIGID.
+        """
+        self.col = deepcopy(col)
+        self.beam = deepcopy(beam)
+        super().__init__(master_node_ID, col.d/2.0, beam.d/2.0, beam.E, max(col.A, beam.A)*rigid, max(col.Iy, beam.Iy)*rigid, geo_transf_ID, mat_ID, False)
 
         self.col_section_name_tag = col.name_tag
         self.beam_section_name_tag = beam.name_tag
@@ -559,6 +624,14 @@ class ElasticElement(MemberModel):
         super().Record(self.element_ID, name_txt, data_dir, force_rec=force_rec, def_rec=def_rec, time_rec=time_rec)
 
 
+    def RecordNodeDef(self, name_txt: str, data_dir: str, time_rec=True):
+        """
+        Implementation of the homonym abstract method.
+        See parent class MemberModel for detailed information.
+        """
+        super().RecordNodeDef(self.iNode_ID, self.jNode_ID, name_txt, data_dir, time_rec=time_rec)
+
+
 class ElasticElementSteelIShape(ElasticElement):
     """
     Class that is the children of ElasticElement and combine the class SteelIShape (section) to retrieve the information needed.  
@@ -769,6 +842,14 @@ class SpringBasedElement(MemberModel):
         else:
             print("No recording option with: '{}' with element ID: {}".format(spring_or_element, self.element_ID))
     
+
+    def RecordNodeDef(self, name_txt: str, data_dir: str, time_rec=True):
+        """
+        Implementation of the homonym abstract method.
+        See parent class MemberModel for detailed information.
+        """
+        super().RecordNodeDef(self.iNode_ID, self.jNode_ID, name_txt, data_dir, time_rec=time_rec)
+
 
 class SpringBasedElementSteelIShape(SpringBasedElement):
     """
@@ -1019,6 +1100,14 @@ class ForceBasedElement(MemberModel):
         See parent class MemberModel for detailed information.
         """
         super().Record(self.element_ID, name_txt, data_dir, force_rec=force_rec, def_rec=def_rec, time_rec=time_rec)
+    
+
+    def RecordNodeDef(self, name_txt: str, data_dir: str, time_rec=True):
+        """
+        Implementation of the homonym abstract method.
+        See parent class MemberModel for detailed information.
+        """
+        super().RecordNodeDef(self.iNode_ID, self.jNode_ID, name_txt, data_dir, time_rec=time_rec)
 
 
 class ForceBasedElementFibersRectRCRectShape(ForceBasedElement):
@@ -1137,10 +1226,10 @@ class GIFBElement(MemberModel):
         @param D_bars (float): Diameter of the vertical reinforcing bars.
         @param fy (float): Yield stress of the reinforcing bars.
         @param geo_transf_ID (int): The geometric transformation (for more information, see OpenSeesPy documentation).
-        @param lambda_i (float, optional): Fraction of beam length over the plastic hinge length at end i.
-            Defaults to -1, e.g. no plastic hinge in the end i.
-        @param lambda_j (float, optional): Fraction of beam length over the plastic hinge length at end j.
-            Defaults to -1, e.g. no plastic hinge in the end j.
+        @param lambda_i (float, optional): Fraction of beam length over the plastic hinge length at end i (0 = no plastic hinge).
+            Defaults to -1, e.g. plastic hinge in the end i.
+        @param lambda_j (float, optional): Fraction of beam length over the plastic hinge length at end j (0 = no plastic hinge).
+            Defaults to -1, e.g. plastic hinge in the end j.
         @param Lp (float, optional): Plastic hinge length. Defaults to -1, e.g. computed in ReInit().
         @param Ip (int, optional): Number of integration points (min. 3). Defaults to 5.
         @param new_integration_ID (int, optional): ID of the integration technique. Defaults to -1, e.g. computed in ReInit().
@@ -1205,10 +1294,10 @@ class GIFBElement(MemberModel):
         Implementation of the homonym abstract method.
         See parent class DataManagement for detailed information.
 
-        @param lambda_i (float, optional): Fraction of beam length over the plastic hinge length at end i.
-            Defaults to -1, e.g. no plastic hinge in the end i.
-        @param lambda_j (float, optional): Fraction of beam length over the plastic hinge length at end j.
-            Defaults to -1, e.g. no plastic hinge in the end j.
+        @param lambda_i (float, optional): Fraction of beam length over the plastic hinge length at end i (0 = no plastic hinge).
+            Defaults to -1, e.g. plastic hinge in the end i.
+        @param lambda_j (float, optional): Fraction of beam length over the plastic hinge length at end j (0 = no plastic hinge).
+            Defaults to -1, e.g. plastic hinge in the end j.
         @param Lp (float, optional): Plastic hinge length. Defaults to -1, e.g. computed here.
         @param Ip (int, optional): Number of integration points (min. 3). Defaults to 5.
         @param new_integration_ID (int, optional): ID of the integration technique. Defaults to -1, e.g. computed in ReInit().
@@ -1223,8 +1312,8 @@ class GIFBElement(MemberModel):
         # Arguments
         self.Lp = self.ComputeLp() if Lp == -1 else Lp
         self.Ip = self.ComputeIp() if Ip == -1 else Ip
-        self.lambda_i = self.L/self.Lp if lambda_i == -1 else lambda_i
-        self.lambda_j = self.L/self.Lp if lambda_j == -1 else lambda_j
+        self.lambda_i = self.Lp/self.L if lambda_i == -1 else lambda_i
+        self.lambda_j = self.Lp/self.L if lambda_j == -1 else lambda_j
         self.new_integration_ID = self.element_ID if new_integration_ID == -1 else new_integration_ID
 
         # Members
@@ -1305,7 +1394,9 @@ class GIFBElement(MemberModel):
         # element('gradientInelasticBeamColumn', self.element_ID, self.iNode_ID, self.jNode_ID, self.geo_transf_ID,
         #     self.new_integration_ID, self.Lp, '-iter', self.max_iter, self.min_tol, self.max_tol) # from doc
         element('gradientInelasticBeamColumn', self.element_ID, self.iNode_ID, self.jNode_ID, self.geo_transf_ID,
-            self.new_integration_ID, self.lambda_i, self.lambda_j, self.Lp, '-iter', self.max_iter, self.min_tol, self.max_tol)
+            # self.new_integration_ID, self.lambda_i, self.lambda_j, self.Lp, '-iter', self.max_iter, self.min_tol, self.max_tol)
+            self.new_integration_ID, self.lambda_i, self.lambda_j, self.Lp)
+        # element('gradientInelasticBeamColumn', ColBID, 21, 22058, TransfID, Simpson_intB, lambda1, lambda2, Lp)
         
         # Update class
         self.Initialized = True
@@ -1318,6 +1409,14 @@ class GIFBElement(MemberModel):
         See parent class MemberModel for detailed information.
         """
         super().Record(self.element_ID, name_txt, data_dir, force_rec=force_rec, def_rec=def_rec, time_rec=time_rec)
+
+
+    def RecordNodeDef(self, name_txt: str, data_dir: str, time_rec=True):
+        """
+        Implementation of the homonym abstract method.
+        See parent class MemberModel for detailed information.
+        """
+        super().RecordNodeDef(self.iNode_ID, self.jNode_ID, name_txt, data_dir, time_rec=time_rec)
 
 
     def ComputeLp(self):
@@ -1359,10 +1458,10 @@ class GIFBElementRCRectShape(GIFBElement):
         @param fiber_ID (int): ID of the fiber section.
         @param section (RCRectShape): RCRectShape section object.
         @param geo_transf_ID (int): A geometric transformation (for more information, see OpenSeesPy documentation).
-        @param lambda_i (float, optional): Fraction of beam length over the plastic hinge length at end i.
-            Defaults to -1, e.g. no plastic hinge in the end i.
-        @param lambda_j (float, optional): Fraction of beam length over the plastic hinge length at end j.
-            Defaults to -1, e.g. no plastic hinge in the end j.
+        @param lambda_i (float, optional): Fraction of beam length over the plastic hinge length at end i (0 = no plastic hinge).
+            Defaults to -1, e.g. plastic hinge in the end i.
+        @param lambda_j (float, optional): Fraction of beam length over the plastic hinge length at end j (0 = no plastic hinge).
+            Defaults to -1, e.g. plastic hinge in the end j.
         @param Lp (float, optional): Plastic hinge length. Defaults to -1, e.g. computed in ReInit().
         @param Ip (int, optional): Number of integration points (min. 3). Defaults to 5.
         @param new_integration_ID (int, optional): ID of the integration technique. Defaults to -1, e.g. computed in ReInit().
@@ -1397,10 +1496,10 @@ class GIFBElementFibersRectRCRectShape(GIFBElement):
         @param jNode_ID (int): ID of the second end node.
         @param fib (FibersRectRCRectShape): FibersRectRCRectShape fiber section object.
         @param geo_transf_ID (int): A geometric transformation (for more information, see OpenSeesPy documentation).
-        @param lambda_i (float, optional): Fraction of beam length over the plastic hinge length at end i.
-            Defaults to -1, e.g. no plastic hinge in the end i.
-        @param lambda_j (float, optional): Fraction of beam length over the plastic hinge length at end j.
-            Defaults to -1, e.g. no plastic hinge in the end j.
+        @param lambda_i (float, optional): Fraction of beam length over the plastic hinge length at end i (0 = no plastic hinge).
+            Defaults to -1, e.g. plastic hinge in the end i.
+        @param lambda_j (float, optional): Fraction of beam length over the plastic hinge length at end j (0 = no plastic hinge).
+            Defaults to -1, e.g. plastic hinge in the end j.
         @param Lp (float, optional): Plastic hinge length. Defaults to -1, e.g. computed in ReInit().
         @param Ip (int, optional): Number of integration points (min. 3). Defaults to 5.
         @param new_integration_ID (int, optional): ID of the integration technique. Defaults to -1, e.g. computed in ReInit().
@@ -1436,10 +1535,10 @@ class GIFBElementRCCircShape(GIFBElement):
         @param fiber_ID (int): ID of the fiber section.
         @param section (RCCircShape): RCCircShape section object.
         @param geo_transf_ID (int): The geometric transformation (for more information, see OpenSeesPy documentation).
-        @param lambda_i (float, optional): Fraction of beam length over the plastic hinge length at end i.
-            Defaults to -1, e.g. no plastic hinge in the end i.
-        @param lambda_j (float, optional): Fraction of beam length over the plastic hinge length at end j.
-            Defaults to -1, e.g. no plastic hinge in the end j.
+        @param lambda_i (float, optional): Fraction of beam length over the plastic hinge length at end i (0 = no plastic hinge).
+            Defaults to -1, e.g. plastic hinge in the end i.
+        @param lambda_j (float, optional): Fraction of beam length over the plastic hinge length at end j (0 = no plastic hinge).
+            Defaults to -1, e.g. plastic hinge in the end j.
         @param Lp (float, optional): Plastic hinge length. Defaults to -1, e.g. computed in ReInit().
         @param Ip (int, optional): Number of integration points (min. 3). Defaults to 5.
         @param new_integration_ID (int, optional): ID of the integration technique. Defaults to -1, e.g. computed in ReInit().
@@ -1474,10 +1573,10 @@ class GIFBElementFibersCircRCCircShape(GIFBElement):
         @param jNode_ID (int): ID of the second end node.
         @param fib (FibersCircRCCircShape): FibersCircRCCircShape fiber section object.
         @param geo_transf_ID (int): A geometric transformation (for more information, see OpenSeesPy documentation).
-        @param lambda_i (float, optional): Fraction of beam length over the plastic hinge length at end i.
-            Defaults to -1, e.g. no plastic hinge in the end i.
-        @param lambda_j (float, optional): Fraction of beam length over the plastic hinge length at end j.
-            Defaults to -1, e.g. no plastic hinge in the end j.
+        @param lambda_i (float, optional): Fraction of beam length over the plastic hinge length at end i (0 = no plastic hinge).
+            Defaults to -1, e.g. plastic hinge in the end i.
+        @param lambda_j (float, optional): Fraction of beam length over the plastic hinge length at end j (0 = no plastic hinge).
+            Defaults to -1, e.g. plastic hinge in the end j.
         @param Lp (float, optional): Plastic hinge length. Defaults to -1, e.g. computed in ReInit().
         @param Ip (int, optional): Number of integration points (min. 3). Defaults to 5.
         @param new_integration_ID (int, optional): ID of the integration technique. Defaults to -1, e.g. computed in ReInit().
