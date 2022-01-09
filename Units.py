@@ -7,11 +7,11 @@ Carmine Schipani, 2021
 
 
 # Fundamental
-m_unit = 1
+m_unit = 1.0
 length_unit = "m" # It's the length unit associated with 1 (fundamental)
-N_unit = 1
+N_unit = 1.0
 force_unit = "N" # It's the force unit associated with 1 (fundamental)
-s_unit = 1
+s_unit = 1.0
 time_unit = "s" # It's the time unit associated with 1 (fundamental)
 
 # Distance
