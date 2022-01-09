@@ -316,7 +316,7 @@ class Analysis():
         wipe()
 
 
-    def LoadingProtocol(self, CtrlNode: int, discr_LP: np.ndarray, timeSeries_ID: int, pattern_ID: int, Fx = 1*kN_unit, fiber_ID_analysed = -1, fiber_section = 1,
+    def LoadingProtocol(self, CtrlNode: int, discr_LP: np.ndarray, timeSeries_ID: int, pattern_ID: int, Fx = 1*kN_unit, ele_fiber_ID_analysed = -1, fiber_section = 1,
         timeSeries_type = "Linear", pattern_type = "Plain", constraints_type = "Plain", numberer_type = "RCM", system_type = "UmfPack", analysis_type = "Static",
         show_plot = True, block = False):
         """
@@ -329,8 +329,8 @@ class Analysis():
         @param pattern_ID (int): ID of the pattern.
         @param Fx (float, optional): The force imposed at the control node CtrlNode. It is used for convergence reasons and it can be arbitrarly small.
             Defaults to 1*kN_unit.
-        @param fiber_ID_analysed (int, optional): The ID of the analysed fiber. If fibers are present in the model and the user wants to save ODB data
-            (to use in the post-processing with for example FiberResponse), assign to this argument the ID of the fiber chosen.
+        @param ele_fiber_ID_analysed (int, optional): The ID of the analysed element with fibers. If fibers are present in the model and the user wants to save ODB data
+            (to use in the post-processing with for example FiberResponse), assign to this argument the ID of the element with fibers chosen.
             -1 will ignore the storage of data for fibers. Defaults to -1.
         @param fiber_section (int, optional): The section number, i.e. the Gauss integratio number.
             If the fiber_ID_analysed is equal to -1, this argument is not used. Defaults to 1.
@@ -357,11 +357,11 @@ class Analysis():
         if CtrlNode < 1: raise NegativeValue()
         if timeSeries_ID < 1: raise NegativeValue()
         if pattern_ID < 1: raise NegativeValue()
-        if fiber_ID_analysed != -1 and fiber_ID_analysed < 1: raise NegativeValue()
+        if ele_fiber_ID_analysed != -1 and ele_fiber_ID_analysed < 1: raise NegativeValue()
 
         # for mass defined: opsplt.createODB(self.name_ODB, "LoadingProtocol", Nmodes = nEigen); 
         opsplt.createODB(self.name_ODB, "LoadingProtocol");
-        if fiber_ID_analysed != -1: opsplt.saveFiberData2D(self.name_ODB, "LoadingProtocol", fiber_ID_analysed, fiber_section)
+        if ele_fiber_ID_analysed != -1: opsplt.saveFiberData2D(self.name_ODB, "LoadingProtocol", ele_fiber_ID_analysed, fiber_section)
 
         # Create load pattern
         timeSeries(timeSeries_type, timeSeries_ID)
@@ -667,13 +667,13 @@ class Analysis():
             opsplt.animate_deformedshape(Model = self.name_ODB, LoadCase=self.load_case, dt = dt, scale = scale)
 
 
-    def FiberResponse(self, fiber_ID_analysed: int, fiber_section = 1, animate_stress = False, animate_strain = False, fps = 25):
+    def FiberResponse(self, ele_fiber_ID_analysed: int, fiber_section = 1, animate_stress = False, animate_strain = False, fps = 25):
         """
         Method that shows the final stress response of the fiber section chosen.
         It can also show the animation that shows how the fiber section behaved during the analysis. The fiber ID and section needs to be recorded during the analysis,
         thus if the method Pushover or LoadingProtocol was used, the same fiber ID and section need to be used. 
 
-        @param fiber_ID_analysed (int): The ID of the analysed fiber. If fibers are present in the model and the user wants to save ODB data
+        @param ele_fiber_ID_analysed (int): The ID of the analysed fiber. If fibers are present in the model and the user wants to save ODB data
             (to use in the post-processing with for example FiberResponse), assign to this argument the ID of the fiber chosen.
             -1 will ignore the storage of data for fibers.
         @param fiber_section (int, optional): The section number, i.e. the Gauss integratio number.
@@ -685,11 +685,11 @@ class Analysis():
         """
         if self.load_case == "None": raise NameError("The analysis is not complete.")
 
-        opsplt.plot_fiberResponse2D(self.name_ODB, self.load_case, fiber_ID_analysed, fiber_section, InputType = 'stress')
+        opsplt.plot_fiberResponse2D(self.name_ODB, self.load_case, ele_fiber_ID_analysed, fiber_section, InputType = 'stress')
         if animate_stress:
-            ani1 = opsplt.animate_fiberResponse2D(self.name_ODB, self.load_case, fiber_ID_analysed, fiber_section, InputType = 'stress', fps = fps)
+            ani1 = opsplt.animate_fiberResponse2D(self.name_ODB, self.load_case, ele_fiber_ID_analysed, fiber_section, InputType = 'stress', fps = fps)
         if animate_strain:
-            ani1 = opsplt.animate_fiberResponse2D(self.name_ODB, self.load_case, fiber_ID_analysed, fiber_section, InputType = 'strain', fps = fps)
+            ani1 = opsplt.animate_fiberResponse2D(self.name_ODB, self.load_case, ele_fiber_ID_analysed, fiber_section, InputType = 'strain', fps = fps)
 
 
 def _ConvergenceTest(algo_type: str, test_type: str, tol, max_iter, test_opt = 0):
