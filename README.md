@@ -46,9 +46,27 @@ For the post processing, three Matlab module are presented in the folder [MATLAB
 
 Use the package manager [pip](https://pip.pypa.io/en/stable/) to install OSPA using the following prompt command.
 
-'''bash
+```bash
 pip install OpenSeesPyAssistant
-'''
+```
+
+## Usage
+
+The entire library is imported with this lines:
+
+```python
+from OpenSeesPyAssistant.Section import *
+from OpenSeesPyAssistant.DataManagement import *
+from OpenSeesPyAssistant.ErrorHandling import *
+from OpenSeesPyAssistant.Units import *
+from OpenSeesPyAssistant.Constants import *
+from OpenSeesPyAssistant.Fibers import *
+from OpenSeesPyAssistant.Connections import *
+from OpenSeesPyAssistant.FunctionalFeatures import *
+from OpenSeesPyAssistant.MemberModel import *
+from OpenSeesPyAssistant.AnalysisAndPostProcessing import *
+from OpenSeesPyAssistant.GeometryTemplate import *
+```
 
 
 ## User Manual
