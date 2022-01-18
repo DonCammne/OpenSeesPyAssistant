@@ -3,8 +3,8 @@
 The OpenSeesPyAssistant (OSPA) is a Python-based simulation tools library for 2D reinforced concrete, steel and composite structures. It is meant to assist the user modeling nonlinear structures with the interpreter OpenSeesPy. Various features are implemented (material models, members model, fibers section, etc) to help the user to create flexible, reliable, systematic and readable main code programs for nonlinear modeling
 
 - [MIT License](https://choosealicense.com/licenses/mit/)
-- [Online Documentaion](https://github.com/DonCammne/OpenSeesPyAssistant)
-- [GitHub Pages](https://ospa.karma-riuk.com/namespaces.html)
+- [GitHub Pages](https://github.com/DonCammne/OpenSeesPyAssistant)
+- [Online Documentaion](https://ospa.karma-riuk.com/namespaces.html)
 - Author: Carmine Schipani
 
 ## Features
