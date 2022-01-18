@@ -58,7 +58,7 @@ class MemberModel(DataManagement):
     @abstractmethod
     def RecordNodeDef(self, iNode_ID: int, jNode_ID: int, name_txt: str, data_dir: str, time_rec = True):
         """
-        Abstract method that records the forces, deformation and time of the member associated with the class.
+        Abstract method that records the deformation and time of the member's nodes associated with the class.
 
         @param iNode_ID (int): ID of the node i.
         @param jNode_ID (int): ID of the node j.
@@ -906,9 +906,9 @@ class SpringBasedElementModifiedIMKSteelIShape(SpringBasedElement):
         @param section (SteelIShape): SteelIShape section object.
         @param geo_transf_ID (int): A geometric transformation (for more information, see OpenSeesPy documentation).
         @param new_mat_ID_i (int, optional): New ID for the definition of the material model for the spring in the node i.
-            If -1 is passed, the class generate no material model and no spring. Defaults to -1.
+            If -1 is passed, the class generate no material model and no spring. If 0 is passed, no i spring. Defaults to -1.
         @param new_mat_ID_j (int, optional): New ID for the definition of the material model for the spring in the node j.
-            If -1 is passed, the class generate no material model and no spring. Defaults to -1.
+            If -1 is passed, the class generate no material model and no spring. If 0 is passed, no j spring. Defaults to -1.
         @param N_G (float, optional): Axial load. Defaults to 0.
         @param L_0 (float, optional): Distance from the maximal moment to zero. Defaults to -1, e.g. computed in __init__().
         @param L_b (float, optional): Maximal unbraced lateral buckling length. Defaults to -1, e.g. computed in __init__().
@@ -918,29 +918,41 @@ class SpringBasedElementModifiedIMKSteelIShape(SpringBasedElement):
         @exception NegativeValue: ID needs to be a positive integer.
         @exception NameError: at least one spring needs to be defined.
         @exception NegativeValue: ID needs to be a positive integer.
+        @exception ZeroLength: The two nodes are superimposed.
         """
         self.section = deepcopy(section)
         if new_mat_ID_i != -1 and new_mat_ID_i < 0: raise NegativeValue()
         if new_mat_ID_j != -1 and new_mat_ID_j < 0: raise NegativeValue()
-        if new_mat_ID_i == -1 and new_mat_ID_j == -1: raise NameError("No springs imposed for element ID = {}. Use ElasticElement instead".format(IDConvention(iNode_ID, jNode_ID)))
+        if new_mat_ID_i == 0 and new_mat_ID_j == 0: raise NameError("No springs imposed for element ID = {}. Use ElasticElement instead".format(IDConvention(iNode_ID, jNode_ID)))
         if ele_ID != -1 and ele_ID < 0: raise NegativeValue()
 
         if L_0 == -1:
-            if new_mat_ID_i != -1 and new_mat_ID_j != -1:
+            if new_mat_ID_i != 0 and new_mat_ID_j != 0:
                 L_0 = section.L/2
             else:
                 L_0 = section.L
         L_b = L_0 if L_b == -1 else L_b
 
-        if new_mat_ID_i != -1:
+        # auto assign ID for material of springs
+        ele_orientation = NodesOrientation(iNode_ID, jNode_ID)
+        if ele_orientation == "zero_length": raise ZeroLength(IDConvention(iNode_ID, jNode_ID))
+        if new_mat_ID_i != 0 and new_mat_ID_i == -1:
+            new_mat_ID_i = OffsetNodeIDConvention(iNode_ID, ele_orientation, "i")
+        if new_mat_ID_j != 0 and new_mat_ID_j == -1:
+            new_mat_ID_j = OffsetNodeIDConvention(jNode_ID, ele_orientation, "j")
+
+        if new_mat_ID_i != 0:
             # Create mat i
             iSpring = ModifiedIMKSteelIShape(new_mat_ID_i, section, N_G, L_0 = L_0, L_b = L_b)
             iSpring.Bilin()
 
-        if new_mat_ID_j != -1:
+        if new_mat_ID_j != 0:
             # Create mat j
             jSpring = ModifiedIMKSteelIShape(new_mat_ID_j, section, N_G, L_0 = L_0, L_b = L_b)
             jSpring.Bilin()
+
+        new_mat_ID_i = -1 if new_mat_ID_i == 0 else new_mat_ID_i
+        new_mat_ID_j = -1 if new_mat_ID_j == 0 else new_mat_ID_j
 
         super().__init__(iNode_ID, jNode_ID, section.A, section.E, section.Iy_mod, geo_transf_ID, mat_ID_i=new_mat_ID_i, mat_ID_j=new_mat_ID_j, ele_ID=ele_ID)
         self.section_name_tag = section.name_tag
@@ -1390,13 +1402,9 @@ class GIFBElement(MemberModel):
         # Define integration type
         beamIntegration('Simpson', self.new_integration_ID, self.fiber_ID, self.Ip)
         
-        # Define element TODO: CHECK!!!
-        # element('gradientInelasticBeamColumn', self.element_ID, self.iNode_ID, self.jNode_ID, self.geo_transf_ID,
-        #     self.new_integration_ID, self.Lp, '-iter', self.max_iter, self.min_tol, self.max_tol) # from doc
+        # Define element TODO: Dr. Salehi: lambda useless
         element('gradientInelasticBeamColumn', self.element_ID, self.iNode_ID, self.jNode_ID, self.geo_transf_ID,
-            # self.new_integration_ID, self.lambda_i, self.lambda_j, self.Lp, '-iter', self.max_iter, self.min_tol, self.max_tol)
-            self.new_integration_ID, self.lambda_i, self.lambda_j, self.Lp)
-        # element('gradientInelasticBeamColumn', ColBID, 21, 22058, TransfID, Simpson_intB, lambda1, lambda2, Lp)
+            self.new_integration_ID, self.lambda_i, self.lambda_j, self.Lp, '-iter', self.max_iter, self.min_tol, self.max_tol)
         
         # Update class
         self.Initialized = True
