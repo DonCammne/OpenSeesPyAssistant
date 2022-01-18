@@ -856,7 +856,7 @@ def __assignColorToMat(matID: int, mat_to_col: dict, matcolor: list):
 
 def create_fiber_section(fiber_info):
     """
-    Initialise fiber cross-section with OpenSeesPy commands. Coordinate system used: plotting coordinte = (x, y), fiber section coordinate (z, y) = (-x, y).
+    Initialise fiber cross-section with OpenSeesPy commands.
     For examples, see plot_fiber_section.
     Inspired by fib_sec_list_to_cmds from ops_vis written by Seweryn Kokot 
 

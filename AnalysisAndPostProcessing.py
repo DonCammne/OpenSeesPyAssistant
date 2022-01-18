@@ -14,9 +14,9 @@ from OpenSeesPyAssistant.FunctionalFeatures import *
 
 
 class Analysis():
-    """Class dedicated to the analysis of the OpenSeesPy model. The Gravity method should be run first to perform the Load-conctrol analysis (apply the vertical load). If no vertical load, this method can be omitted. \n
-    Then only one of the Displacement-control analysis can ran (Pushover or LoadingProtocol). \n
-    After the analysis, for the postprocessing, the DeformedShape method can be used to see the final deformed shape and the animation of the entire loading protocol;
+    """Class dedicated to the analysis of the OpenSeesPy model. The Gravity method should be run first to perform the Load-control analysis (apply the vertical load). If no vertical load, this method can be omitted. \n
+    Then only one of the Displacement-control (Pushover or LoadingProtocol) or Load-control (LateralForce) analysis can ran. \n
+    After the analysis reach convergence in the last step, for the postprocessing, the DeformedShape method can be used to see the final deformed shape and the animation of the entire loading protocol;
     the FiberResponse method can be used to see the animation of the same fiber section recorded during the analysis (strain and/or stress).
     """
     def __init__(self, data_dir: str,  name_ODB: str, algo = "KrylovNewton", test_type = "NormDispIncr", test_opt = 0, max_iter = MAX_ITER, tol = TOL, allow_smaller_step = False):
@@ -60,8 +60,8 @@ class Analysis():
     def Gravity(self, loaded_nodes: list, Fy: list, timeSeries_ID: int, pattern_ID: int, n_step = 10, timeSeries_type = "Linear", pattern_type = "Plain",
         constraints_type = "Plain", numberer_type = "RCM", system_type = "BandGeneral", analysis_type = "Static", show_plot = False):
         """
-        Method to perform the gravity analyisis with vertical loadings.
-        It can be used before calling the Pushover or LoadingProtocol methods that perform the actual anlysis. If no vertical loadings present, thus method can be avoided.
+        Method to perform the gravity analyisis with vertical loadings (load-control).
+        It can be used before calling the Pushover or LoadingProtocol methods that perform the actual anlysis. If no vertical loadings present, this method can be avoided.
 
         @param loaded_nodes (list): List of nodes that are loaded by the the forces in Fy. The first node will be recorded (thus usually should be in the roof).
         @param Fy (list): List of vertical loadings (negative is toward the ground, thus compression; see global coordinate system).
@@ -138,8 +138,8 @@ class Analysis():
         timeSeries_type = "Linear", pattern_type = "Plain", constraints_type = "Plain", numberer_type = "RCM", system_type = "BandGeneral", analysis_type = "Static",
         show_plot = True, block = False):
         """
-        Method to perform the gravity analyisis with vertical loadings.
-        It can be used before calling the Pushover or LoadingProtocol methods that perform the actual anlysis. If no vertical loadings present, thus method can be avoided.
+        Method to perform the lateral force analyisis with lateral loading (load-control).
+        If this method is called, the LoadingProtocol and Pushover methods should be avoided.
 
         @param loaded_nodes (list): List of nodes that are loaded by the the forces in Fx. The first node will be recorded (thus usually should be in the roof).
         @param Fx (list): List of horizontal loadings (negative is toward left; see global coordinate system).
@@ -225,7 +225,7 @@ class Analysis():
         wipe()
 
 
-    def Pushover(self, CtrlNode: int, Dmax, Dincr, timeSeries_ID: int, pattern_ID: int, Fx = 1*kN_unit, fiber_ID_analysed = -1, fiber_section = 1,
+    def Pushover(self, CtrlNode: int, Dmax, Dincr, timeSeries_ID: int, pattern_ID: int, Fx = 1*kN_unit, ele_fiber_ID_analysed = -1, fiber_section = 1,
         timeSeries_type = "Linear", pattern_type = "Plain", constraints_type = "Plain", numberer_type = "RCM", system_type = "UmfPack", analysis_type = "Static",
         show_plot = True, block = False):
         """
@@ -239,8 +239,8 @@ class Analysis():
         @param pattern_ID (int): ID of the pattern.
         @param Fx (float, optional): The force imposed at the control node CtrlNode. It is used for convergence reasons and it can be arbitrarly small.
             Defaults to 1*kN_unit.
-        @param fiber_ID_analysed (int, optional): The ID of the analysed fiber. If fibers are present in the model and the user wants to save ODB data
-            (to use in the post-processing with for example FiberResponse), assign to this argument the ID of the fiber chosen.
+        @param ele_fiber_ID_analysed (int, optional): The ID of the analysed element with fibers. If fibers are present in the model and the user wants to save ODB data
+            (to use in the post-processing with for example FiberResponse), assign to this argument the ID of the element with fibers chosen.
             -1 will ignore the storage of data for fibers. Defaults to -1.
         @param fiber_section (int, optional): The section number, i.e. the Gauss integratio number.
             If the fiber_ID_analysed is equal to -1, this argument is not used. Defaults to 1.
@@ -262,16 +262,16 @@ class Analysis():
         @exception NegativeValue: The ID of CtrlNode needs to be a positive integer.
         @exception NegativeValue: The ID of timeSeries_ID needs to be a positive integer.
         @exception NegativeValue: The ID of pattern_ID needs to be a positive integer.
-        @exception NegativeValue: The ID of fiber_ID_analysed needs to be a positive integer if is different from -1.
+        @exception NegativeValue: The ID of ele_fiber_ID_analysed needs to be a positive integer if is different from -1.
         """
         if CtrlNode < 1: raise NegativeValue()
         if timeSeries_ID < 1: raise NegativeValue()
         if pattern_ID < 1: raise NegativeValue()
-        if fiber_ID_analysed != -1 and fiber_ID_analysed < 1: raise NegativeValue()
+        if ele_fiber_ID_analysed != -1 and ele_fiber_ID_analysed < 1: raise NegativeValue()
 
         # for mass defined: opsplt.createODB(self.name_ODB, "Pushover", Nmodes = nEigen); 
         opsplt.createODB(self.name_ODB, "Pushover");
-        if fiber_ID_analysed != -1: opsplt.saveFiberData2D(self.name_ODB, "Pushover", fiber_ID_analysed, fiber_section)
+        if ele_fiber_ID_analysed != -1: opsplt.saveFiberData2D(self.name_ODB, "Pushover", ele_fiber_ID_analysed, fiber_section)
 
         # Create load pattern
         timeSeries(timeSeries_type, timeSeries_ID)
@@ -320,7 +320,7 @@ class Analysis():
         timeSeries_type = "Linear", pattern_type = "Plain", constraints_type = "Plain", numberer_type = "RCM", system_type = "UmfPack", analysis_type = "Static",
         show_plot = True, block = False):
         """
-        Method to perform a pushover analysis (displacement-control). If this method is called, the LoadingProtocol and LateralForce methods should be avoided.
+        Method to perform a loading protocol analysis (displacement-control). If this method is called, the Pushover and LateralForce methods should be avoided.
 
         @param CtrlNode (int): The node that will be used to impose the displacement from the discr_LP to perform the analysis.
         @param discr_LP (np.ndarray): The loading protocol array (1 dimension) discretised. It needs to be filled with imposed displacement, not SDR.
@@ -671,7 +671,7 @@ class Analysis():
         """
         Method that shows the final stress response of the fiber section chosen.
         It can also show the animation that shows how the fiber section behaved during the analysis. The fiber ID and section needs to be recorded during the analysis,
-        thus if the method Pushover or LoadingProtocol was used, the same fiber ID and section need to be used. 
+        thus if the method LateralForce, Pushover or LoadingProtocol was used, the same fiber ID and section need to be used. 
 
         @param ele_fiber_ID_analysed (int): The ID of the analysed fiber. If fibers are present in the model and the user wants to save ODB data
             (to use in the post-processing with for example FiberResponse), assign to this argument the ID of the fiber chosen.

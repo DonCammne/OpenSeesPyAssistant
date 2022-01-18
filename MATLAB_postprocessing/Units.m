@@ -1,9 +1,8 @@
-%  Module for units conversion to the default ones (m, N, kg, s)
+%  Module for units conversion to the default ones (m, N, s)
 %    Carmine Schipani, 2021
 
 unit.m = 1;
 unit.N = 1;
-unit.kg = 1;
 unit.s = 1;
 
 % Distance
@@ -54,6 +53,7 @@ unit.kNmm = unit.kN*unit.mm;
 unit.MNmm = unit.MN*unit.mm;
 
 % Mass
+unit.kg = unit.N*unit.s^2/unit.m;
 unit.t = unit.kg*1e3;
 unit.pound = unit.kg*0.45359237;
 
@@ -68,6 +68,3 @@ unit.ksi = unit.psi*1000;
 % Time
 unit.min = unit.s*60;
 unit.hours = unit.min*60;
-
-%TODO: check with Andy
-

@@ -41,7 +41,7 @@ def Pin(NodeRID: int, NodeCID: int):
 
 def RotationalSpring(ElementID: int, NodeRID: int, NodeCID: int, MatID: int, Rigid = False):
     """
-    Function that defines a uniaxial material spring and constrains the translations DOFs of the spring. Can be used also to create rigid connections.
+    Function that defines a zero-length spring and constrains the translations DOFs of the spring. Can be used also to create rigid connections.
 
     @param ElementID (int): ID of the zerolength element that models the spring
     @param NodeRID (int): Node ID which will be retained by the multi-point constraint

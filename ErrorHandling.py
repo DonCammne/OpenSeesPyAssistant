@@ -34,7 +34,7 @@ class InconsistentGeometry(Exception):
     pass
 
 class MemberFailure(Exception):
-    """Exception class for the "memebr failure" error.
+    """Exception class for the "member failure" error.
     """
     pass
 

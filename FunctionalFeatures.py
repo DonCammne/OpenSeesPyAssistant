@@ -37,7 +37,7 @@ def DiscretizeLoadProtocol(SDR_LP: np.ndarray, nr_cycles_LP: np.ndarray, discr_f
 		They needs to be only the positive peaks, beacuse this function will use them as the extreme for each cycle.
 	@param nr_cycles_LP (np.ndarray): Array (1 dimension) that stores the number of cycles for every extreme declared in 'SDR_LP' and its countepart negative.
 		They need to be positive integers.
-	@param discr_first_cycle (int): The number of points from peak to peak (counting the two peaks). It should be odd.
+	@param discr_first_cycle (int): The number of points from peak to peak (counting the two peaks) in the first cycle. It should be odd.
 	@param plot (bool, optional): Option to show the plot of the discretized (and also the original peaks). Defaults to False.
 	@param block (bool, optional): Option to wait the user command 'plt.show()' (avoiding the stop of the program everytime that a plot should pop up). Defaults to False.
 	@param show_original_peaks (bool, optional): Option to show the original peaks to check if the discretized curve is correct.
@@ -159,7 +159,7 @@ def DiscretizeLinearly(LP: np.ndarray, discr: int, plot = False, block = False, 
 def GridIDConvention(pier_axis: int, floor_axis: int, max_pier = -1, max_floor = -1):
 	"""
 	Function used to construct the ID of the nodes in the grid (first nodes that define the geometry of the model).
-	The conventional grid node ID is xy, with x = the pier postion 'pier_axis'; y = the floor postion 'floor_axis'.
+	The conventional grid node ID is xy, with x = the pier position 'pier_axis'; y = the floor position 'floor_axis'.
 
 	@param pier_axis (int): The pier (or x) postion of the node. 
 	@param floor_axis (int): The floor (or y) position of the node.
@@ -295,7 +295,7 @@ def NodesOrientation(iNode_ID: int, jNode_ID: int):
 
 def plot_member(element_array: list, member_name = "Member name not defined", show_element_ID = True, show_node_ID = True):
 	"""
-	Function that plot a set of elements. It can be used to check the correctness of a part of the model or of a emeber.
+	Function that plots a set of elements. It can be used to check the correctness of a part of the model or of a member.
 	If the entire model need to be plotted, use instead 'plot_model("nodes", "elements")' from openseespy.postprocessing.Get_Rendering. \n
     Inspired by plot_model written by Anurag Upadhyay and Christian Slotboom.
 
@@ -357,7 +357,7 @@ def plot_member(element_array: list, member_name = "Member name not defined", sh
 
 def plot_nodes(nodes_array: list, name = "Not defined", show_node_ID = True):
 	"""
-	Function that plot a set of nodes. It can be used to check the correctness of the model's geometry.
+	Function that plots a set of nodes. It can be used to check the correctness of the model's geometry.
 	If the entire model need to be plotted, use instead 'plot_model("nodes", "elements")' from openseespy.postprocessing.Get_Rendering.
 
 	@param nodes_array (list): List of 1 dimension with the IDs of the nodes to be displayed.

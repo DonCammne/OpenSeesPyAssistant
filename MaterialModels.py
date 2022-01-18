@@ -1117,7 +1117,7 @@ class Skiadopoulos2021RCS(Skiadopoulos2021):
 class UnconfMander1988(MaterialModels):
     """
 	Class that stores funcions and material properties of a RC rectangular or circular section
-        with Mander 1988 as the material model for the unconfined reinforced concrete and the OpenSeesPy command type used to model it is Concrete04 and Concrete02.
+        with Mander 1988 as the material model for the unconfined reinforced concrete and the OpenSeesPy command type used to model it is Concrete04 or Concrete01.
     For more information about the empirical model for the computation of the parameters, see Mander et Al. 1988, Karthik and Mander 2011 and SIA 262:2012.
 
     @param MaterialModels: Parent abstract class.
@@ -1245,9 +1245,9 @@ class UnconfMander1988(MaterialModels):
         See parent class MaterialModels for detailed information.
         """
         Check = True
-        if self.fc < -100*MPa_unit:
+        if self.fc < -110*MPa_unit: # Deierlein 1999
             Check = False
-            print("With High Strength concrete (< -100 MPa), a better material model should be used (see Abdesselam et Al. 2019")
+            print("With High Strength concrete (< -110 MPa), a better material model should be used (see Abdesselam et Al. 2019")
         if not Check:
             print("The validity of the equations is not fullfilled.")
             print("!!!!!!! WARNING !!!!!!! Check material model of Unconfined Mander 1988, ID=", self.ID)
@@ -1306,7 +1306,7 @@ class UnconfMander1988(MaterialModels):
 
     def Concrete01(self):
         """
-        Generate the material model Concrete01 concrete material model for unconfined concrete using the computed parameters.
+        Generate the material model Concrete01 for unconfined concrete using the computed parameters.
         See _Concrete01 function for more information. Use this method or Concrete04, not both (only one material model for ID).
         """
         _Concrete01(self.ID, self.ec, self.fc, self.ecu)
@@ -1316,7 +1316,7 @@ class UnconfMander1988(MaterialModels):
 
     def Concrete04(self):
         """
-        Generate the material model Concrete04 Popovics Concrete material model for unconfined concrete (Mander 1988) using the computed parameters.
+        Generate the material model Concrete04 for unconfined concrete (Mander 1988) using the computed parameters.
         See _Concrete04 function for more information. Use this method or Concrete01, not both (only one material model for ID).
         """
         _Concrete04(self.ID, self.fc, self.ec, self.ecu, self.Ec, self.fct, self.et, self.beta)
@@ -1381,7 +1381,7 @@ class UnconfMander1988RCCircShape(UnconfMander1988):
 class ConfMander1988Rect(MaterialModels):
     """
 	Class that stores funcions and material properties of a RC rectangular section
-        with Mander 1988 as the material model for the confined reinforced concrete and the OpenSeesPy command type used to model it is Concrete04 and Concrete02.
+        with Mander 1988 as the material model for the confined reinforced concrete and the OpenSeesPy command type used to model it is Concrete04 or Concrete01.
     For more information about the empirical model for the computation of the parameters, see Mander et Al. 1988, Karthik and Mander 2011 and SIA 262:2012.
     The array array_fl2 and curve curve_fl1 are the parameter of the digitized table used to extrapolate the confinement factor;
         they are used as global throughout the ConfMander1988Rect material model to optimise the program (given the fact that is constant everytime).
@@ -1759,9 +1759,9 @@ class ConfMander1988Rect(MaterialModels):
         See parent class MaterialModels for detailed information.
         """
         Check = True
-        if self.fc < -100*MPa_unit:
+        if self.fc < -110*MPa_unit: # Deierlein 1999
             Check = False
-            print("With High Strength concrete (< -100 MPa), a better material model should be used (see Abdesselam et Al. 2019")
+            print("With High Strength concrete (< -110 MPa), a better material model should be used (see Abdesselam et Al. 2019")
         if not Check:
             print("The validity of the equations is not fullfilled.")
             print("!!!!!!! WARNING !!!!!!! Check material model of Confined Mander 1988, ID=", self.ID)
@@ -1855,7 +1855,7 @@ class ConfMander1988Rect(MaterialModels):
 
     def ComputeConfinementFactor(self):
         """
-        Method that computes the confinement factor using the digitized table from Kanno et Al. 1988 that
+        Method that computes the confinement factor using the digitized table from Mander et Al. 1988 that
             extrapolates the factor using the lateral confining stress in the two direction.
 
         @exception NoApplicability: The table from Mander accept ratio of fl/fc smaller than 0.3.
@@ -1921,7 +1921,7 @@ class ConfMander1988Rect(MaterialModels):
 
     def Concrete01(self):
         """
-        Generate the material model Concrete01 concrete material model for rectangular section confined concrete (Mander 1988).
+        Generate the material model Concrete01 for rectangular section confined concrete (Mander 1988).
         See _Concrete01 function for more information. Use this method or Concrete04, not both (only one material model for ID).
         """
         _Concrete01(self.ID, self.ecc, self.fcc, self.eccu)
@@ -1931,7 +1931,7 @@ class ConfMander1988Rect(MaterialModels):
 
     def Concrete04(self):
         """
-        Generate the material model Concrete04 Popovics Concrete material model for rectangular section confined concrete (Mander 1988).
+        Generate the material model Concrete04 for rectangular section confined concrete (Mander 1988).
         See _Concrete04 function for more information. Use this method or Concrete01, not both (only one material model for ID).
         """
         _Concrete04(self.ID, self.fcc, self.ecc, self.eccu, self.Ec, self.fct, self.et, self.beta)
@@ -1994,7 +1994,7 @@ class ConfMander1988RectRCRectShape(ConfMander1988Rect):
 class ConfMander1988Circ(MaterialModels):
     """
 	Class that stores funcions and material properties of a RC circular section
-        with Mander 1988 as the material model for the confined reinforced concrete and the OpenSeesPy command type used to model it is Concrete04 and Concrete02.
+        with Mander 1988 as the material model for the confined reinforced concrete and the OpenSeesPy command type used to model it is Concrete04 or Concrete01.
     For more information about the empirical model for the computation of the parameters, see Mander et Al. 1988, Karthik and Mander 2011 and SIA 262:2012.
 
     @param MaterialModels: Parent abstract class.
@@ -2185,9 +2185,9 @@ class ConfMander1988Circ(MaterialModels):
         See parent class MaterialModels for detailed information.
         """
         Check = True
-        if self.fc < -100*MPa_unit:
+        if self.fc < -110*MPa_unit: # Deierlein 1999
             Check = False
-            print("With High Strength concrete (< -100 MPa), a better material model should be used (see Abdesselam et Al. 2019")
+            print("With High Strength concrete (< -110 MPa), a better material model should be used (see Abdesselam et Al. 2019")
         if not Check:
             print("The validity of the equations is not fullfilled.")
             print("!!!!!!! WARNING !!!!!!! Check material model of Confined Mander 1988, ID=", self.ID)
@@ -2269,7 +2269,7 @@ class ConfMander1988Circ(MaterialModels):
 
     def Concrete01(self):
         """
-        Generate the material model Concrete01 concrete material model for rectangular section confined concrete (Mander 1988).
+        Generate the material model Concrete01 for rectangular section confined concrete (Mander 1988).
         See _Concrete01 function for more information. Use this method or Concrete04, not both (only one material model for ID).
         """
         _Concrete01(self.ID, self.ecc, self.fcc, self.eccu)
@@ -2279,7 +2279,7 @@ class ConfMander1988Circ(MaterialModels):
 
     def Concrete04(self):
         """
-        Generate the material model Concrete04 Popovics Concrete material model for circular section confined concrete (Mander 1988).
+        Generate the material model Concrete04 for circular section confined concrete (Mander 1988).
         See _Concrete04 function for more information. Use this method or Concrete01, not both (only one material model for ID).
         """
         _Concrete04(self.ID, self.fcc, self.ecc, self.eccu, self.Ec, self.fct, self.et, self.beta)
@@ -2630,7 +2630,7 @@ class UVC(MaterialModels):
     """
 	Class that stores funcions and material properties of a steel profile or reinforcing bar
         with Updated Voce-Chaboche as the material model and the OpenSeesPy command type used to model it is UVCuniaxial.
-    For more information about the empirical model for the computation of the parameters, see
+    For more information about the how to calibrate the set of parameters, see
         de Castro e Sousa, Suzuki and Lignos 2020 and Hartloper, de Castro e Sousa and Lignos 2021.
 
     @param MaterialModels: Parent abstract class.
@@ -2759,7 +2759,7 @@ class UVC(MaterialModels):
 
     def UVCuniaxial(self):
         """
-        Generate the material model UVC, Updated Voce-Chaboche (UVC) material for uniaxial stress states.
+        Generate the material model Updated Voce-Chaboche (UVC) for uniaxial stress states.
         See _UVCuniaxial function for more information.
         """
         _UVCuniaxial(self.ID, self.Ey, self.fy, self.QInf, self.b, self.DInf, self.a, self.N, self.cK, self.gammaK)
@@ -2770,7 +2770,7 @@ class UVC(MaterialModels):
 class UVCCalibrated(UVC):
     """
     Class that is the children of UVC that retrieve calibrated parameters from UVC_calibrated_parameters.txt.
-        TThe file text can be modified by adding more calibrated parameters.  
+        The file text can be modified by adding more calibrated parameters.  
 
     @param UVC: Parent class.
     """
@@ -2825,7 +2825,7 @@ class UVCCalibrated(UVC):
 
 class UVCCalibratedRCRectShape(UVCCalibrated):
     """
-    Class that is the children of UVCCalibrated and combine the class RCRectShape (section) to retrieve the information needed.  
+    Class that is the children of UVCCalibrated and combines the class RCRectShape (section) to retrieve the information needed.  
 
     @param UVCCalibrated: Parent class.
     """
@@ -2960,7 +2960,7 @@ def PlotConcrete04(fc, Ec, ec, ecu, Type: str, ax, ID = 0):
 
 
     ax.plot(x_axis*100.0, y_axis/MPa_unit, 'k-', label = name)
-    ax.set(xlabel='Strain [%]', ylabel='Stress MPa]', 
+    ax.set(xlabel='Strain [%]', ylabel='Stress [MPa]', 
                     title='Mander 1988 (Concrete04) material model (ID={})'.format(ID))
     plt.legend()
     plt.grid()
@@ -3013,7 +3013,7 @@ def PlotConcrete01(fc, ec, fpcu, ecu, ax, ID = 0):
 
 
     ax.plot(x_axis*100.0, y_axis/MPa_unit, 'k--', label = "Co01")
-    ax.set(xlabel='Strain [%]', ylabel='Stress MPa]', 
+    ax.set(xlabel='Strain [%]', ylabel='Stress [MPa]', 
                     title='Mander 1988 (Concrete01) material model (ID={})'.format(ID))
     plt.legend()
     plt.grid()

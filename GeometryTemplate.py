@@ -207,15 +207,15 @@ def DefineFrameNodesAndElementsSteelIShape(n_hor_axis: int, n_vert_axis: int, st
 def DefineSubassemblageNodes(beam_left_L_cl, beam_right_L_cl, col_top_L_cl, col_bottom_L_cl, depth_col, depth_beam,
     boundary_condition = True, show_plot = True):
     """
-    Function that declares and initialises the grid nodes of an interior subassemblage. Option to offset the grid node of the panel zones
-        with the master node of the panel zone being the grid one (top center one).
+    Function that declares and initialises the grid nodes of an interior subassemblage. The panel zone geometry is defined by the two arguments
+        depth_col and depth_beam. 
 
     @param beam_left_L_cl (float): Centerline length of the left beam (excluding the panel zone).
     @param beam_right_L_cl (float): Centerline length of the right beam (excluding the panle zone).
     @param col_top_L_cl (float): Centerline length of the top column (excluding the panel zone).
     @param col_bottom_L_cl (float): Centerline length of the bottom column (excluding the panel zone).
-    @param depth_col (float): Depth of the columns.
-    @param depth_beam (float): Depth of the beams.
+    @param depth_col (float): Depth of the columns for the panel zone.
+    @param depth_beam (float): Depth of the beams for the panel zone.
     @param boundary_condition (bool, optional): Option to set already the boundary condition (bottom column pinned, beams fix only y movement).
         Defaults to True.
     @param show_plot (bool, optional): Option to show the plot of the nodes declared and initialised. Defaults to True.
