@@ -7,6 +7,11 @@ The OpenSeesPyAssistant (OSPA) is a Python-based simulation tools library for 2D
 - [Online Documentaion](https://ospa.karma-riuk.com/namespaces.html)
 - Author: Carmine Schipani
 
+## Requirements
+
+- [openseespy==3.3.0.1.1](https://pypi.org/project/openseespy/3.3.0.1.1/) (newer version removed functions used in the library)
+- [numpy](https://pypi.org/project/numpy/)
+
 ## Features
 
 - Member model:
