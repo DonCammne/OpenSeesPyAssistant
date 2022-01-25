@@ -5,7 +5,6 @@ Carmine Schipani, 2021
 import math
 import numpy as np
 import matplotlib.pyplot as plt
-import openseespy.postprocessing.internal_plotting_functions as ipltf
 from openseespy.opensees import *
 from OpenSeesPyAssistant.ErrorHandling import *
 from OpenSeesPyAssistant.Units import *
@@ -333,7 +332,7 @@ def plot_member(element_array: list, member_name = "Member name not defined", sh
 			# 2D element
 			iNode = np.array(nodeCoord(Nodes[0]))
 			jNode = np.array(nodeCoord(Nodes[1]))
-			ipltf._plotBeam2D(iNode, jNode, ax, show_e_ID, eleTag, "solid")
+			_plotBeam2D(iNode, jNode, ax, show_e_ID, eleTag, "solid")
 			ax.scatter(*iNode, **node_style)
 			ax.scatter(*jNode, **node_style)
 			if show_node_ID:
@@ -407,6 +406,27 @@ def __plt_node(nodeID: int, track_node: dict, NodeXY, ax, node_text_style, x_off
 	if not nodeID in track_node:
 		track_node[nodeID] = True
 		ax.text(NodeXY[0]+x_off, NodeXY[1]+y_off, nodeID,**node_text_style, horizontalalignment=h_align, verticalalignment=v_align)
+
+
+def _plotBeam2D(iNode, jNode, ax, show_element_tags, element, eleStyle):
+	# Private function from openseespy.postprocessing.internal_plotting_functions (from openseespy==3.3.0.1.1).
+    ##procedure to render a 2D two-node element. use eleStyle = "wire" for a wire frame, and "solid" for solid element lines.
+	tempLines, = plt.plot((iNode[0], jNode[0]), (iNode[1], jNode[1]), marker='')
+	ele_style = {'color':'black', 'linewidth':1, 'linestyle':'-'} # elements
+	ele_text_style = {'fontsize':6, 'fontweight':'bold', 'color':'darkred'}
+	WireEle_style = {'color':'black', 'linewidth':1, 'linestyle':':'} # elements
+    
+	if eleStyle == "wire":
+		plt.setp(tempLines,**WireEle_style)
+	else:
+		plt.setp(tempLines,**ele_style)
+
+	tempTag = []
+	if show_element_tags == 'yes':
+		tempTag = ax.text((iNode[0]+jNode[0])/2, (iNode[1]+jNode[1])*1.02/2, 
+							str(element), **ele_text_style) #label elements
+
+	return tempLines, tempTag
 
 
 class IDGenerator():
