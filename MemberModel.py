@@ -906,9 +906,9 @@ class SpringBasedElementModifiedIMKSteelIShape(SpringBasedElement):
         @param section (SteelIShape): SteelIShape section object.
         @param geo_transf_ID (int): A geometric transformation (for more information, see OpenSeesPy documentation).
         @param new_mat_ID_i (int, optional): New ID for the definition of the material model for the spring in the node i.
-            If -1 is passed, the class generate no material model and no spring. If 0 is passed, no i spring. Defaults to -1.
+            If -1 is passed, the class generate a material model and a spring. If 0 is passed, no i spring. Defaults to -1.
         @param new_mat_ID_j (int, optional): New ID for the definition of the material model for the spring in the node j.
-            If -1 is passed, the class generate no material model and no spring. If 0 is passed, no j spring. Defaults to -1.
+            If -1 is passed, the class generate a material model and a spring. If 0 is passed, no j spring. Defaults to -1.
         @param N_G (float, optional): Axial load. Defaults to 0.
         @param L_0 (float, optional): Distance from the maximal moment to zero. Defaults to -1, e.g. computed in __init__().
         @param L_b (float, optional): Maximal unbraced lateral buckling length. Defaults to -1, e.g. computed in __init__().
