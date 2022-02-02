@@ -134,7 +134,6 @@ def DefineFrameNodesAndElementsSteelIShape(n_hor_axis: int, n_vert_axis: int, st
 
     @returns List: List with the element objects in the frame.
     """
-    panel_zone = True
     if np.size(N_G) == 0: N_G = np.zeros(n_vert_axis-1)
     if np.size(t_dp) == 0: t_dp = np.zeros(n_vert_axis-1)
     if np.size(L_b_col) == 0: L_b_col = np.ones(n_vert_axis-1) * (-1.0)
